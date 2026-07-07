@@ -19,6 +19,16 @@ class Product extends Model
         'is_featured',
         'sort_order',
     ];
+    public function restaurant()
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+
+    
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
     protected static function boot()
 {
     parent::boot();
@@ -28,5 +38,6 @@ class Product extends Model
             $product->restaurant_id = auth()->user()->restaurant_id;
         }
     });
+
 }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
 
+
 class RestaurantController extends Controller
 {
     /**
@@ -61,5 +62,46 @@ class RestaurantController extends Controller
     public function destroy(Restaurant $restaurant)
     {
         //
+    }
+    /**
+     * عرض الصفحة الرئيسية للمطعم
+     */
+    public function home($slug)
+    {
+        // تحميل المطعم مع الثيم
+        $restaurant = Restaurant::with('theme')
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        // تحديد مسار الثيم (سنستخدم burger-theme كافتراضي حالياً)
+        $themePath = 'burger-theme';
+
+        return view("themes.{$themePath}.home", compact('restaurant'));
+    }
+
+    /**
+     * عرض قائمة الطعام (سنضيفها في المرحلة 4.2)
+     */
+    public function menu($slug)
+    {
+        $restaurant = Restaurant::with('theme')
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        // تحميل التصنيفات النشطة مع منتجاتها المتاحة
+        $categories = $restaurant->categories()
+            ->where('is_active', true)
+            ->with(['products' => function($query) {
+                $query->where('is_available', true)
+                      ->orderBy('sort_order');
+            }])
+            ->orderBy('sort_order')
+            ->get();
+
+        $themePath = 'burger-theme';
+
+        return view("themes.{$themePath}.menu", compact('restaurant', 'categories'));
     }
 }

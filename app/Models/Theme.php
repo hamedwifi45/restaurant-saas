@@ -16,18 +16,37 @@ class Theme extends Model
         'slug',
         'description',
         'preview_image',
+        'author',
+        'version',
+        'sections',
+        'settings',
         'is_active',
     ];
 
     protected $casts = [
+        'sections' => 'array',
+        'settings' => 'array',
         'is_active' => 'boolean',
     ];
 
-    // Relationships
-    public function restaurants(): HasMany
+    public function restaurants()
     {
         return $this->hasMany(Restaurant::class);
     }
+
+    // الحصول على مسار الثيم
+    public function getViewPath(): string
+    {
+        return "themes.{$this->slug}";
+    }
+
+    // الحصول على الأقسام المتاحة
+    public function getAvailableSections(): array
+    {
+        return $this->sections ?? ['hero', 'menu', 'about', 'contact'];
+    }
+
+    
 
     // Scopes
     public function scopeActive($query)

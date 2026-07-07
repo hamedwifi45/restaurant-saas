@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
@@ -14,10 +15,17 @@ class ProductForm
     {
         return $schema
             ->components([
-                TextInput::make('category_id')
-                    ->label('الفئة')
+                 Select::make('category_id')
+                    ->label('التصنيف')
+                    ->relationship(
+                        name: 'category',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn ($query) => $query->where('restaurant_id', auth()->user()->restaurant_id)
+                    )
                     ->required()
-                    ->numeric(),
+                    ->searchable()
+                    ->preload()
+                    ->columnSpanFull(),
                 TextInput::make('name')
                     ->label('الاسم')
                     ->required(),

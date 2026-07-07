@@ -16,14 +16,17 @@ class ProductsTable
     {
         return $table
             ->columns([
-                TextColumn::make('restaurant_id')
+                TextColumn::make('category.name')
+                    ->label('التصنيف')
+                    ->sortable()
+                    ->searchable(),
+
+                TextColumn::make('restaurant.name')
                     ->label('المطعم')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('category_id')
-                    ->label('الفئة')
-                    ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true), 
+
                 TextColumn::make('name')
                     ->label('الاسم')
                     ->searchable(),

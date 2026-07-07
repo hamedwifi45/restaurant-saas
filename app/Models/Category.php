@@ -15,6 +15,31 @@ class Category extends Model
         'sort_order',
         'is_active',
     ];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'sort_order' => 'integer',
+    ];
+
+    /**
+     * العلاقة مع المطعم
+     */
+    public function restaurant()
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+
+    /**
+     * العلاقة مع المنتجات
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
+     * تعيين المطعم تلقائياً عند الإنشاء
+     */
+    
     protected static function boot()
     {
         parent::boot();
