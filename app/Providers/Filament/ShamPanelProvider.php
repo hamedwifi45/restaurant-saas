@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Resources\Categories\CategoryResource;
+use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Resources\Restaurants\RestaurantResource;
@@ -42,6 +43,7 @@ class ShamPanelProvider extends PanelProvider
                 ProductResource::class,
                 OrderResource::class,
                 ThemeResource::class,
+                InvoiceResource::class
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

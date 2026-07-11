@@ -67,4 +67,22 @@ class Restaurant extends Model
     {
         return $this->subdomain ? "{$this->subdomain}." . config('app.domain') : $this->slug;
     }
+    // العلاقة مع التقييمات
+public function reviews(): HasMany
+{
+    return $this->hasMany(Review::class);
+}
+
+
+// متوسط التقييم
+public function getAverageRatingAttribute(): float
+{
+    return round($this->reviews()->avg('rating') ?? 0, 1);
+}
+
+// عدد التقييمات
+public function getReviewsCountAttribute(): int
+{
+    return $this->reviews()->count();
+}
 }

@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Resources\Categories\CategoryResource;
+use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Products\ProductResource;
 use Filament\Http\Middleware\Authenticate;
@@ -40,6 +41,7 @@ class RestaurantPanelProvider extends PanelProvider
                 CategoryResource::class,
                 ProductResource::class,
                 OrderResource::class,
+                InvoiceResource::class
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

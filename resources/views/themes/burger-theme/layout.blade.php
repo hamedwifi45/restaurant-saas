@@ -8,6 +8,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    {{-- JS --}}
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <!-- Google Fonts: Tajawal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -115,6 +118,9 @@
                     <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">القائمة</a>
                     <a href="#about" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">من نحن</a>
                     <a href="#contact" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">اتصل بنا</a>
+                    <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition">
+                        تتبع الطلب
+                    </a>
                 </nav>
 
                 <!-- Cart & Actions -->
@@ -174,7 +180,7 @@
                                         {{ number_format($total, 2) }} ر.س
                                     </span>
                                 </div>
-                                <a href="{{ route('cart.index') }}" class="block w-full btn-primary text-center py-2 rounded-lg text-sm font-bold hover:shadow-md transition">
+                                <a href="{{ route('cart.index' , $restaurant->slug) }}" class="block w-full btn-primary text-center py-2 rounded-lg text-sm font-bold hover:shadow-md transition">
                                     إتمام الطلب ➔
                                 </a>
                             </div>

@@ -49,7 +49,7 @@
 
                             <!-- التحكم بالكمية -->
                             <div class="flex items-center gap-3">
-                                <form action="{{ route('cart.update') }}" method="POST" class="flex items-center gap-2">
+                                <form action="{{ route('cart.update' , $restaurant->slug) }}" method="POST" class="flex items-center gap-2">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $item['product']->id }}">
                                     <button type="submit" name="quantity" value="{{ max(1, $item['qty'] - 1) }}" 
@@ -61,7 +61,7 @@
                                             class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center font-bold">+</button>
                                 </form>
 
-                                <form action="{{ route('cart.remove') }}" method="POST">
+                                <form action="{{ route('cart.remove' , $restaurant->slug) }}" method="POST">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $item['product']->id }}">
                                     <button type="submit" class="text-red-500 hover:text-red-700 p-2">
@@ -97,7 +97,7 @@
                             </div>
                         </div>
 
-                        <a href="{{ route('checkout') }}" 
+                        <a href="{{ route('checkout' , $restaurant->slug) }}" 
                            class="w-full btn-primary py-4 rounded-xl font-bold text-center block hover:shadow-lg transition">
                             إتمام الطلب
                         </a>

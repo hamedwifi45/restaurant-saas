@@ -5,7 +5,7 @@
     <div class="container mx-auto px-4 max-w-4xl">
         <h1 class="text-4xl font-black text-center mb-12 text-gray-800">إتمام الطلب 📝</h1>
 
-        <form action="{{ route('checkout.store') }}" method="POST" class="bg-white p-8 rounded-2xl shadow-lg">
+        <form action="{{ route('checkout.store' , $slug) }}" method="POST" class="bg-white p-8 rounded-2xl shadow-lg">
             @csrf
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">

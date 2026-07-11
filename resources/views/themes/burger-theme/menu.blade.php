@@ -110,7 +110,7 @@
                                         </div>
 
                                         <!-- زر إضافة للسلة -->
-                                        <form action="{{ route('cart.add') }}" method="POST">
+                                        <form action="{{ route('cart.add' , $restaurant->slug) }}" method="POST">
                                             @csrf
                                             <input type="hidden" name="product_id" value="{{ $product->id }}">
                                             <input type="hidden" name="quantity" value="1">
@@ -136,7 +136,7 @@
     <div class="container mx-auto px-4 text-center">
         <h2 class="text-4xl font-black mb-4">جاهز للطلب؟</h2>
         <p class="text-xl mb-8">أضف أطباقك المفضلة للسلة وأكمل طلبك الآن</p>
-        <a href="{{ route('cart.index') }}" 
+        <a href="{{ route('cart.index' , $restaurant->slug) }}" 
            class="inline-block bg-white text-primary px-8 py-4 rounded-full text-lg font-bold hover:shadow-2xl transition">
             عرض السلة 🛒
         </a>

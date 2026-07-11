@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -28,14 +30,29 @@ class Order extends Model
         'rating',
         'review',
     ];
-    protected static function boot()
-{
-    parent::boot();
+    // العلاقة مع التقييم
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class);
+    }
 
-    static::creating(function ($order) {
-        if (auth()->check() && auth()->user()->restaurant_id) {
-            $order->restaurant_id = auth()->user()->restaurant_id;
-        }
-    });
-}
+    // هل تم تقييم هذا الطلب؟
+    public function getIsReviewedAttribute(): bool
+    {
+        return $this->review()->exists();
+    }
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($order) {
+            if (auth()->check() && auth()->user()->restaurant_id) {
+                $order->restaurant_id = auth()->user()->restaurant_id;
+            }
+        });
+    }
+    public function items(): HasMany
+    {
+    return $this->hasMany(Order_item::class);
+    }
 }
