@@ -30,7 +30,9 @@ class CategoryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'التصنيفات';
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $recordTitleAttribute = 'Category';
 
     public static function form(Schema $schema): Schema
     {

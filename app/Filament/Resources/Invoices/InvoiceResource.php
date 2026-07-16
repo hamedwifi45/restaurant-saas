@@ -51,10 +51,20 @@ class InvoiceResource extends Resource
     }
     public static function getEloquentQuery(): EloquentBuilder
     {
-        if(auth()->user()->hasRole('super-admin')){
-            return parent::getEloquentQuery();
+        $query = parent::getEloquentQuery();
+        
+        $user = auth()->user();
+        
+        // إذا كان Super Admin، يرى كل الفواتير
+        if ($user && $user->role === 'super_admin') {
+            return $query;
         }
-        return parent::getEloquentQuery()
-            ->where('restaurant_id', auth()->user()->restaurant_id);
+        
+        // إذا كان مدير مطعم، يرى فواتير مطعمه فقط
+        if ($user && filled($user->restaurant_id)) {
+            $query->where('restaurant_id', $user->restaurant_id);
+        }
+        
+        return $query;
     }
 }

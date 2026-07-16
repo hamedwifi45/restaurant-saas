@@ -14,12 +14,29 @@ class Restaurant extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'slug', 'subdomain', 'description', 'logo', 'cover_image',
-        'phone', 'email', 'address', 'city', 'delivery_fee', 'estimated_delivery_time',
-        'theme_id', 'primary_color', 'secondary_color', 'background_color',
-        'qr_code_image', 'bank_details',
-        'pricing_type', 'commission_rate', 'subscription_fee',
-        'is_active', 'trial_ends_at'
+        'name',
+        'slug',
+        'subdomain',
+        'description',
+        'logo',
+        'cover_image',
+        'phone',
+        'email',
+        'address',
+        'city',
+        'delivery_fee',
+        'estimated_delivery_time',
+        'theme_id',
+        'primary_color',
+        'secondary_color',
+        'background_color',
+        'qr_code_image',
+        'bank_details',
+        'pricing_type',
+        'commission_rate',
+        'subscription_fee',
+        'is_active',
+        'trial_ends_at'
     ];
 
     protected $casts = [
@@ -62,27 +79,35 @@ class Restaurant extends Model
     {
         return 'slug';
     }
-    
+
     public function getFullSubdomainAttribute(): string
     {
         return $this->subdomain ? "{$this->subdomain}." . config('app.domain') : $this->slug;
     }
     // العلاقة مع التقييمات
-public function reviews(): HasMany
-{
-    return $this->hasMany(Review::class);
-}
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+    public function offers(): HasMany
+    {
+        return $this->hasMany(Offer::class);
+    }
 
+    public function activeOffers(): HasMany
+    {
+        return $this->hasMany(Offer::class)->active();
+    }
 
-// متوسط التقييم
-public function getAverageRatingAttribute(): float
-{
-    return round($this->reviews()->avg('rating') ?? 0, 1);
-}
+    // متوسط التقييم
+    public function getAverageRatingAttribute(): float
+    {
+        return round($this->reviews()->avg('rating') ?? 0, 1);
+    }
 
-// عدد التقييمات
-public function getReviewsCountAttribute(): int
-{
-    return $this->reviews()->count();
-}
+    // عدد التقييمات
+    public function getReviewsCountAttribute(): int
+    {
+        return $this->reviews()->count();
+    }
 }

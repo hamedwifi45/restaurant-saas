@@ -43,11 +43,12 @@ class Category extends Model
     protected static function boot()
     {
         parent::boot();
-
+        if(auth()->check() && auth()->user()->role != 'super_admin' ) {
         static::creating(function ($category) {
             if (auth()->check() && auth()->user()->restaurant_id) {
                 $category->restaurant_id = auth()->user()->restaurant_id;
             }
         });
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Offer;
+use App\Models\Restaurant;
 use Illuminate\Http\Request;
 
 class OfferController extends Controller
@@ -10,9 +11,20 @@ class OfferController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($slug)
     {
-        //
+        $restaurant = Restaurant::where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        // جلب العروض النشطة فقط
+        $offers = $restaurant->activeOffers()
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $themePath = 'burger-theme';
+
+        return view("themes.{$themePath}.offers", compact('restaurant', 'offers'));
     }
 
     /**

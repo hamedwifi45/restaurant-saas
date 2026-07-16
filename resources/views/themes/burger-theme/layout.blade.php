@@ -121,6 +121,9 @@
                     <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition">
                         تتبع الطلب
                     </a>
+                    <a href="{{ route('offers.index', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">
+                        العروض 🔥
+                    </a>
                 </nav>
 
                 <!-- Cart & Actions -->
@@ -201,6 +204,12 @@
                 <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary">الرئيسية</a>
                 <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary">القائمة</a>
                 <a href="#about" class="text-gray-700 font-bold hover:text-primary">من نحن</a>
+                <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary">
+                    تتبع الطلب
+                </a>
+                <a href="{{ route('offers.index', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary">
+                    العروض 🔥
+                </a>
                 <a href="#contact" class="text-gray-700 font-bold hover:text-primary">اتصل بنا</a>
             </div>
         </div>

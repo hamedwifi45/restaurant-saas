@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\ReviewController;
@@ -34,9 +35,14 @@ Route::get('/{slug}/reviews', [ReviewController::class, 'index'])->name('reviews
 Route::get('/{slug}/review/{trackingCode}', [ReviewController::class, 'create'])->name('review.create');
 Route::post('/{slug}/review/{trackingCode}', [ReviewController::class, 'store'])->name('review.store');
 
+// تطبيق العرض (AJAX)
+Route::post('/{slug}/apply-offer', [OrderController::class, 'applyOffer'])->name('offer.apply');
+
 Route::get('/{slug}/product/{id}', [RestaurantController::class, 'showProduct'])->name('product.show');
 // التحقق من رمز التتبع (AJAX)
 Route::post('/review/verify', [ReviewController::class, 'verify'])->name('review.verify');
+
+Route::get('/{slug}/offers', [OfferController::class, 'index'])->name('offers.index');
 
 // إرسال التقييم (AJAX)
 Route::post('/review/store-ajax', [ReviewController::class, 'storeAjax'])->name('review.store.ajax');

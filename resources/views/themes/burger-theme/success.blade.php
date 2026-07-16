@@ -65,7 +65,18 @@
                         </button>
                     </div>
                 </div>
-
+                <!-- معلومات الخصم (إذا تم تطبيقه) -->
+                @if($order->discount_amount > 0)
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                        <div class="flex items-center gap-2 text-green-700">
+                            <span class="text-2xl">🎉</span>
+                            <div>
+                                <p class="font-bold">تم تطبيق خصم خاص!</p>
+                                <p class="text-sm">وفرت {{ number_format($order->discount_amount, 2) }} ر.س</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
                 <!-- معلومات سريعة -->
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-blue-50 p-4 rounded-xl text-center">

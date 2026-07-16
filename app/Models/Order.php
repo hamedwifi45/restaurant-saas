@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -29,13 +30,18 @@ class Order extends Model
         'tracking_code',
         'rating',
         'review',
+        'offer_id',
+        'discount_amount',
     ];
     // العلاقة مع التقييم
     public function review(): HasOne
     {
         return $this->hasOne(Review::class);
     }
-
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class);
+    }
     // هل تم تقييم هذا الطلب؟
     public function getIsReviewedAttribute(): bool
     {
