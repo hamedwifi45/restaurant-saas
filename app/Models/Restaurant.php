@@ -99,6 +99,16 @@ class Restaurant extends Model
         return $this->hasMany(Offer::class)->active();
     }
 
+    public function coupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class);
+    }
+
+    public function activeCoupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class)->active();
+    }
+
     // متوسط التقييم
     public function getAverageRatingAttribute(): float
     {

@@ -18,7 +18,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
-                        <input type="tel" name="phone" required class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <input type="tel" name="phone" id="customer-phone" required class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل</label>
@@ -30,53 +30,86 @@
                 <div class="bg-gray-50 p-6 rounded-xl h-fit">
                     <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">ملخص المبلغ</h3>
                     
+                    @php
+                        $baseSubtotal = $total / 1.15;
+                        $baseTax = $total - $baseSubtotal;
+                        $deliveryFee = $restaurant->delivery_fee ?? 0;
+                        
+                        // حساب خصم العرض التلقائي إن وجد
+                        $activeOffer = $restaurant->activeOffers()
+                            ->where('min_order_amount', '<=', $baseSubtotal)
+                            ->first();
+                            
+                        $autoDiscount = $activeOffer ? $activeOffer->getDiscountAmount($baseSubtotal) : 0;
+                        
+                        // الإجمالي الأولي (قبل تطبيق أي كوبون يدوي)
+                        $initialFinalTotal = $baseSubtotal + $baseTax + $deliveryFee - $autoDiscount;
+                    @endphp
+
                     <div class="space-y-2 mb-4">
                         <div class="flex justify-between">
                             <span>المجموع الفرعي:</span>
-                            <span id="subtotal">{{ number_format($total / 1.15, 2) }} ر.س</span>
+                            <span id="subtotal-display">{{ number_format($baseSubtotal, 2) }} ر.س</span>
                         </div>
                         <div class="flex justify-between">
                             <span>الضريبة (١٥٪):</span>
-                            <span id="tax">{{ number_format($total - ($total / 1.15), 2) }} ر.س</span>
+                            <span id="tax-display">{{ number_format($baseTax, 2) }} ر.س</span>
                         </div>
+                        @if($deliveryFee > 0)
+                        <div class="flex justify-between">
+                            <span>رسوم التوصيل:</span>
+                            <span id="delivery-display">{{ number_format($deliveryFee, 2) }} ر.س</span>
+                        </div>
+                        @endif
                         
-                        <!-- قسم الخصم (يظهر عند تطبيق العرض) -->
-                        <div id="discount-section" class="hidden border-t pt-2 mt-2">
-                            <div class="flex justify-between text-green-600 font-bold">
-                                <span id="discount-label">الخصم:</span>
-                                <span id="discount-amount">- 0.00 ر.س</span>
+                        <!-- قسم العروض التلقائية -->
+                        @if($activeOffer)
+                            <div class="border-t pt-2 mt-2">
+                                <div class="flex justify-between text-green-600 font-bold">
+                                    <span>🎉 عرض خاص ({{ $activeOffer->title }}):</span>
+                                    <span id="offer-discount-display">- {{ number_format($autoDiscount, 2) }} ر.س</span>
+                                </div>
                             </div>
-                            <button type="button" onclick="removeOffer()" class="text-xs text-red-500 hover:underline mt-1">
-                                إزالة الخصم
+                        @endif
+                        
+                        <!-- قسم خصم الكوبون -->
+                        <div id="coupon-section" class="hidden border-t pt-2 mt-2">
+                            <div class="flex justify-between text-blue-600 font-bold">
+                                <span id="coupon-label">🎫 كوبون الخصم:</span>
+                                <span id="coupon-amount">- 0.00 ر.س</span>
+                            </div>
+                            <button type="button" onclick="removeCoupon()" class="text-xs text-red-500 hover:underline mt-1">
+                                إزالة الكوبون
                             </button>
                         </div>
                         
                         <div class="flex justify-between text-xl font-black text-primary mt-4 pt-4 border-t">
                             <span>الإجمالي:</span>
-                            <span id="final-total">{{ number_format($total, 2) }} ر.س</span>
+                            <!-- تم تصحيح القيمة الأولية المعروضة -->
+                            <span id="final-total">{{ number_format($initialFinalTotal, 2) }} ر.س</span>
                         </div>
                     </div>
 
-                    <!-- حقل كود الخصم -->
+                    <!-- حقل كوبون الخصم -->
                     <div class="mt-6 pt-6 border-t">
-                        <label class="block text-sm font-bold text-gray-700 mb-2">هل لديك كود خصم؟</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">هل لديك كوبون خصم؟</label>
                         <div class="flex gap-2">
                             <input 
                                 type="text" 
-                                id="offer-code-input"
+                                id="coupon-code-input"
                                 placeholder="أدخل كود الخصم"
                                 class="flex-1 border-gray-300 rounded-lg focus:ring-primary focus:border-primary uppercase"
                             >
                             <button 
                                 type="button"
-                                onclick="applyOfferCode()"
-                                id="apply-offer-btn"
+                                onclick="applyCouponCode()"
+                                id="apply-coupon-btn"
                                 class="btn-primary px-4 py-2 rounded-lg font-bold hover:shadow-lg transition"
                             >
                                 تطبيق
                             </button>
                         </div>
-                        <p id="offer-message" class="text-sm mt-2 hidden"></p>
+                        <p id="coupon-message" class="text-sm mt-2 hidden"></p>
                     </div>
                 </div>
             </div>
@@ -100,8 +133,12 @@
                 </div>
             </div>
 
-            <!-- حقل مخفي للعرض المختار -->
-            <input type="hidden" name="offer_id" id="selected-offer-id" value="">
+            <!-- حقول مخفية -->
+            @if($activeOffer)
+                <input type="hidden" name="offer_id" value="{{ $activeOffer->id }}">
+            @endif
+            <input type="hidden" name="coupon_id" id="selected-coupon-id" value="">
+            <input type="hidden" name="coupon_code" id="selected-coupon-code" value="">
 
             <button type="submit" class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition">تأكيد الطلب ✅</button>
         </form>
@@ -109,19 +146,24 @@
 </section>
 
 <script>
-    let appliedOfferId = null;
-    let discountAmount = 0;
-    const subtotal = {{ $total / 1.15 }};
-    const tax = {{ $total - ($total / 1.15) }};
+    let appliedCouponId = null;
+    let couponDiscount = 0;
+    
+    // تعريف المتغيرات بدقة من PHP
+    const subtotal = {{ $baseSubtotal }};
+    const tax = {{ $baseTax }};
+    const deliveryFee = {{ $deliveryFee }};
+    const offerDiscount = {{ $autoDiscount }};
 
-    // تطبيق كود الخصم
-    async function applyOfferCode() {
-        const code = document.getElementById('offer-code-input').value.trim();
-        const messageDiv = document.getElementById('offer-message');
-        const applyBtn = document.getElementById('apply-offer-btn');
+    // تطبيق كوبون الخصم
+    async function applyCouponCode() {
+        const code = document.getElementById('coupon-code-input').value.trim();
+        const messageDiv = document.getElementById('coupon-message');
+        const applyBtn = document.getElementById('apply-coupon-btn');
+        const customerPhone = document.getElementById('customer-phone').value;
 
         if (!code) {
-            showMessage('الرجاء إدخال كود الخصم', 'error');
+            showCouponMessage('الرجاء إدخال كود الخصم', 'error');
             return;
         }
 
@@ -129,56 +171,64 @@
         applyBtn.innerHTML = '<span class="animate-spin">⏳</span>';
 
         try {
-            const response = await axios.post('{{ route("offer.apply", $restaurant->slug) }}', {
-                offer_code: code,
-                subtotal: subtotal
+            const response = await axios.post('{{ route("coupon.apply", $restaurant->slug) }}', {
+                coupon_code: code,
+                subtotal: subtotal,
+                customer_phone: customerPhone
             });
 
             if (response.data.success) {
-                appliedOfferId = response.data.offer_id;
-                discountAmount = response.data.discount_amount;
+                appliedCouponId = response.data.coupon_id;
+                couponDiscount = response.data.discount_amount;
 
-                document.getElementById('selected-offer-id').value = response.data.offer_id;
+                document.getElementById('selected-coupon-id').value = response.data.coupon_id;
+                document.getElementById('selected-coupon-code').value = response.data.coupon_code;
                 
                 // عرض الخصم
-                document.getElementById('discount-section').classList.remove('hidden');
-                document.getElementById('discount-label').textContent = response.data.discount_label + ':';
-                document.getElementById('discount-amount').textContent = '- ' + discountAmount.toFixed(2) + ' ر.س';
+                document.getElementById('coupon-section').classList.remove('hidden');
+                document.getElementById('coupon-label').textContent = '🎫 كوبون الخصم (' + response.data.coupon_code + '):';
+                document.getElementById('coupon-amount').textContent = '- ' + couponDiscount.toFixed(2) + ' ر.س';
                 
                 // تحديث الإجمالي
-                const finalTotal = subtotal + tax - discountAmount;
-                document.getElementById('final-total').textContent = finalTotal.toFixed(2) + ' ر.س';
+                updateFinalTotal();
 
-                showMessage(response.data.message, 'success');
+                showCouponMessage(response.data.message, 'success');
             } else {
-                showMessage(response.data.message, 'error');
+                showCouponMessage(response.data.message, 'error');
             }
         } catch (error) {
-            showMessage(error.response?.data?.message || 'حدث خطأ، حاول مرة أخرى', 'error');
+            showCouponMessage(error.response?.data?.message || 'حدث خطأ، حاول مرة أخرى', 'error');
         } finally {
             applyBtn.disabled = false;
             applyBtn.innerHTML = 'تطبيق';
         }
     }
 
-    // إزالة الخصم
-    function removeOffer() {
-        appliedOfferId = null;
-        discountAmount = 0;
+    // إزالة الكوبون
+    function removeCoupon() {
+        appliedCouponId = null;
+        couponDiscount = 0;
         
-        document.getElementById('selected-offer-id').value = '';
-        document.getElementById('discount-section').classList.add('hidden');
-        document.getElementById('offer-code-input').value = '';
-        document.getElementById('offer-message').classList.add('hidden');
+        document.getElementById('selected-coupon-id').value = '';
+        document.getElementById('selected-coupon-code').value = '';
+        document.getElementById('coupon-section').classList.add('hidden');
+        document.getElementById('coupon-code-input').value = '';
+        document.getElementById('coupon-message').classList.add('hidden');
         
-        // إعادة الإجمالي الأصلي
-        const finalTotal = subtotal + tax;
+        // إعادة حساب الإجمالي
+        updateFinalTotal();
+    }
+
+    // ✅ تحديث الإجمالي النهائي (تم تصحيح المعادلة هنا)
+    function updateFinalTotal() {
+        // المعادلة الصحيحة: المجموع + الضريبة + التوصيل - خصم العرض - خصم الكوبون
+        const finalTotal = subtotal + tax + deliveryFee - offerDiscount - couponDiscount;
         document.getElementById('final-total').textContent = finalTotal.toFixed(2) + ' ر.س';
     }
 
-    // عرض الرسائل
-    function showMessage(message, type) {
-        const messageDiv = document.getElementById('offer-message');
+    // عرض رسائل الكوبون
+    function showCouponMessage(message, type) {
+        const messageDiv = document.getElementById('coupon-message');
         messageDiv.textContent = message;
         messageDiv.className = 'text-sm mt-2 ' + (type === 'success' ? 'text-green-600' : 'text-red-600');
         messageDiv.classList.remove('hidden');

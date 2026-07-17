@@ -3,6 +3,7 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PwaController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,16 @@ Route::post('/{slug}/review/{trackingCode}', [ReviewController::class, 'store'])
 
 // تطبيق العرض (AJAX)
 Route::post('/{slug}/apply-offer', [OrderController::class, 'applyOffer'])->name('offer.apply');
+
+// صفحة الفاتورة
+Route::get('/{slug}/invoice/{trackingCode}', [OrderController::class, 'showInvoice'])->name('order.invoice');
+
+// PWA Routes ديناميكية لكل مطعم
+Route::get('/{slug}/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
+Route::get('/{slug}/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
+
+// التحقق من كوبون الخصم (AJAX)
+Route::post('/{slug}/apply-coupon', [OrderController::class, 'applyCoupon'])->name('coupon.apply');
 
 Route::get('/{slug}/product/{id}', [RestaurantController::class, 'showProduct'])->name('product.show');
 // التحقق من رمز التتبع (AJAX)

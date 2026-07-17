@@ -65,6 +65,22 @@
                         </button>
                     </div>
                 </div>
+                <!-- رابط الفاتورة -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-blue-700">
+                            <span class="text-2xl">📄</span>
+                            <div>
+                                <p class="font-bold">فاتورتك جاهزة</p>
+                                <p class="text-sm">يمكنك مراجعة وطباعة فاتورتك في أي وقت</p>
+                            </div>
+                        </div>
+                        <a href="{{ route('order.invoice', [$restaurant->slug, $order->tracking_code]) }}" 
+                        class="btn-primary px-4 py-2 rounded-lg font-bold hover:shadow-lg transition">
+                            عرض الفاتورة
+                        </a>
+                    </div>
+                </div>
                 <!-- معلومات الخصم (إذا تم تطبيقه) -->
                 @if($order->discount_amount > 0)
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">

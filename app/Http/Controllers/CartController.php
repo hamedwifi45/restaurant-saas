@@ -49,23 +49,50 @@ class CartController extends Controller
         $productId = $request->product_id;
         $quantity = $request->quantity;
 
-        // إذا كان المنتج موجوداً مسبقاً نزيد الكمية، وإلا نضيفه كعنصر جديد
         if (isset($cart[$productId])) {
             $cart[$productId]['qty'] += $quantity;
         } else {
-            $cart[$productId] = [
-                "qty" => $quantity
-            ];
+            $cart[$productId] = ["qty" => $quantity];
         }
 
         session(['cart' => $cart]);
 
-        // دعم الطلبات عبر AJAX لإظهار التنبيهات دون إعادة تحميل
-        if ($request->ajax()) {
+        // --- إضافة جديدة: بناء محتوى السلة المصغرة لإرجاعه للواجهة ---
+        $total = 0;
+        $cartHtml = '';
+        $count = 0;
+
+        foreach ($cart as $id => $details) {
+            $product = \App\Models\Product::find($id);
+            if ($product) {
+                $count += $details['qty'];
+                $total += $product->price * $details['qty'];
+                $imageUrl = $product->image ? asset('storage/'.$product->image) : 'https://via.placeholder.com/50';
+                
+                $cartHtml .= '
+                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
+                        <img src="'.$imageUrl.'" class="w-12 h-12 rounded-md object-cover">
+                        <div class="flex-1">
+                            <h4 class="text-sm font-bold text-gray-800 truncate">'.$product->name.'</h4>
+                            <p class="text-xs text-primary font-bold">'.$product->price.' ر.س × '.$details['qty'].'</p>
+                        </div>
+                    </div>
+                ';
+            }
+        }
+
+        if ($count === 0) {
+            $cartHtml = '<div class="text-center py-8 text-gray-400 text-sm">السلة فارغة حالياً 🍽️</div>';
+        }
+        // -------------------------------------------------------------
+
+        if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'تمت إضافة المنتج للسلة بنجاح! 🛒',
-                'count' => count($cart)
+                'count' => $count,
+                'total' => number_format($total, 2),
+                'cart_html' => $cartHtml
             ]);
         }
 

@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Resources\Categories\CategoryResource;
+use App\Filament\Resources\Coupons\CouponResource;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Resources\Offers\OfferResource;
 use App\Filament\Resources\Orders\OrderResource;
@@ -43,7 +44,8 @@ class RestaurantPanelProvider extends PanelProvider
                 ProductResource::class,
                 OrderResource::class,
                 InvoiceResource::class,
-                OfferResource::class
+                OfferResource::class,
+                CouponResource::class,
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

@@ -15,8 +15,13 @@ class Order extends Model
         'customer_name',
         'customer_phone',
         'customer_email',
+        'coupon_id',
+        'coupon_code',
+        'coupon_discount',
         'delivery_type',
         'delivery_address',
+        'final_amount',   
+        'payment_method',
         'delivery_city',
         'delivery_fee',
         'subtotal',
@@ -38,6 +43,10 @@ class Order extends Model
     {
         return $this->hasOne(Review::class);
     }
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
     public function offer(): BelongsTo
     {
         return $this->belongsTo(Offer::class);
@@ -46,6 +55,14 @@ class Order extends Model
     public function getIsReviewedAttribute(): bool
     {
         return $this->review()->exists();
+    }
+    public function restaurant(): BelongsTo
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class);
     }
     protected static function boot()
     {

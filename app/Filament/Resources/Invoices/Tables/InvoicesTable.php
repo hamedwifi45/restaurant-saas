@@ -19,7 +19,10 @@ class InvoicesTable
                     ->sortable(),
                 TextColumn::make('restaurant_id')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(function ($get) {
+                                return auth()->user()->role === 'super_admin';
+                            }),
                 TextColumn::make('invoice_number')
                     ->searchable(),
                 TextColumn::make('subtotal')

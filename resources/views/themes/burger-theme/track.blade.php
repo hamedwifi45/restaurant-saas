@@ -37,7 +37,7 @@
                             <div class="flex flex-col items-center gap-3 relative z-10">
                                 <div
                                     class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 
-                                        {{ $isActive ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                                                {{ $isActive ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
                                     {{ $label['icon'] }}
                                 </div>
                                 <span
@@ -85,24 +85,49 @@
                         <h3 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
                             <span class="text-primary">💳</span> ملخص الفاتورة
                         </h3>
+
+                        @php
+                            // حساب الضريبة من المجموع الفرعي
+                            $taxAmount = $order->total_amount * 0.15;
+                            $deliveryFee = $order->delivery_fee ?? 0;
+                            $discount = $order->discount ?? 0;
+                        @endphp
+
                         <div class="space-y-3">
                             <div class="flex justify-between text-gray-600">
                                 <span>المجموع الفرعي:</span>
                                 <span>{{ number_format($order->total_amount, 2) }} ر.س</span>
                             </div>
+
                             <div class="flex justify-between text-gray-600">
                                 <span>الضريبة (١٥٪):</span>
-                                <span>{{ number_format($order->final_amount - $order->total_amount, 2) }} ر.س</span>
+                                <span>{{ number_format($taxAmount, 2) }} ر.س</span>
                             </div>
+
+                            @if($deliveryFee > 0)
+                                <div class="flex justify-between text-gray-600">
+                                    <span>رسوم التوصيل:</span>
+                                    <span>{{ number_format($deliveryFee, 2) }} ر.س</span>
+                                </div>
+                            @endif
+
+                            @if($discount > 0)
+                                <div class="flex justify-between text-green-600 font-bold">
+                                    <span>الخصم:</span>
+                                    <span>- {{ number_format($discount, 2) }} ر.س</span>
+                                </div>
+                            @endif
+
                             <div class="flex justify-between text-gray-600">
                                 <span>طريقة الدفع:</span>
                                 <span
                                     class="font-bold">{{ $order->payment_method === 'cash' ? 'نقدي عند الاستلام' : 'تحويل بنكي' }}</span>
                             </div>
+
                             <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
                                 <span class="font-black text-gray-800">الإجمالي النهائي:</span>
                                 <span class="text-2xl font-black text-primary">{{ number_format($order->final_amount, 2) }}
-                                    ر.س</span>
+                                    ل.س</span>
                             </div>
                         </div>
                     </div>
@@ -110,44 +135,51 @@
             </div>
 
             <!-- قائمة المنتجات المطلوبة -->
-<div class="bg-white rounded-3xl shadow-lg p-8 mb-8">
-    <h3 class="font-black text-2xl mb-8 text-gray-800 border-b pb-4">محتويات الطلب</h3>
-    <div class="space-y-6">
-        @foreach($order->items as $item)
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b last:border-0 last:pb-0">
-                <div class="flex items-center gap-4">
-                    @if($item->product && $item->product->image)
-                        <img src="{{ asset('storage/' . $item->product->image) }}" 
-                             alt="{{ $item->product->name }}"
-                             class="w-16 h-16 rounded-2xl object-cover border border-orange-100">
-                    @else
-                        <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">
-                            🍔
+            <div class="bg-white rounded-3xl shadow-lg p-8 mb-8">
+                <h3 class="font-black text-2xl mb-8 text-gray-800 border-b pb-4">محتويات الطلب</h3>
+                <div class="space-y-6">
+                    @foreach($order->items as $item)
+                        <div
+                            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b last:border-0 last:pb-0">
+                            <div class="flex items-center gap-4">
+                                @if($item->product && $item->product->image)
+                                    <img src="{{ asset('storage/' . $item->product->image) }}" alt="{{ $item->product->name }}"
+                                        class="w-16 h-16 rounded-2xl object-cover border border-orange-100">
+                                @else
+                                    <div
+                                        class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">
+                                        🍔
+                                    </div>
+                                @endif
+
+                                <div>
+                                    @if($item->product)
+                                        <h4 class="font-bold text-lg text-gray-800">{{ $item->product->name }}</h4>
+                                        <p class="text-sm text-gray-500">
+                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س
+                                        </p>
+
+                                        <!-- زر عرض المنتج -->
+                                        <a href="{{ route('product.show', [$restaurant->slug, $item->product->id]) }}"
+                                            class="inline-block mt-2 text-sm text-primary hover:underline font-bold">
+                                            عرض المنتج ←
+                                        </a>
+                                    @else
+                                        <h4 class="font-bold text-lg text-gray-800">منتج محذوف</h4>
+                                        <p class="text-sm text-gray-500">
+                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س
+                                        </p>
+                                        <p class="text-xs text-red-500 mt-1">هذا المنتج لم يعد متاحاً</p>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- ✅ التصحيح: استخدام total بدلاً من subtotal -->
+                            <span class="font-black text-xl text-gray-800">{{ number_format($item->total, 2) }} ر.س</span>
                         </div>
-                    @endif
-                    
-                    <div>
-                        @if($item->product)
-                            <h4 class="font-bold text-lg text-gray-800">{{ $item->product->name }}</h4>
-                            <p class="text-sm text-gray-500">الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س</p>
-                            
-                            <!-- زر عرض المنتج -->
-                            <a href="{{ route('product.show', [$restaurant->slug, $item->product->id]) }}" 
-                               class="inline-block mt-2 text-sm text-primary hover:underline font-bold">
-                                عرض المنتج ←
-                            </a>
-                        @else
-                            <h4 class="font-bold text-lg text-gray-800">منتج محذوف</h4>
-                            <p class="text-sm text-gray-500">الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س</p>
-                            <p class="text-xs text-red-500 mt-1">هذا المنتج لم يعد متاحاً</p>
-                        @endif
-                    </div>
+                    @endforeach
                 </div>
-                <span class="font-black text-xl text-gray-800">{{ number_format($item->subtotal, 2) }} ر.س</span>
             </div>
-        @endforeach
-    </div>
-</div>
 
             <!-- QR Code للتتبع السريع -->
             <div class="bg-white rounded-3xl shadow-lg p-8 mb-8 text-center">
@@ -175,14 +207,13 @@
             </div>
             <!-- زر التقييم (يظهر فقط إذا كان الطلب مكتمل ولم يتم تقييمه) -->
             @if($order->status === 'delivered' && !$order->is_reviewed && $order->delivered_at && $order->delivered_at->diffInMinutes(now()) >= 10)
-                <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl shadow-lg p-8 mb-8 text-center border-2 border-yellow-200">
+                <div
+                    class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl shadow-lg p-8 mb-8 text-center border-2 border-yellow-200">
                     <div class="text-5xl mb-4">⭐</div>
                     <h3 class="text-2xl font-black text-gray-800 mb-2">كيف كانت تجربتك؟</h3>
                     <p class="text-gray-600 mb-6">شاركنا رأيك لنساعدنا على التحسين</p>
-                    <a 
-                        href="{{ route('review.create', [$restaurant->slug, $order->tracking_code]) }}"
-                        class="btn-primary px-8 py-3 rounded-xl font-bold inline-block hover:shadow-xl transition"
-                    >
+                    <a href="{{ route('review.create', [$restaurant->slug, $order->tracking_code]) }}"
+                        class="btn-primary px-8 py-3 rounded-xl font-bold inline-block hover:shadow-xl transition">
                         قيّم تجربتك الآن
                     </a>
                 </div>

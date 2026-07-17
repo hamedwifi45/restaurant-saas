@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Coupon;
 use App\Models\Offer;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -11,6 +12,7 @@ use App\Models\Restaurant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
+
 class OrderController extends Controller
 {
     public function track($slug, $code)
@@ -19,6 +21,21 @@ class OrderController extends Controller
         $order = Order::where('tracking_code', $code)->firstOrFail();
 
         return view('themes.burger-theme.track', compact('restaurant', 'order'));
+    }
+
+    /**
+     * عرض الفاتورة التفصيلية للطلب
+     */
+    public function showInvoice($slug, $trackingCode)
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+
+        $order = Order::where('tracking_code', $trackingCode)
+            ->where('restaurant_id', $restaurant->id)
+            ->with(['items.product', 'offer', 'coupon', 'invoice'])
+            ->firstOrFail();
+
+        return view('themes.burger-theme.invoice', compact('restaurant', 'order'));
     }
     public function checkout($slug)
     {
@@ -49,119 +66,188 @@ class OrderController extends Controller
      * حفظ الطلب الجديد
      */
     public function store(Request $request, $slug)
-{
-    $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-    // ✅ تمت إضافة offer_id للتحقق من صحته
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'phone' => 'required|string|max:20',
-        'address' => 'required|string',
-        'payment_method' => 'required|in:cash,transfer',
-        'notes' => 'nullable|string',
-        'offer_id' => 'nullable|exists:offers,id', // <-- إضافة جديدة
-    ]);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:20',
+            'address' => 'required|string',
+            'payment_method' => 'required|in:cash,transfer',
+            'notes' => 'nullable|string',
+            'offer_id' => 'nullable|exists:offers,id',
+            'coupon_id' => 'nullable|exists:coupons,id',
+            'coupon_code' => 'nullable|string',
+        ]);
 
-    $cart = session('cart', []);
-    if (empty($cart)) {
-        return redirect()->back()->with('error', 'لا يمكن إتمام طلب فارغ');
-    }
-
-    $subtotal = 0;
-    $itemsData = [];
-
-    // تجهيز بيانات العناصر وحساب المجموع
-    foreach ($cart as $id => $details) {
-        $product = Product::find($id);
-        if ($product) {
-            $subtotal += $product->price * $details['qty'];
-            $itemsData[] = [
-                'product_id' => $id,
-                'quantity' => $details['qty'],
-                'price' => $product->price,
-                'subtotal' => $product->price * $details['qty']
-            ];
+        $cart = session('cart', []);
+        if (empty($cart)) {
+            return redirect()->back()->with('error', 'لا يمكن إتمام طلب فارغ');
         }
+
+        $subtotal = 0;
+        $itemsData = [];
+
+        foreach ($cart as $id => $details) {
+            $product = Product::find($id);
+            if ($product) {
+                $subtotal += $product->price * $details['qty'];
+                $itemsData[] = [
+                    'product_id' => $id,
+                    'quantity' => $details['qty'],
+                    'price' => $product->price,
+                    'subtotal' => $product->price * $details['qty']
+                ];
+            }
+        }
+
+        // حساب خصم العرض (تلقائي)
+        $offerDiscount = 0;
+        $appliedOfferId = null;
+
+        if ($request->offer_id) {
+            $offer = Offer::where('id', $request->offer_id)
+                ->where('restaurant_id', $restaurant->id)
+                ->first();
+
+            if ($offer && $offer->isCurrentlyActive() && $subtotal >= $offer->min_order_amount) {
+                $offerDiscount = $offer->getDiscountAmount($subtotal);
+                $appliedOfferId = $offer->id;
+                $offer->incrementUsage();
+            }
+        }
+
+        // حساب خصم الكوبون (يدوي)
+        $couponDiscount = 0;
+        $appliedCouponId = null;
+        $appliedCouponCode = null;
+
+        if ($request->coupon_id) {
+            $coupon = Coupon::where('id', $request->coupon_id)
+                ->where('restaurant_id', $restaurant->id)
+                ->first();
+
+            if ($coupon && $coupon->isCurrentlyActive()) {
+                $validation = $coupon->isValidFor($subtotal, $request->phone);
+
+                if ($validation['valid']) {
+                    $couponDiscount = $coupon->getDiscountAmount($subtotal);
+                    $appliedCouponId = $coupon->id;
+                    $appliedCouponCode = $request->coupon_code;
+                    $coupon->incrementUsage();
+                }
+            }
+        }
+
+        $tax = $subtotal * 0.15;
+        $deliveryFee = $restaurant->delivery_fee ?? 0;
+        $totalDiscount = $offerDiscount + $couponDiscount;
+        $finalAmount = $subtotal + $tax + $deliveryFee - $totalDiscount;
+
+        // إنشاء سجل الطلب
+        $order = Order::create([
+            'restaurant_id' => $restaurant->id,
+            'customer_name' => $request->name,
+            'customer_phone' => $request->phone,
+            'delivery_address' => $request->address,
+            'delivery_type' => 'delivery',
+            'delivery_city' => $restaurant->city,
+            'delivery_fee' => $deliveryFee,
+            'subtotal' => $subtotal,
+            'discount' => $offerDiscount, // خصم العرض
+            'coupon_discount' => $couponDiscount, // خصم الكوبون
+            'offer_id' => $appliedOfferId,
+            'coupon_id' => $appliedCouponId,
+            'coupon_code' => $appliedCouponCode,
+            'total_amount' => $subtotal,
+            'final_amount' => $finalAmount,
+            'payment_method' => $request->payment_method,
+            'payment_status' => 'pending',
+            'notes' => $request->notes,
+            'status' => 'pending',
+            'tracking_code' => 'ORD-' . strtoupper(Str::random(6)),
+        ]);
+
+        // حفظ عناصر الطلب
+        foreach ($itemsData as $item) {
+            $product = Product::find($item['product_id']);
+
+            Order_item::create([
+                'order_id' => $order->id,
+                'product_id' => $item['product_id'],
+                'product_name' => $product->name,
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total' => $item['subtotal'],
+            ]);
+        }
+
+        // إنشاء فاتورة
+        $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($order->id, 6, '0', STR_PAD_LEFT);
+
+        Invoice::create([
+            'order_id' => $order->id,
+            'restaurant_id' => $order->restaurant_id,
+            'invoice_number' => $invoiceNumber,
+            'subtotal' => $subtotal,
+            'tax_amount' => $tax,
+            'total_amount' => $finalAmount,
+            'status' => 'pending',
+        ]);
+
+        session()->forget('cart');
+
+        return redirect()->route('order.success', [$slug, $order->tracking_code]);
     }
+    /**
+     * التحقق من كوبون الخصم (AJAX)
+     */
+    public function applyCoupon(Request $request, $slug)
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-    // ✅ منطق حساب الخصم بناءً على العرض المختار
-    $discount = 0;
-    $appliedOfferId = null;
+        $request->validate([
+            'coupon_code' => 'required|string',
+            'subtotal' => 'required|numeric|min:0',
+            'customer_phone' => 'nullable|string',
+        ]);
 
-    if ($request->offer_id) {
-        $offer = Offer::where('id', $request->offer_id)
-            ->where('restaurant_id', $restaurant->id)
+        $couponCode = strtoupper(trim($request->coupon_code));
+
+        // البحث عن الكوبون
+        $coupon = Coupon::where('restaurant_id', $restaurant->id)
+            ->where('code', $couponCode)
             ->first();
 
-        // التحقق من أن العرض نشط ويحقق الحد الأدنى للطلب
-        if ($offer && $offer->isCurrentlyActive() && $subtotal >= $offer->min_order_amount) {
-            $discount = $offer->getDiscountAmount($subtotal);
-            $appliedOfferId = $offer->id;
-            
-            // زيادة عدد مرات استخدام العرض
-            $offer->incrementUsage();
+        if (!$coupon) {
+            return response()->json([
+                'success' => false,
+                'message' => 'كود الخصم غير صحيح'
+            ]);
         }
-    }
 
-    $tax = $subtotal * 0.15;
-    $deliveryFee = $restaurant->delivery_fee ?? 0;
-    
-    // ✅ المعادلة النهائية تشمل الخصم المحسوب ديناميكياً
-    $finalAmount = $subtotal + $tax + $deliveryFee - $discount;
+        // التحقق من الصلاحية
+        $validation = $coupon->isValidFor($request->subtotal, $request->customer_phone);
 
-    // إنشاء سجل الطلب الرئيسي
-    $order = Order::create([
-        'restaurant_id' => $restaurant->id,
-        'customer_name' => $request->name,
-        'customer_phone' => $request->phone,
-        'delivery_address' => $request->address,
-        'delivery_type' => 'delivery', 
-        'delivery_city' => $restaurant->city,
-        'delivery_fee' => $deliveryFee,
-        'subtotal' => $subtotal,
-        'discount' => $discount, // ✅ تم حفظ قيمة الخصم
-        'offer_id' => $appliedOfferId, // ✅ تم حفظ معرف العرض المطبق
-        'total_amount' => $subtotal,
-        'final_amount' => $finalAmount,
-        'payment_method' => $request->payment_method,
-        'payment_status' => 'pending',
-        'notes' => $request->notes,
-        'status' => 'pending',
-        'tracking_code' => 'ORD-' . strtoupper(Str::random(6)),
-    ]);
+        if (!$validation['valid']) {
+            return response()->json([
+                'success' => false,
+                'message' => $validation['message']
+            ]);
+        }
 
-    // حفظ عناصر الطلب في جدول order_items (كودك الممتاز)
-    foreach ($itemsData as $item) {
-        $product = Product::find($item['product_id']);
+        // حساب مبلغ الخصم
+        $discountAmount = $coupon->getDiscountAmount($request->subtotal);
 
-        Order_item::create([
-            'order_id' => $order->id,
-            'product_id' => $item['product_id'],
-            'product_name' => $product->name,
-            'quantity' => $item['quantity'],
-            'price' => $item['price'],
-            'total' => $item['subtotal'],
+        return response()->json([
+            'success' => true,
+            'coupon_id' => $coupon->id,
+            'coupon_code' => $coupon->code,
+            'discount_label' => $coupon->getDiscountLabel(),
+            'discount_amount' => $discountAmount,
+            'message' => 'تم تطبيق الكوبون بنجاح!'
         ]);
     }
-
-    // إنشاء فاتورة تلقائية (كودك الممتاز)
-    $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($order->id, 6, '0', STR_PAD_LEFT);
-
-    Invoice::create([
-        'order_id' => $order->id,
-        'restaurant_id' => $order->restaurant_id,
-        'invoice_number' => $invoiceNumber,
-        'subtotal' => $subtotal,
-        'tax_amount' => $tax,
-        'total_amount' => $finalAmount, // الفاتورة تعكس المبلغ النهائي بعد الخصم
-        'status' => 'pending',
-    ]);
-
-    // تفريغ السلة بعد نجاح الطلب
-    session()->forget('cart');
-
-    return redirect()->route('order.success', [$slug, $order->tracking_code]);
-}
     /**
      * التحقق من كود الخصم (AJAX)
      */
