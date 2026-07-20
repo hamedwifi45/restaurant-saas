@@ -1,0 +1,461 @@
+/* ========================================================================
+   🎨 FILAMENT V5 ULTIMATE CUSTOM THEME
+   الهوية البصرية المتقدمة لمنصة المطاعم
+   ======================================================================== */
+
+/* ------------------------------------------------------------------------
+   1. المتغيرات الجذرية (Root Variables)
+   ------------------------------------------------------------------------ */
+:root {
+    --brand-primary: #FF6B35;
+    --brand-primary-hover: #E55A2B;
+    --brand-primary-light: rgba(255, 107, 53, 0.08);
+    --brand-primary-glow: rgba(255, 107, 53, 0.4);
+    --brand-dark: #0F172A;
+    --brand-sidebar: #111827;
+    --brand-surface: #FFFFFF;
+    --brand-background: #F8FAFC;
+    --brand-success: #10B981;
+    --brand-danger: #EF4444;
+    --brand-warning: #F59E0B;
+    --brand-info: #3B82F6;
+    --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-glow: 0 0 20px var(--brand-primary-glow);
+}
+
+/* ------------------------------------------------------------------------
+   2. الأنيميشن الرئيسية (Keyframes)
+   ------------------------------------------------------------------------ */
+@keyframes dramaticFadeInUp {
+    0% { opacity: 0; transform: translateY(40px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideInFromRight {
+    0% { opacity: 0; transform: translateX(50px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleInBounce {
+    0% { opacity: 0; transform: scale(0.9); }
+    70% { transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
+    100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(255, 107, 53, 0); }
+}
+
+/* ------------------------------------------------------------------------
+   3. الهيكل العام والصفحات (Layout & Pages)
+   ------------------------------------------------------------------------ */
+body {
+    background-color: var(--brand-background) !important;
+    color: #334155 !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.fi-main {
+    animation: dramaticFadeInUp 0.6s var(--transition-bounce) forwards !important;
+    padding-top: 1rem !important;
+}
+
+.fi-topbar {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(12px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(255, 107, 53, 0.1) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: var(--transition-smooth);
+}
+
+/* ------------------------------------------------------------------------
+   4. الشريط الجانبي (Sidebar) - فخامة داكنة
+   ------------------------------------------------------------------------ */
+.fi-sidebar {
+    background: linear-gradient(180deg, var(--brand-sidebar) 0%, #1E293B 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2) !important;
+}
+
+.fi-sidebar-item {
+    border-radius: 10px !important;
+    margin: 4px 12px !important;
+    transition: var(--transition-smooth) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.fi-sidebar-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: var(--brand-primary);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+    border-radius: 0 4px 4px 0;
+}
+
+.fi-sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    transform: translateX(6px) !important;
+}
+
+.fi-sidebar-item:hover::before {
+    transform: scaleY(1);
+}
+
+.fi-sidebar-item.fi-active {
+    background: linear-gradient(90deg, rgba(255, 107, 53, 0.15) 0%, rgba(255, 107, 53, 0.02) 100%) !important;
+    color: var(--brand-primary) !important;
+    font-weight: 700 !important;
+}
+
+.fi-sidebar-item.fi-active::before {
+    transform: scaleY(1);
+    box-shadow: 0 0 10px var(--brand-primary-glow);
+}
+
+.fi-sidebar-item-label {
+    transition: var(--transition-smooth);
+}
+
+/* ------------------------------------------------------------------------
+   5. الأزرار والإجراءات (Buttons & Actions)
+   ------------------------------------------------------------------------ */
+.fi-btn {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+    transition: var(--transition-bounce) !important;
+    position: relative;
+    overflow: hidden;
+    border: none !important;
+}
+
+.fi-btn.fi-color-primary {
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%) !important;
+    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3) !important;
+}
+
+.fi-btn.fi-color-primary::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: 0.5s;
+}
+
+.fi-btn.fi-color-primary:hover {
+    transform: translateY(-3px) scale(1.02) !important;
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.5) !important;
+}
+
+.fi-btn.fi-color-primary:hover::after {
+    left: 100%;
+}
+
+.fi-btn:active {
+    transform: translateY(-1px) scale(0.98) !important;
+}
+
+.fi-btn.fi-color-secondary {
+    background: #F1F5F9 !important;
+    color: #475569 !important;
+}
+
+.fi-btn.fi-color-secondary:hover {
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
+    transform: translateY(-2px) !important;
+}
+
+/* ------------------------------------------------------------------------
+   6. النماذج وحقول الإدخال (Forms & Inputs)
+   ------------------------------------------------------------------------ */
+.fi-fo-input, .fi-fo-select, .fi-fo-textarea {
+    border-radius: 10px !important;
+    border: 1.5px solid #E2E8F0 !important;
+    background: #FFFFFF !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.fi-fo-input:focus, .fi-fo-select:focus, .fi-fo-textarea:focus {
+    border-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 4px var(--brand-primary-light) !important;
+    transform: translateY(-1px);
+}
+
+.fi-fo-field-wrapper {
+    animation: slideInFromRight 0.4s ease-out forwards;
+    opacity: 0;
+}
+
+/* تأخير متتابع لحقول النموذج */
+.fi-fo-field-wrapper:nth-child(1) { animation-delay: 0.05s; }
+.fi-fo-field-wrapper:nth-child(2) { animation-delay: 0.1s; }
+.fi-fo-field-wrapper:nth-child(3) { animation-delay: 0.15s; }
+.fi-fo-field-wrapper:nth-child(4) { animation-delay: 0.2s; }
+.fi-fo-field-wrapper:nth-child(5) { animation-delay: 0.25s; }
+
+/* ------------------------------------------------------------------------
+   7. جداول البيانات (Data Tables) - قلب النظام
+   ------------------------------------------------------------------------ */
+.fi-ta-table {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    background: #FFFFFF !important;
+}
+
+.fi-ta-header {
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
+    border-bottom: 2px solid var(--brand-primary-light) !important;
+}
+
+.fi-ta-header-cell {
+    color: #475569 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.05em;
+}
+
+.fi-ta-row {
+    transition: var(--transition-smooth) !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+    animation: slideInFromRight 0.4s ease-out forwards !important;
+    opacity: 0;
+}
+
+.fi-ta-row:nth-child(1) { animation-delay: 0.05s; }
+.fi-ta-row:nth-child(2) { animation-delay: 0.1s; }
+.fi-ta-row:nth-child(3) { animation-delay: 0.15s; }
+.fi-ta-row:nth-child(4) { animation-delay: 0.2s; }
+.fi-ta-row:nth-child(5) { animation-delay: 0.25s; }
+.fi-ta-row:nth-child(6) { animation-delay: 0.3s; }
+.fi-ta-row:nth-child(7) { animation-delay: 0.35s; }
+.fi-ta-row:nth-child(8) { animation-delay: 0.4s; }
+
+.fi-ta-row:hover {
+    background: var(--brand-primary-light) !important;
+    transform: scale(1.005);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    position: relative;
+}
+
+.fi-ta-cell {
+    padding: 1rem 1.5rem !important;
+    transition: var(--transition-smooth);
+}
+
+/* ------------------------------------------------------------------------
+   8. الودجت والإحصائيات (Widgets & Stats)
+   ------------------------------------------------------------------------ */
+.fi-wi-stats-overview-stat {
+    background: #FFFFFF !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(226, 232, 240, 0.6) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: var(--transition-bounce) !important;
+    animation: scaleInBounce 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+.fi-wi-stats-overview-stat:nth-child(1) { animation-delay: 0.1s; }
+.fi-wi-stats-overview-stat:nth-child(2) { animation-delay: 0.2s; }
+.fi-wi-stats-overview-stat:nth-child(3) { animation-delay: 0.3s; }
+.fi-wi-stats-overview-stat:nth-child(4) { animation-delay: 0.4s; }
+
+.fi-wi-stats-overview-stat:hover {
+    transform: translateY(-8px) scale(1.02) !important;
+    box-shadow: 0 20px 40px -10px rgba(255, 107, 53, 0.25) !important;
+    border-color: var(--brand-primary) !important;
+}
+
+.fi-wi-stats-overview-stat-value {
+    background: linear-gradient(135deg, var(--brand-dark) 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800 !important;
+}
+
+/* ------------------------------------------------------------------------
+   9. النوافذ المنبثقة والإشعارات (Modals & Notifications)
+   ------------------------------------------------------------------------ */
+.fi-modal-overlay {
+    backdrop-filter: blur(8px) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+}
+
+.fi-modal-window {
+    border-radius: 20px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    animation: scaleInBounce 0.3s ease-out forwards !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fi-notification {
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2) !important;
+    animation: slideInFromRight 0.4s var(--transition-bounce) forwards !important;
+    border-left: 4px solid var(--brand-primary) !important;
+}
+
+.fi-notification.fi-color-success { border-left-color: var(--brand-success) !important; }
+.fi-notification.fi-color-danger { border-left-color: var(--brand-danger) !important; }
+.fi-notification.fi-color-warning { border-left-color: var(--brand-warning) !important; }
+
+/* ------------------------------------------------------------------------
+   10. الشارات والعلامات (Badges & Tags)
+   ------------------------------------------------------------------------ */
+.fi-badge {
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+    padding: 0.25em 0.75em !important;
+    transition: var(--transition-smooth);
+}
+
+.fi-badge:hover {
+    transform: scale(1.1);
+}
+
+/* ------------------------------------------------------------------------
+   11. التبديلات والخانات (Toggles & Checkboxes)
+   ------------------------------------------------------------------------ */
+.fi-fo-toggle .fi-fo-toggle-handle {
+    transition: var(--transition-bounce);
+}
+
+.fi-fo-toggle.fi-fo-toggle-on .fi-fo-toggle-handle {
+    background: var(--brand-primary) !important;
+    box-shadow: 0 0 10px var(--brand-primary-glow);
+}
+
+/* ------------------------------------------------------------------------
+   12. التمرير المخصص (Custom Scrollbar)
+   ------------------------------------------------------------------------ */
+::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: #F1F5F9 !important;
+    border-radius: 10px !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%) !important;
+    border-radius: 10px !important;
+    border: 2px solid #F1F5F9 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-primary-hover) !important;
+}
+
+/* ------------------------------------------------------------------------
+   13. تحديد النص (Text Selection)
+   ------------------------------------------------------------------------ */
+::selection {
+    background: var(--brand-primary) !important;
+    color: #FFFFFF !important;
+}
+
+::-moz-selection {
+    background: var(--brand-primary) !important;
+    color: #FFFFFF !important;
+}
+
+/* ------------------------------------------------------------------------
+   14. تحسينات إضافية للصفحات (Page Specific Enhancements)
+   ------------------------------------------------------------------------ */
+.fi-header-heading {
+    font-weight: 800 !important;
+    color: var(--brand-dark) !important;
+    letter-spacing: -0.02em;
+}
+
+.fi-header-description {
+    color: #64748B !important;
+    font-size: 1.05rem !important;
+}
+
+.fi-pagination {
+    background: transparent !important;
+    border: none !important;
+}
+
+.fi-pagination-item {
+    border-radius: 8px !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.fi-pagination-item:hover {
+    background: var(--brand-primary-light) !important;
+    color: var(--brand-primary) !important;
+}
+
+.fi-pagination-item.fi-active {
+    background: var(--brand-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px var(--brand-primary-glow);
+}
+
+/* ------------------------------------------------------------------------
+   15. وضع التحميل (Loading States)
+   ------------------------------------------------------------------------ */
+.fi-loading {
+    color: var(--brand-primary) !important;
+}
+
+.fi-loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------------------
+   16. بطاقات الإجراءات السريعة (Action Cards)
+   ------------------------------------------------------------------------ */
+.fi-wi-stats-overview-stat-ctn {
+    gap: 1.5rem !important;
+}
+
+/* تأثير لمعان خفيف على البطاقات النشطة */
+.fi-sidebar-item.fi-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: shimmer 3s infinite;
+    pointer-events: none;
+}

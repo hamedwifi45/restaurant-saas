@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ThemeHelper;
 use App\Models\Coupon;
 use App\Models\Offer;
 use App\Models\Invoice;
@@ -19,24 +20,11 @@ class OrderController extends Controller
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('tracking_code', $code)->firstOrFail();
-
-        return view('themes.burger-theme.track', compact('restaurant', 'order'));
+        
+        $themePath = ThemeHelper::getThemePath($restaurant);
+        return view('themes.{$themePath}.orders.track', compact('restaurant', 'order'));
     }
 
-    /**
-     * عرض الفاتورة التفصيلية للطلب
-     */
-    public function showInvoice($slug, $trackingCode)
-    {
-        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
-
-        $order = Order::where('tracking_code', $trackingCode)
-            ->where('restaurant_id', $restaurant->id)
-            ->with(['items.product', 'offer', 'coupon', 'invoice'])
-            ->firstOrFail();
-
-        return view('themes.burger-theme.invoice', compact('restaurant', 'order'));
-    }
     public function checkout($slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
@@ -58,8 +46,9 @@ class OrderController extends Controller
 
         $tax = $subtotal * 0.15;
         $total = $subtotal + $tax;
+        $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.burger-theme.checkout', compact('restaurant', 'total', 'slug'));
+        return view('themes.{$themePath}.cart.checkout', compact('restaurant', 'total', 'slug'));
     }
 
     /**
@@ -311,7 +300,8 @@ class OrderController extends Controller
     public function trackForm($slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
-        return view('themes.burger-theme.track-form', compact('restaurant'));
+        $themePath = ThemeHelper::getThemePath($restaurant);
+        return view('themes.{$themePath}.orders.track-form', compact('restaurant'));
     }
 
     /**
@@ -340,56 +330,8 @@ class OrderController extends Controller
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('tracking_code', $code)->firstOrFail();
+        $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.burger-theme.success', compact('restaurant', 'order'));
-    }
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Order $order)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Order $order)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Order $order)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Order $order)
-    {
-        //
+        return view('themes.{$themePath}.cart.success', compact('restaurant', 'order'));
     }
 }

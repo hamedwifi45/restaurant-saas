@@ -35,10 +35,18 @@ class RestaurantPanelProvider extends PanelProvider
             ->login()
             ->brandName('لوحة المطاعم')
             ->colors([
-                'primary' => Color::Emerald,
-                'danger' => Color::Rose,
+                'primary' => Color::Orange,
+                'gray' => Color::Zinc,
+                'danger' => Color::Red,
+                'info' => Color::Blue,
+                'success' => Color::Emerald,
                 'warning' => Color::Amber,
             ])
+            ->font('Tajawal')
+            ->spa() // تفعيل SPA
+            ->sidebarCollapsibleOnDesktop()
+            ->darkMode(false)
+            ->viteTheme('resources/css/filament/restaurant/theme.css')
             ->resources([
                 CategoryResource::class,
                 ProductResource::class,
@@ -66,9 +74,9 @@ class RestaurantPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-            ])
-            ->authMiddleware([
-                Authenticate::class,
-            ]);
-    }
+                ])
+                ->authMiddleware([
+                    Authenticate::class,
+                ]);
+    }            
 }

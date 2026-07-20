@@ -33,10 +33,20 @@ class ShamPanelProvider extends PanelProvider
             ->default()
             ->id('sham')
             ->path('sham')
+            ->viteTheme('resources/css/filament/sham/theme.css')
             ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Orange,
+                'gray' => Color::Zinc,
+                'danger' => Color::Red,
+                'info' => Color::Blue,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
             ])
+            ->font('Tajawal')
+            ->spa() // تفعيل Single Page Application للأنيميشن
+            ->sidebarCollapsibleOnDesktop()
+            ->darkMode(false)
             ->resources([
                 RestaurantResource::class,
                 CategoryResource::class,
@@ -67,6 +77,9 @@ class ShamPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->authMiddleware([
+            Authenticate::class,
+        ]); // إضافة الثيم المخصص
     }
 }

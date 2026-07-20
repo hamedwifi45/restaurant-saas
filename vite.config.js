@@ -12,6 +12,8 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/passkeys.js',
+                'resources/css/filament/sham/theme.css',
+                'resources/css/filament/restaurant/theme.css',
             ],
             refresh: true,
             fonts: [

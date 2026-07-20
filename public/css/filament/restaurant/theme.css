@@ -1,0 +1,6 @@
+@import '/resources/css/filament/admin/custom.css';
+
+/* تخصيص إضافي للوحة Restaurant */
+.fi-sidebar {
+    background: linear-gradient(180deg, #2D2D2D 0%, #1A1A1A 100%) !important;
+}

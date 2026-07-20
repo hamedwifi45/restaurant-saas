@@ -1,0 +1,285 @@
+/* ==================== متغيرات الهوية البصرية ==================== */
+:root {
+    --primary: #FF6B35;
+    --primary-hover: #E55A2B;
+    --primary-light: #FFF4F0;
+    --secondary: #1A1A1A;
+    --accent: #FFB347;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --info: #3B82F6;
+}
+
+/* ==================== أنيميشن الانتقال بين الصفحات ==================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* تطبيق الأنيميشن على المحتوى الرئيسي */
+.fi-main {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+/* أنيميشن الجداول */
+.fi-ta-table {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.fi-ta-row {
+    animation: slideInRight 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.fi-ta-row:nth-child(1) { animation-delay: 0.05s; }
+.fi-ta-row:nth-child(2) { animation-delay: 0.1s; }
+.fi-ta-row:nth-child(3) { animation-delay: 0.15s; }
+.fi-ta-row:nth-child(4) { animation-delay: 0.2s; }
+.fi-ta-row:nth-child(5) { animation-delay: 0.25s; }
+
+/* ==================== الأزرار ==================== */
+.fi-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.fi-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.fi-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.fi-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.3);
+}
+
+.fi-btn:active {
+    transform: translateY(0);
+}
+
+/* زر الإنشاء الرئيسي */
+.fi-btn-color-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
+    border: none !important;
+}
+
+.fi-btn-color-primary:hover {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, #D14A1F 100%) !important;
+}
+
+/* ==================== البطاقات ==================== */
+.fi-wi-stats-overview-stat {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    animation: scaleIn 0.4s ease-out;
+}
+
+.fi-wi-stats-overview-stat:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 20px 40px -15px rgba(255, 107, 53, 0.3);
+}
+
+/* ==================== الجداول ==================== */
+.fi-ta-table {
+    border-radius: 12px !important;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.fi-ta-header {
+    background: linear-gradient(135deg, var(--primary-light) 0%, #FFFFFF 100%) !important;
+    border-bottom: 2px solid var(--primary) !important;
+}
+
+.fi-ta-cell {
+    transition: all 0.2s ease !important;
+}
+
+.fi-ta-row:hover .fi-ta-cell {
+    background: var(--primary-light) !important;
+}
+
+/* ==================== النماذج (Forms) ==================== */
+.fi-fo-field {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.fi-fo-input {
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important;
+}
+
+.fi-fo-input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+}
+
+/* ==================== الشريط الجانبي ==================== */
+.fi-sidebar {
+    background: linear-gradient(180deg, var(--secondary) 0%, #2D2D2D 100%) !important;
+}
+
+.fi-sidebar-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius: 8px !important;
+    margin: 4px 8px !important;
+}
+
+.fi-sidebar-item:hover {
+    background: rgba(255, 107, 53, 0.1) !important;
+    transform: translateX(5px);
+}
+
+.fi-sidebar-item-active {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
+    box-shadow: 0 4px 12px -4px rgba(255, 107, 53, 0.5);
+}
+
+/* ==================== الهيدر ==================== */
+.fi-topbar {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 107, 53, 0.1) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ==================== الإشعارات (Toasts) ==================== */
+.fi-notification {
+    animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ==================== المودالات (Modals) ==================== */
+.fi-modal-window {
+    animation: scaleIn 0.3s ease-out !important;
+    border-radius: 16px !important;
+}
+
+.fi-modal-overlay {
+    backdrop-filter: blur(8px);
+}
+
+/* ==================== الشارات (Badges) ==================== */
+.fi-badge {
+    transition: all 0.2s ease !important;
+    border-radius: 6px !important;
+}
+
+.fi-badge:hover {
+    transform: scale(1.1);
+}
+
+/* ==================== Scrollbar مخصص ==================== */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+/* ==================== تأثيرات إضافية ==================== */
+
+/* تأثير اللمعة على الأزرار */
+@keyframes shine {
+    from {
+        background-position: 0% center;
+    }
+    to {
+        background-position: 200% center;
+    }
+}
+
+.fi-btn-color-primary {
+    background-size: 200% auto;
+    background-image: linear-gradient(
+        90deg,
+        var(--primary) 0%,
+        var(--accent) 50%,
+        var(--primary) 100%
+    );
+    animation: shine 3s linear infinite;
+}
+
+/* تأثير النبض للعدادات */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.fi-wi-stats-overview-stat-value {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* تأثير التحميل */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.fi-loading-spinner {
+    animation: spin 1s linear infinite;
+}

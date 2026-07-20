@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ThemeHelper;
 use App\Models\Review;
 use Illuminate\Http\Request;
 use App\Models\Order;
@@ -39,8 +40,9 @@ class ReviewController extends Controller
             return redirect()->route('order.track', [$slug, $trackingCode])
                 ->with('info', 'لقد قمت بتقييم هذا الطلب مسبقاً');
         }
+        $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.burger-theme.review-form', compact('restaurant', 'order'));
+        return view('themes.{$themePath}.reviews.review-form', compact('restaurant', 'order'));
     }
 
     /**
@@ -110,7 +112,7 @@ class ReviewController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('themes.burger-theme.reviews', compact('restaurant', 'reviews'));
+        return view('themes.{$themePath}.reviews.reviews', compact('restaurant', 'reviews'));
     }
     /**
  * التحقق من رمز التتبع (AJAX)

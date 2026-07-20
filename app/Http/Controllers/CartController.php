@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ThemeHelper;
 use App\Models\Product;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
@@ -31,8 +32,8 @@ class CartController extends Controller
                 $total += $product->price * $details['qty'];
             }
         }
-
-        return view('themes.burger-theme.cart', compact('restaurant', 'products', 'total'));
+        $themeName = ThemeHelper::getThemePath($restaurant);
+        return view('themes.{$themeName}.cart.cart', compact('restaurant', 'products', 'total'));
     }
 
     /**

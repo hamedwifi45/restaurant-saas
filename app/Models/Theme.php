@@ -9,44 +9,37 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Theme extends Model
 {
-    use HasFactory, SoftDeletes;
-
     protected $fillable = [
         'name',
         'slug',
-        'description',
-        'preview_image',
         'author',
         'version',
-        'sections',
-        'settings',
+        'description',
+        'folder_name',
+        'preview_image',
+        'default_settings',
+        'allowed_variables',
         'is_active',
+        'is_default',
     ];
 
     protected $casts = [
-        'sections' => 'array',
-        'settings' => 'array',
+        'default_settings' => 'array',
+        'allowed_variables' => 'array',
         'is_active' => 'boolean',
+        'is_default' => 'boolean',
     ];
 
-    public function restaurants()
+    // العلاقات
+    public function restaurants(): HasMany
     {
         return $this->hasMany(Restaurant::class);
     }
 
-    // الحصول على مسار الثيم
-    public function getViewPath(): string
+    public function themeSettings(): HasMany
     {
-        return "themes.{$this->slug}";
+        return $this->hasMany(RestaurantThemeSetting::class);
     }
-
-    // الحصول على الأقسام المتاحة
-    public function getAvailableSections(): array
-    {
-        return $this->sections ?? ['hero', 'menu', 'about', 'contact'];
-    }
-
-    
 
     // Scopes
     public function scopeActive($query)
@@ -54,10 +47,47 @@ class Theme extends Model
         return $query->where('is_active', true);
     }
 
-    // Helpers
-    public function getRouteKeyName(): string
+    public function scopeDefault($query)
     {
-        return 'slug';
+        return $query->where('is_default', true);
+    }
+
+    // Helper Methods
+    public function getDefaultSetting(string $key, $default = null)
+    {
+        return $this->default_settings[$key] ?? $default;
+    }
+
+    public function getAllowedVariable(string $key, $default = null)
+    {
+        return $this->allowed_variables[$key] ?? $default;
+    }
+
+    public function getThemePath(): string
+    {
+        return resource_path("views/themes/{$this->folder_name}");
+    }
+
+    public function themeExists(): bool
+    {
+        return is_dir($this->getThemePath());
+    }
+
+    public function hasThemeJson(): bool
+    {
+        return file_exists($this->getThemePath() . '/theme.json');
+    }
+
+    public function loadThemeJson(): ?array
+    {
+        $path = $this->getThemePath() . '/theme.json';
+        
+        if (!file_exists($path)) {
+            return null;
+        }
+
+        $content = file_get_contents($path);
+        return json_decode($content, true);
     }
 
 }

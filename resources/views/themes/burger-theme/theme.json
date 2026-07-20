@@ -1,0 +1,50 @@
+{
+  "name": "برجر كلاسيك",
+  "slug": "burger-classic",
+  "author": "منصة المطاعم",
+  "version": "1.0.0",
+  "description": "ثيم عصري لمطاعم البرجر مع تصميم جذاب وسهل الاستخدام",
+  "default_settings": {
+    "primary_color": "#FF6B35",
+    "secondary_color": "#FFFFFF",
+    "background_color": "#1A1A1A",
+    "font_family": "Tajawal",
+    "border_radius": "0.5rem",
+    "header_style": "sticky"
+  },
+  "allowed_variables": {
+    "primary_color": {
+      "type": "color",
+      "label": "اللون الرئيسي",
+      "default": "#FF6B35"
+    },
+    "secondary_color": {
+      "type": "color",
+      "label": "اللون الثانوي",
+      "default": "#FFFFFF"
+    },
+    "background_color": {
+      "type": "color",
+      "label": "لون الخلفية",
+      "default": "#1A1A1A"
+    },
+    "font_family": {
+      "type": "select",
+      "label": "نوع الخط",
+      "options": ["Tajawal", "Cairo", "Almarai"],
+      "default": "Tajawal"
+    },
+    "border_radius": {
+      "type": "select",
+      "label": "درجة انحناء الحواف",
+      "options": ["0", "0.25rem", "0.5rem", "1rem"],
+      "default": "0.5rem"
+    },
+    "header_style": {
+      "type": "select",
+      "label": "شكل القائمة العلوية",
+      "options": ["sticky", "transparent"],
+      "default": "sticky"
+    }
+  }
+}

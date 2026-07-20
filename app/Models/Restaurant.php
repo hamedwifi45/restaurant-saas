@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
@@ -48,11 +49,7 @@ class Restaurant extends Model
     ];
 
     // Relationships
-    public function theme(): BelongsTo
-    {
-        return $this->belongsTo(Theme::class);
-    }
-
+    
     public function categories(): HasMany
     {
         return $this->hasMany(Category::class);
@@ -107,6 +104,35 @@ class Restaurant extends Model
     public function activeCoupons(): HasMany
     {
         return $this->hasMany(Coupon::class)->active();
+    }
+
+    public function theme(): BelongsTo
+    {
+        return $this->belongsTo(Theme::class);
+    }
+
+    public function themeSettings(): HasOne
+    {
+        return $this->hasOne(RestaurantThemeSetting::class);
+    }
+
+    // Helper Methods
+    public function getThemePath(): string
+    {
+        if (!$this->theme) {
+            return 'burger-theme'; // الثيم الافتراضي
+        }
+        
+        return $this->theme->folder_name;
+    }
+
+    public function getThemeSettings(): array
+    {
+        if (!$this->themeSettings) {
+            return $this->theme->default_settings ?? [];
+        }
+        
+        return $this->themeSettings->getMergedSettings();
     }
 
     // متوسط التقييم

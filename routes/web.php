@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PwaController;
@@ -40,7 +41,7 @@ Route::post('/{slug}/review/{trackingCode}', [ReviewController::class, 'store'])
 Route::post('/{slug}/apply-offer', [OrderController::class, 'applyOffer'])->name('offer.apply');
 
 // صفحة الفاتورة
-Route::get('/{slug}/invoice/{trackingCode}', [OrderController::class, 'showInvoice'])->name('order.invoice');
+Route::get('/{slug}/invoice/{trackingCode}', [InvoiceController::class, 'showInvoice'])->name('order.invoice');
 
 // PWA Routes ديناميكية لكل مطعم
 Route::get('/{slug}/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
