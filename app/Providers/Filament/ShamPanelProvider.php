@@ -46,7 +46,7 @@ class ShamPanelProvider extends PanelProvider
             ->font('Tajawal')
             ->spa() // تفعيل Single Page Application للأنيميشن
             ->sidebarCollapsibleOnDesktop()
-            ->darkMode(false)
+            ->darkMode(true)
             ->resources([
                 RestaurantResource::class,
                 CategoryResource::class,

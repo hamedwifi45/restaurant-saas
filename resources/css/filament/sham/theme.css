@@ -1,7 +1,7 @@
-/* ========================================================================
-   🎨 FILAMENT V5 ULTIMATE CUSTOM THEME
-   الهوية البصرية المتقدمة لمنصة المطاعم
-   ======================================================================== */
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
 
 /* ------------------------------------------------------------------------
    1. المتغيرات الجذرية (Root Variables)
@@ -12,7 +12,7 @@
     --brand-primary-light: rgba(255, 107, 53, 0.08);
     --brand-primary-glow: rgba(255, 107, 53, 0.4);
     --brand-dark: #0F172A;
-    --brand-sidebar: #111827;
+    --brand-sidebar: #f16d34;
     --brand-surface: #FFFFFF;
     --brand-background: #F8FAFC;
     --brand-success: #10B981;
@@ -80,24 +80,26 @@ body {
     box-shadow: var(--shadow-sm) !important;
     transition: var(--transition-smooth);
 }
-
 /* ------------------------------------------------------------------------
-   4. الشريط الجانبي (Sidebar) - فخامة داكنة
+   4. الشريط الجانبي (Sidebar) - تصميم متناغم وأنيق
    ------------------------------------------------------------------------ */
 .fi-sidebar {
-    background: linear-gradient(180deg, var(--brand-sidebar) 0%, #1E293B 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2) !important;
+    background: linear-gradient(180deg, #fdfbfa 0%, #f56122  100%) !important;
+    border-right: 1px solid rgba(255, 107, 53, 0.1) !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* عناصر القائمة */
 .fi-sidebar-item {
     border-radius: 10px !important;
     margin: 4px 12px !important;
     transition: var(--transition-smooth) !important;
     position: relative;
     overflow: hidden;
+    color: #CBD5E1 !important; /* لون النص: رمادي فاتح */
 }
 
+/* خط برتقالي جانبي عند التمرير */
 .fi-sidebar-item::before {
     content: '';
     position: absolute;
@@ -112,7 +114,8 @@ body {
 }
 
 .fi-sidebar-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 107, 53, 0.08) !important;
+    color: #FFFFFF !important;
     transform: translateX(6px) !important;
 }
 
@@ -120,8 +123,9 @@ body {
     transform: scaleY(1);
 }
 
+/* العنصر النشط (الصفحة الحالية) */
 .fi-sidebar-item.fi-active {
-    background: linear-gradient(90deg, rgba(255, 107, 53, 0.15) 0%, rgba(255, 107, 53, 0.02) 100%) !important;
+    background: linear-gradient(90deg, rgba(255, 107, 53, 0.15) 0%, rgba(255, 107, 53, 0.05) 100%) !important;
     color: var(--brand-primary) !important;
     font-weight: 700 !important;
 }
@@ -131,8 +135,57 @@ body {
     box-shadow: 0 0 10px var(--brand-primary-glow);
 }
 
+/* أيقونات القائمة */
+.fi-sidebar-item-icon {
+    color: #94A3B8 !important;
+    transition: var(--transition-smooth);
+}
+
+.fi-sidebar-item:hover .fi-sidebar-item-icon {
+    color: var(--brand-primary) !important;
+}
+
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: var(--brand-primary) !important;
+}
+
+/* نص القائمة */
 .fi-sidebar-item-label {
     transition: var(--transition-smooth);
+}
+
+/* مجموعة القائمة (Group) */
+.fi-sidebar-group {
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.5rem !important;
+}
+
+.fi-sidebar-group-label {
+    color: #64748B !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
+}
+
+/* شريط التمرير داخل الشريط الجانبي */
+.fi-sidebar::-webkit-scrollbar {
+    width: 6px !important;
+}
+
+.fi-sidebar::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.fi-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 53, 0.3) !important;
+    border-radius: 10px !important;
+}
+
+.fi-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-primary) !important;
 }
 
 /* ------------------------------------------------------------------------
