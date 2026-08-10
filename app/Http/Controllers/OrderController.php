@@ -22,7 +22,7 @@ class OrderController extends Controller
         $order = Order::where('tracking_code', $code)->firstOrFail();
         
         $themePath = ThemeHelper::getThemePath($restaurant);
-        return view('themes.{$themePath}.orders.track', compact('restaurant', 'order'));
+        return view("themes.{$themePath}.orders.track", compact('restaurant', 'order'));
     }
 
     public function checkout($slug)
@@ -48,7 +48,7 @@ class OrderController extends Controller
         $total = $subtotal + $tax;
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.{$themePath}.cart.checkout', compact('restaurant', 'total', 'slug'));
+        return view("themes.{$themePath}.cart.checkout", compact('restaurant', 'total', 'slug'));
     }
 
     /**
@@ -301,7 +301,7 @@ class OrderController extends Controller
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $themePath = ThemeHelper::getThemePath($restaurant);
-        return view('themes.{$themePath}.orders.track-form', compact('restaurant'));
+        return view("themes.{$themePath}.orders.track-form", compact('restaurant'));
     }
 
     /**
@@ -332,6 +332,6 @@ class OrderController extends Controller
         $order = Order::where('tracking_code', $code)->firstOrFail();
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.{$themePath}.cart.success', compact('restaurant', 'order'));
+        return view("themes.{$themePath}.cart.success", compact('restaurant', 'order'));
     }
 }

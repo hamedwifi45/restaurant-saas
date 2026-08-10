@@ -15,9 +15,17 @@ class EditTheme extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->requiresConfirmation()
+                ->modalHeading('حذف الثيم')
+                ->modalDescription('هل أنت متأكد من حذف هذا الثيم؟ سيتم حذف جميع الملفات المرتبطة به.'),
             ForceDeleteAction::make(),
             RestoreAction::make(),
         ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
     }
 }

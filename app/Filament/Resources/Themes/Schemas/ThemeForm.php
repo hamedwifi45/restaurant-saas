@@ -17,25 +17,43 @@ class ThemeForm
                 TextInput::make('name')
                     ->label('اسم التصميم')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->disabled(),
 
                 TextInput::make('slug')
                     ->label('الرابط المختصر')
                     ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->disabled(),
+
+                TextInput::make('author')
+                    ->label('المطور')
+                    ->maxLength(255)
+                    ->disabled(),
+
+                TextInput::make('version')
+                    ->label('الإصدار')
+                    ->maxLength(50)
+                    ->disabled(),
 
                 Textarea::make('description')
-                    ->label('الوصف'),
+                    ->label('الوصف')
+                    ->disabled()
+                    ->rows(3),
 
                 FileUpload::make('preview_image')
                     ->label('صورة المعاينة')
                     ->image()
-                    ->directory('themes/previews'),
+                    ->directory('themes/previews')
+                    ->visibility('public'),
 
                 Toggle::make('is_active')
                     ->label('تصميم مفعل')
-                    ->default(true),
+                    ->default(false),
+
+                Toggle::make('is_default')
+                    ->label('تصميم افتراضي')
+                    ->default(false),
             ]);
     }
 }

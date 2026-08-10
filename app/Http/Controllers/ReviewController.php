@@ -42,7 +42,7 @@ class ReviewController extends Controller
         }
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view('themes.{$themePath}.reviews.review-form', compact('restaurant', 'order'));
+        return view("themes.{$themePath}.reviews.review-form", compact('restaurant', 'order'));
     }
 
     /**
@@ -112,7 +112,8 @@ class ReviewController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('themes.{$themePath}.reviews.reviews', compact('restaurant', 'reviews'));
+        $themePath = ThemeHelper::getThemePath($restaurant);
+        return view("themes.{$themePath}.reviews.reviews", compact('restaurant', 'reviews'));
     }
     /**
  * التحقق من رمز التتبع (AJAX)

@@ -33,7 +33,7 @@ class CartController extends Controller
             }
         }
         $themeName = ThemeHelper::getThemePath($restaurant);
-        return view('themes.{$themeName}.cart.cart', compact('restaurant', 'products', 'total'));
+        return view("themes.{$themeName}.cart.cart", compact('restaurant', 'products', 'total'));
     }
 
     /**

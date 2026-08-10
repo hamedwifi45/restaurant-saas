@@ -59,6 +59,38 @@ Route::get('/{slug}/offers', [OfferController::class, 'index'])->name('offers.in
 // إرسال التقييم (AJAX)
 Route::post('/review/store-ajax', [ReviewController::class, 'storeAjax'])->name('review.store.ajax');
 
+// ==========================================
+// لوحة تحكم المطعم (Restaurant Dashboard)
+// ==========================================
+Route::middleware(['auth', 'verified'])->prefix('restaurant')->name('restaurant.')->group(function () {
+    // لوحة التحكم الرئيسية
+    Route::livewire('/dashboard', \App\Livewire\Restaurant\Dashboard::class)->name('dashboard');
+    
+    // إدارة الطلبات
+    Route::livewire('/orders', \App\Livewire\Restaurant\Orders::class)->name('orders');
+    
+    // إدارة المنتجات
+    Route::livewire('/products', \App\Livewire\Restaurant\Products::class)->name('products');
+    
+    // إدارة التصنيفات
+    Route::livewire('/categories', \App\Livewire\Restaurant\Categories::class)->name('categories');
+    
+    // إدارة العروض
+    Route::livewire('/offers', \App\Livewire\Restaurant\Offers::class)->name('offers');
+    
+    // إدارة أكواد الخصم
+    Route::livewire('/coupons', \App\Livewire\Restaurant\Coupons::class)->name('coupons');
+    
+    // إدارة التقييمات
+    Route::livewire('/reviews', \App\Livewire\Restaurant\Reviews::class)->name('reviews');
+    
+    // إعدادات المطعم
+    Route::livewire('/settings', \App\Livewire\Restaurant\Settings::class)->name('settings');
+    
+    // تخصيص الثيم
+    Route::livewire('/theme-customizer', \App\Livewire\Restaurant\ThemeCustomizer::class)->name('theme-customizer');
+});
+
 Route::resource('themes', ThemeController::class);
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');

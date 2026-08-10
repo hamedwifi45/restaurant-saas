@@ -20,6 +20,6 @@ class InvoiceController extends Controller
             ->with(['items.product', 'offer', 'coupon', 'invoice'])
             ->firstOrFail();
         $themePath = ThemeHelper::getThemePath($restaurant);
-        return view('themes.{$themePath}.orders.invoice', compact('restaurant', 'order'));
+        return view("themes.{$themePath}.orders.invoice", compact('restaurant', 'order'));
     }
 }
