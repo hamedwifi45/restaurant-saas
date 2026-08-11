@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Themes;
 use App\Filament\Resources\Themes\Pages\CreateTheme;
 use App\Filament\Resources\Themes\Pages\EditTheme;
 use App\Filament\Resources\Themes\Pages\ListThemes;
+use App\Filament\Resources\Themes\Pages\UploadTheme;
 use App\Filament\Resources\Themes\Schemas\ThemeForm;
 use App\Filament\Resources\Themes\Tables\ThemesTable;
 use App\Models\Theme;
@@ -30,6 +31,13 @@ class ThemeResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    protected static ?int $navigationSort = 1;
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ThemeForm::configure($schema);
@@ -53,6 +61,7 @@ class ThemeResource extends Resource
             'index' => ListThemes::route('/'),
             'create' => CreateTheme::route('/create'),
             'edit' => EditTheme::route('/{record}/edit'),
+            'upload' => UploadTheme::route('/upload'),
         ];
     }
 

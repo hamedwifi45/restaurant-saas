@@ -66,6 +66,12 @@ Route::middleware(['auth'])->prefix('restaurant/api')->group(function () {
     Route::post('/theme/settings', [ThemeSettingsController::class, 'updateSettings'])->name('restaurant.theme.settings.update');
 });
 Route::resource('themes', ThemeController::class);
+
+// Admin Theme Routes
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::view('themes/upload', 'admin.themes.upload')->name('themes.upload');
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
