@@ -6,7 +6,6 @@ use App\Models\Theme;
 use App\Services\ThemeUploadService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
@@ -90,9 +89,11 @@ class ThemesTable
             ])
             ->actions([
                 Action::make('preview')
-                    ->label('معاينة')
+                    ->label('معاينة حية')
                     ->icon('heroicon-o-eye')
-                    ->url(fn (Theme $record) => route('themes.preview', $record), true),
+                    ->url(fn (Theme $record) => route('themes.preview', $record), true)
+                    ->color('info')
+                    ->openUrlInNewTab(),
 
                 Action::make('activate')
                     ->label('تفعيل')
@@ -146,6 +147,8 @@ class ThemesTable
                     ->label('إعادة تعيين الإعدادات')
                     ->icon('heroicon-o-arrow-path')
                     ->requiresConfirmation()
+                    ->modalHeading('هل أنت متأكد؟')
+                    ->modalDescription('سيتم حذف جميع الإعدادات المخصصة المرتبطة بهذا الثيم لجميع المطاعم.')
                     ->action(function (Theme $record): void {
                         $deleted = $record->resetSettingsForRestaurants();
 
@@ -156,8 +159,34 @@ class ThemesTable
                             ->send();
                     }),
 
+                Action::make('delete')
+                    ->label('حذف')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('حذف الثيم')
+                    ->modalDescription('هل أنت متأكد من حذف هذا الثيم؟ لا يمكن التراجع عن هذا الإجراء.')
+                    ->action(function (Theme $record): void {
+                        if ($record->restaurants()->count() > 0) {
+                            Notification::make()
+                                ->title('لا يمكن الحذف')
+                                ->body('يوجد مطاعم تستخدم هذا الثيم حالياً. يجب نقل المطاعم إلى ثيم آخر أولاً.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $result = app(ThemeUploadService::class)->delete($record);
+
+                        Notification::make()
+                            ->title($result['success'] ? 'تم حذف الثيم' : 'فشل الحذف')
+                            ->body($result['message'])
+                            ->color($result['success'] ? 'success' : 'danger')
+                            ->send();
+                    }),
+
                 EditAction::make(),
-                DeleteAction::make(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

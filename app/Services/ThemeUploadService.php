@@ -191,9 +191,9 @@ class ThemeUploadService
     }
 
     /**
-     * حذف ثيم بالكامل
+     * نسخ ثيم موجود
      */
-    public function cloneTheme(Theme $theme, ?string $customName = null): array
+    public function cloneTheme(Theme $theme, ?string $customName = null, ?string $customSlug = null): array
     {
         $sourceDir = $this->themesPath.'/'.$theme->folder_name;
 
@@ -202,11 +202,18 @@ class ThemeUploadService
         }
 
         $newName = trim((string) ($customName ?: $theme->name.' نسخة'));
-        $folderName = $this->resolveFolderName($newName === '' ? $theme->folder_name.'-copy' : $newName);
+        
+        // استخدام الـ slug المخصص إذا تم تقديمه
+        if ($customSlug) {
+            $folderName = Str::slug($customSlug);
+        } else {
+            $folderName = $this->resolveFolderName($newName === '' ? $theme->folder_name.'-copy' : $newName);
+        }
+        
         $targetDir = $this->themesPath.'/'.$folderName;
 
         if (File::isDirectory($targetDir)) {
-            return ['success' => false, 'message' => 'يوجد بالفعل ثيم بنفس الاسم.'];
+            return ['success' => false, 'message' => 'يوجد بالفعل ثيم بنفس الاسم أو slug.'];
         }
 
         File::copyDirectory($sourceDir, $targetDir);
@@ -214,7 +221,7 @@ class ThemeUploadService
         $json = $theme->loadThemeJson() ?? [];
         $newTheme = Theme::create([
             'name' => $newName,
-            'slug' => Str::slug($newName) ?: $folderName,
+            'slug' => $customSlug ?: Str::slug($newName) ?: $folderName,
             'author' => $json['author'] ?? $theme->author,
             'version' => $json['version'] ?? $theme->version,
             'description' => $json['description'] ?? $theme->description,

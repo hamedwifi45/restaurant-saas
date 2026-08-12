@@ -2,6 +2,7 @@
     $dashboardSummaryUrl = route('restaurant.dashboard.summary');
 @endphp
 
+<div>
 <style>
   :root {
     --primary: #0a0a0a;
@@ -183,16 +184,14 @@
   }
   .toast.show { transform: translateX(-50%) translateY(0); }
 </style>
-</head>
-<body>
-
-<!-- Toast Notification -->
-<div id="toast" class="toast bg-[var(--primary)] text-white px-6 py-3 rounded-xl shadow-2xl border border-[var(--secondary)]/30 flex items-center gap-3">
-  <i class="fas fa-check-circle text-[var(--secondary)]"></i>
-  <span id="toastMsg" class="text-sm">تمت العملية بنجاح</span>
-</div>
 
 <div class="flex min-h-screen">
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast bg-[var(--primary)] text-white px-6 py-3 rounded-xl shadow-2xl border border-[var(--secondary)]/30 flex items-center gap-3" style="display: none;">
+    <i class="fas fa-check-circle text-[var(--secondary)]"></i>
+    <span id="toastMsg" class="text-sm">تمت العملية بنجاح</span>
+  </div>
 
   <!-- Sidebar -->
   <aside id="sidebar" class="sidebar sidebar-gradient fixed lg:sticky top-0 right-0 h-screen w-72 z-40 flex flex-col shadow-2xl">
@@ -1433,3 +1432,4 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(refreshDashboardSummary, 30000);
 });
 </script>
+</div>

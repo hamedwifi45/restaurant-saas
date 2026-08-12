@@ -37,10 +37,13 @@ class RestaurantController extends Controller
             ->take(6) 
             ->get();
 
+        // التحقق من وضع المعاينة
+        $previewTheme = request()->query('preview_theme');
+        
         // تحديد مسار الثيم (سنستخدم burger-theme كافتراضي حالياً)
-        $themePath = ThemeHelper::getThemePath($restaurant);
+        $themePath = ThemeHelper::getThemePath($restaurant, $previewTheme);
 
-        return view("themes.{$themePath}.pages.home", compact('restaurant' , 'categories'));
+        return view("themes.{$themePath}.pages.home", compact('restaurant', 'categories'));
     }
     public function showProduct($slug, $productId)
 {

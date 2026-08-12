@@ -11,8 +11,12 @@ class RestaurantDashboard extends Page
 
     protected static bool $shouldRegisterNavigation = false;
 
+    protected static string $slug = 'dashboard';
+
+    protected static ?string $navigationIcon = 'heroicon-o-home';
+
     public static function getSlug(?Panel $panel = null): string
     {
-        return '';
+        return static::$slug;
     }
 }

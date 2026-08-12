@@ -10,17 +10,22 @@ class ThemeHelper
     /**
      * الحصول على مسار الثيم للمطعم
      */
-    public static function getThemePath(Restaurant $restaurant): string
+    public static function getThemePath(Restaurant $restaurant, ?string $previewTheme = null): string
     {
+        // إذا كان هناك معاينة للثيم، نستخدمه
+        if ($previewTheme) {
+            return $previewTheme;
+        }
+        
         return $restaurant->theme->folder_name ?? 'burger-theme';
     }
 
     /**
      * توليد اسم الـ View ديناميكياً
      */
-    public static function view(Restaurant $restaurant, string $viewName): string
+    public static function view(Restaurant $restaurant, string $viewName, ?string $previewTheme = null): string
     {
-        $themePath = self::getThemePath($restaurant);
+        $themePath = self::getThemePath($restaurant, $previewTheme);
 
         return "themes.{$themePath}.{$viewName}";
     }
@@ -57,5 +62,21 @@ class ThemeHelper
         }
 
         return null;
+    }
+    
+    /**
+     * التحقق مما إذا كان المستخدم في وضع المعاينة
+     */
+    public static function isPreviewMode(): bool
+    {
+        return request()->has('preview_theme');
+    }
+    
+    /**
+     * الحصول على الثيم الحالي للمعاينة
+     */
+    public static function getPreviewTheme(): ?string
+    {
+        return request()->query('preview_theme');
     }
 }

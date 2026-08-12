@@ -12,9 +12,26 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ThemeController;
 use Illuminate\Support\Facades\Route;
 
+// Theme Preview Routes (must be before restaurant routes to avoid conflicts)
+Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
+Route::get('admin/themes/{theme}/preview', [ThemeController::class, 'previewInFilament'])->name('admin.themes.preview');
+Route::post('themes/{theme}/activate', [ThemeController::class, 'activate'])->name('themes.activate');
+Route::post('admin/themes/{theme}/activate', [ThemeController::class, 'activate'])->name('admin.themes.activate');
+Route::post('themes/{theme}/clone', [ThemeController::class, 'clone'])->name('themes.clone');
+Route::post('admin/themes/{theme}/clone', [ThemeController::class, 'clone'])->name('admin.themes.clone');
+Route::post('themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('themes.reset-settings');
+Route::post('admin/themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('admin.themes.reset-settings');
+Route::post('themes/{theme}/deactivate', [ThemeController::class, 'deactivate'])->name('themes.deactivate');
+Route::post('admin/themes/{theme}/deactivate', [ThemeController::class, 'deactivate'])->name('admin.themes.deactivate');
+Route::resource('themes', ThemeController::class);
+Route::resource('admin/themes', ThemeController::class)->names('admin.themes');
+
 Route::view('/', 'welcome')->name('home');
 
-Route::get('/{slug}', [RestaurantController::class, 'home'])->name('restaurant.home');
+// Theme preview route for public restaurant pages
+Route::get('/{slug}', [RestaurantController::class, 'home'])
+    ->name('restaurant.public.home')
+    ->where('slug', '(?!themes|admin|api|_ignition|filament)[a-zA-Z0-9_-]+');
 Route::get('/{slug}/menu', [RestaurantController::class, 'menu'])->name('restaurant.menu');
 
 // نظام السلة
@@ -66,11 +83,6 @@ Route::middleware(['auth'])->prefix('restaurant/api')->group(function () {
     Route::post('/theme/settings', [ThemeSettingsController::class, 'updateSettings'])->name('restaurant.theme.settings.update');
     Route::get('/dashboard/summary', [RestaurantDashboardController::class, 'summary'])->name('restaurant.dashboard.summary');
 });
-Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
-Route::post('themes/{theme}/activate', [ThemeController::class, 'activate'])->name('themes.activate');
-Route::post('themes/{theme}/clone', [ThemeController::class, 'clone'])->name('themes.clone');
-Route::post('themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('themes.reset-settings');
-Route::resource('themes', ThemeController::class);
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });

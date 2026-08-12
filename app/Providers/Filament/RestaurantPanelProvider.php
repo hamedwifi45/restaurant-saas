@@ -33,7 +33,7 @@ class RestaurantPanelProvider extends PanelProvider
         return $panel
             ->id('restaurant')
             ->path('restaurant')
-            ->homeUrl(fn () => route('filament.restaurant.pages.restaurant-dashboard'))
+            ->homeUrl(fn () => RestaurantDashboard::getUrl())
             ->login()
             ->brandName('لوحة المطاعم')
             ->colors([
