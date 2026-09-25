@@ -35,7 +35,10 @@ class DriverController extends Controller
             ->latest()
             ->get();
 
-        // 4. إحصائيات اليوم الخاصة بهذا المطعم والسائق
+        // 4. تحديد الطلب المميز للخريطة مباشرة في الكنترولر
+        $featuredOrder = $activeOrders->first();
+
+        // 5. إحصائيات اليوم الخاصة بهذا المطعم والسائق
         $todayOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
             ->where('driver_id', $driver->id)
@@ -47,7 +50,7 @@ class DriverController extends Controller
             'totalToday' => $todayOrders->count(),
         ];
 
-        // 5. الطلبات المكتملة حديثاً لنفس المطعم
+        // 6. الطلبات المكتملة حديثاً لنفس المطعم
         $recentOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
             ->where('driver_id', $driver->id)
@@ -57,7 +60,7 @@ class DriverController extends Controller
             ->limit(5)
             ->get();
 
-        // 6. تحديد مسار الثيم واستدعاء العرض
+        // 7. تحديد مسار الثيم واستدعاء العرض
         $themePath = ThemeHelper::getThemePath($restaurant);
 
         return view("themes.{$themePath}.driver.dashboard", compact(
@@ -66,7 +69,8 @@ class DriverController extends Controller
             'activeOrders',
             'recentOrders',
             'stats',
-            'slug'
+            'slug',
+            'featuredOrder' // تم إضافة القيمة هنا بدلاً من حسابها في Blade
         ));
     }
 

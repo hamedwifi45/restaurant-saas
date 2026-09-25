@@ -55,56 +55,79 @@ class OrderController extends Controller
     }
 
     public function checkout($slug)
-    {
-        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+{
+    $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-        // ✅ التعديل الأول: قراءة السلة الخاصة بهذا المطعم فقط
-        $sessionKey = 'cart_'.$restaurant->id;
-        $cart = session($sessionKey, []);
+    $sessionKey = 'cart_'.$restaurant->id;
+    $cart = session($sessionKey, []);
 
-        // إذا كانت السلة فارغة نعيد المستخدم للقائمة
-        if (empty($cart)) {
-            return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
-        }
-
-        $productIds = array_keys($cart);
-        $products = Product::where('restaurant_id', $restaurant->id)
-            ->where('is_available', true)
-            ->whereIn('id', $productIds)
-            ->get()
-            ->keyBy('id');
-
-        if ($products->count() !== count(array_unique($productIds))) {
-            session()->forget($sessionKey); // حذف السلة المعطوبة
-
-            return redirect()->route('restaurant.menu', $slug)
-                ->with('error', 'تحتوي السلة على منتج غير متاح لهذا المطعم');
-        }
-
-        // حساب الإجمالي والضريبة
-        $subtotal = 0;
-        foreach ($cart as $id => $details) {
-            $quantity = (int) ($details['qty'] ?? 0);
-
-            if ($quantity < 1) {
-                return redirect()->route('restaurant.menu', $slug)
-                    ->with('error', 'تحتوي السلة على كمية غير صالحة');
-            }
-
-            $subtotal += $products->get($id)->price * $quantity;
-        }
-
-        $tax = $subtotal * 0.15;
-        $total = $subtotal + $tax;
-        $themePath = ThemeHelper::getThemePath($restaurant);
-
-        $table = session('restaurant_table_restaurant_id') === $restaurant->id
-            ? $restaurant->tables()->find(session('restaurant_table_id'))
-            : null;
-
-        return view("themes.{$themePath}.cart.checkout", compact('restaurant', 'total', 'slug', 'table'));
+    if (empty($cart)) {
+        return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
     }
 
+    $productIds = array_keys($cart);
+    $products = Product::where('restaurant_id', $restaurant->id)
+        ->where('is_available', true)
+        ->whereIn('id', $productIds)
+        ->get()
+        ->keyBy('id');
+
+    if ($products->count() !== count(array_unique($productIds))) {
+        session()->forget($sessionKey);
+
+        return redirect()->route('restaurant.menu', $slug)
+            ->with('error', 'تحتوي السلة على منتج غير متاح لهذا المطعم');
+    }
+
+    $subtotal = 0;
+    foreach ($cart as $id => $details) {
+        $quantity = (int) ($details['qty'] ?? 0);
+
+        if ($quantity < 1) {
+            return redirect()->route('restaurant.menu', $slug)
+                ->with('error', 'تحتوي السلة على كمية غير صالحة');
+        }
+
+        $subtotal += $products->get($id)->price * $quantity;
+    }
+
+    $tax = $subtotal * 0.15;
+    $total = $subtotal + $tax;
+
+    // ===== الحسابات الخاصة بصفحة إتمام الطلب (Checkout Calculations) =====
+    $baseSubtotal = $total / 1.15;
+    $baseTax = $total - $baseSubtotal;
+    $deliveryFee = $restaurant->delivery_fee ?? 0;
+
+    // حساب خصم العرض التلقائي
+    $activeOffer = $restaurant->activeOffers()
+        ->where('min_order_amount', '<=', $baseSubtotal)
+        ->first();
+
+    $autoDiscount = $activeOffer ? $activeOffer->getDiscountAmount($baseSubtotal) : 0;
+
+    // الإجمالي النهائي الأولي
+    $initialFinalTotal = $baseSubtotal + $baseTax + $deliveryFee - $autoDiscount;
+
+    $themePath = ThemeHelper::getThemePath($restaurant);
+
+    $table = session('restaurant_table_restaurant_id') === $restaurant->id
+        ? $restaurant->tables()->find(session('restaurant_table_id'))
+        : null;
+
+    return view("themes.{$themePath}.cart.checkout", compact(
+        'restaurant',
+        'total',
+        'slug',
+        'table',
+        'baseSubtotal',
+        'baseTax',
+        'deliveryFee',
+        'activeOffer',
+        'autoDiscount',
+        'initialFinalTotal'
+    ));
+}
     /**
      * حفظ الطلب الجديد
      */

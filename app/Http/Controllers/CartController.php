@@ -167,6 +167,7 @@ class CartController extends Controller
 
         return redirect()->route('cart.index', $slug)->with('success', 'تم تحديث كمية المنتج');
     }
+    
 
     /**
      * حذف منتج من السلة

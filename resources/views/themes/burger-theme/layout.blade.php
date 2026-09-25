@@ -12,8 +12,8 @@
 
     <title>{{ $restaurant->name }} - {{ $pageTitle ?? 'طعم لا يُقاوم' }}</title>
     
-    <!-- ==================== PWA Meta Tags ==================== -->
-    <meta name="theme-color" content="{{ $restaurant->primary_color ?? '#FF6B35' }}">
+    <!-- ==================== PWA Meta Tags (تعديل ديناميكي) ==================== -->
+    <meta name="theme-color" content="{{ theme_setting('primary_color', '#FF6B35') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ $restaurant->name }}">
@@ -28,28 +28,31 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ media_url($restaurant->logo) ?? $iconUrl }}">
     <link rel="apple-touch-icon" href="{{ $iconUrl }}">
     
-    <!-- ==================== Libraries & Fonts ==================== -->
+    <!-- ==================== Libraries & Fonts (إضافة الخطوط للـ JSON) ==================== -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Cairo:wght@300;400;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
+    <x-theme-styles :restaurant="$restaurant" />
 
-    <!-- ==================== Custom Styles ==================== -->
+    <!-- ==================== Custom Styles (تعديل الألوان والخطوط لتصبح ديناميكية) ==================== -->
     <style>
         :root {
-            --primary: {{ $restaurant->primary_color ?? '#FF6B35' }};
-            --secondary: {{ $restaurant->secondary_color ?? '#FFFFFF' }};
-            --background: {{ $restaurant->background_color ?? '#F9FAFB' }};
-            --dark: {{ $restaurant->secondary_color ?? '#111827' }};
+            --primary: {{ theme_setting('primary_color', '#FF6B35') }};
+            --secondary: {{ theme_setting('secondary_color', '#FFFFFF') }};
+            --background: {{ theme_setting('background_color', '#1A1A1A') }};
+            --dark: {{ theme_setting('secondary_color', '#111827') }};
+            --font-family: '{{ theme_setting("font_family", "Tajawal") }}', sans-serif;
+            --border-radius: {{ theme_setting('border_radius', '8px') }};
         }
         
         * {
-            font-family: 'Tajawal', sans-serif;
+            font-family: var(--font-family, 'Tajawal', sans-serif);
             scroll-behavior: smooth;
         }
         
@@ -68,10 +71,12 @@
         .text-primary { color: var(--primary); }
         .bg-primary { background-color: var(--primary); }
         .border-primary { border-color: var(--primary); }
+        .rounded-theme { border-radius: var(--border-radius); }
         
         .btn-primary {
             background-color: var(--primary);
-            color: white;
+            color: var(--secondary);
+            border-radius: var(--border-radius);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-primary:hover {
@@ -80,7 +85,7 @@
             box-shadow: 0 10px 20px -10px rgba(0,0,0,0.3);
         }
 
-        /* Animations */
+        <!-- من هنا إلى نهاية الـ Style الأصلي لم يتغير بفضل الحفاظ على الانيميشنز والأنماط -->
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
@@ -142,6 +147,7 @@
 <body class="antialiased flex flex-col min-h-screen">
 
     <!-- ==================== Top Bar (إعلانات سريعة) ==================== -->
+    <!-- [من هذا السطر إلى بداية الـ Header الكود كما هو بدون تغيير] -->
     <div class="bg-primary text-white text-xs md:text-sm py-2 hidden md:block">
         <div class="container mx-auto px-4 flex justify-between items-center">
             <span class="flex items-center gap-2">
@@ -158,12 +164,19 @@
         </div>
     </div>
 
-    <!-- ==================== Header & Navigation ==================== -->
-    <header class="bg-white shadow-sm sticky top-0 z-40 transition-all duration-300" id="main-header">
+    <!-- ==================== Header & Navigation (ربط نمط الهيدر الديناميكي) ==================== -->
+    @php
+        $headerStyle = theme_setting('header_style', 'sticky');
+        $headerClasses = $headerStyle === 'transparent' 
+            ? 'bg-transparent text-white absolute top-0 left-0 w-full z-40' 
+            : 'bg-white shadow-sm sticky top-0 z-40 transition-all duration-300';
+    @endphp
+
+    <header class="{{ $headerClasses }}" id="main-header">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 
-                <!-- Logo & Brand -->
+                <!-- Logo & Brand (نفس الكود الأصلي) -->
                 <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="flex items-center gap-3 group">
                     @if($restaurant->logo)
                         <img src="{{ media_url($restaurant->logo) }}"
@@ -180,7 +193,7 @@
                     </div>
                 </a>
 
-                <!-- Desktop Navigation -->
+                <!-- Desktop Navigation (نفس الكود الأصلي) -->
                 <nav class="hidden lg:flex items-center gap-8">
                     <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">الرئيسية</a>
                     <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">القائمة</a>
@@ -188,7 +201,7 @@
                     <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">تتبع الطلب</a>
                 </nav>
 
-                <!-- Cart & Actions -->
+                <!-- Cart & Actions (نفس كود السلة الأصلي بالكامل) -->
                 <div class="flex items-center gap-3 md:gap-4">
                     
                     <!-- Quick Cart Preview (Dropdown) -->
@@ -273,7 +286,7 @@
             </div>
         </div>
 
-        <!-- Mobile Menu (Off-canvas) -->
+        <!-- Mobile Menu (Off-canvas) (نفس الكود الأصلي) -->
         <div id="mobile-menu" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" onclick="toggleMobileMenu()">
             <div class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
                 <div class="flex justify-between items-center mb-8 border-b pb-4">
@@ -299,7 +312,7 @@
         @yield('content')
     </main>
 
-    <!-- ==================== Footer Section ==================== -->
+    <!-- ==================== Footer Section (من هنا إلى نهاية السكربتات أصلي بالكامل) ==================== -->
     <footer class="bg-gray-900 text-white pt-16 pb-8 mt-auto">
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
@@ -409,7 +422,7 @@
         </div>
     </footer>
 
-    <!-- ==================== Floating Elements ==================== -->
+    <!-- ==================== Floating Elements (أصلي بالكامل) ==================== -->
     
     <!-- زر تثبيت التطبيق -->
     <button id="install-pwa-btn" class="fixed bottom-24 left-5 z-40 bg-primary text-white px-5 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 hover:scale-105">
@@ -425,7 +438,7 @@
     <!-- حاوية الإشعارات -->
     <div id="toast-container"></div>
 
-    <!-- ==================== JavaScript Logic ==================== -->
+    <!-- ==================== JavaScript Logic (السكربتات الأصلية 100% دون أي اقتطاع) ==================== -->
     <script>
         // 1. Mobile Menu Toggle
         function toggleMobileMenu() {

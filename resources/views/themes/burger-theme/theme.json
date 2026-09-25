@@ -2,48 +2,45 @@
   "name": "برجر كلاسيك",
   "author": "منصة المطاعم",
   "version": "1.0.0",
-  
-  "default_settings": {
-    "primary_color": "#FF6B35",
-    "secondary_color": "#FFFFFF",
-    "background_color": "#1A1A1A",
-    "font_family": "Tajawal",
-    "header_style": "sticky",
-    "show_hero_banner": true,
-    "hero_title": "أشهى البرجر في المدينة",
-    "hero_subtitle": "تجربة طعم لا تُقاوم",
-    "border_radius": "0.5rem",
-    "card_style": "elevated"
-  },
+  "slug": "classic-burger",
 
   "allowed_variables": {
     "primary_color": {
+      "section": "الألوان والخطوط",
       "type": "color",
       "label": "اللون الرئيسي",
-      "description": "يُستخدم في الأزرار والروابط",
-      "default": "#FF6B35"
+      "description": "يُستخدم في الأزرار والعناصر التفاعلية",
+      "default": "#FF6B35",
+      "css_var": "--primary-color"
     },
     "secondary_color": {
+      "section": "الألوان والخطوط",
       "type": "color",
       "label": "اللون الثانوي",
-      "default": "#FFFFFF"
+      "default": "#FFFFFF",
+      "css_var": "--secondary-color"
     },
     "background_color": {
+      "section": "الألوان والخطوط",
       "type": "color",
       "label": "لون الخلفية",
-      "default": "#1A1A1A"
+      "default": "#1A1A1A",
+      "css_var": "--bg-color"
     },
     "font_family": {
+      "section": "الألوان والخطوط",
       "type": "select",
-      "label": "نوع الخط",
+      "label": "نوع الخط العربي",
       "options": {
         "Tajawal": "Tajawal (عصري)",
         "Cairo": "Cairo (واضح)",
         "Almarai": "Almarai (أنيق)"
       },
-      "default": "Tajawal"
+      "default": "Tajawal",
+      "css_var": "--font-family"
     },
     "header_style": {
+      "section": "الهيدر والبانر",
       "type": "select",
       "label": "شكل القائمة العلوية",
       "options": {
@@ -53,32 +50,38 @@
       "default": "sticky"
     },
     "show_hero_banner": {
-      "type": "boolean",
+      "section": "الهيدر والبانر",
+      "type": "toggle",
       "label": "إظهار البانر الرئيسي",
       "default": true
     },
     "hero_title": {
+      "section": "الهيدر والبانر",
       "type": "text",
       "label": "عنوان البانر",
       "default": "أشهى البرجر في المدينة"
     },
     "hero_subtitle": {
+      "section": "الهيدر والبانر",
       "type": "text",
       "label": "العنوان الفرعي",
       "default": "تجربة طعم لا تُقاوم"
     },
     "border_radius": {
+      "section": "تصميم البطاقات",
       "type": "select",
       "label": "انحناء الحواف",
       "options": {
-        "0": "مربع",
-        "0.25rem": "خفيف",
-        "0.5rem": "متوسط",
-        "1rem": "دائري"
+        "0px": "مربع",
+        "4px": "خفيف",
+        "8px": "متوسط",
+        "16px": "دائري"
       },
-      "default": "0.5rem"
+      "default": "8px",
+      "css_var": "--border-radius"
     },
     "card_style": {
+      "section": "تصميم البطاقات",
       "type": "select",
       "label": "شكل البطاقات",
       "options": {

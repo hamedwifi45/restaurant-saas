@@ -36,7 +36,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('themes.reset-settings');
     Route::resource('themes', ThemeController::class);
 
+
     // واجهة المطبخ (KDS)
+    Route::redirect('/{slug}/kds', '/kitchen/{slug}/display');
     Route::prefix('kitchen')->name('kitchen.')->group(function () {
         Route::get('/{slug}/display', [KdsController::class, 'index'])->name('display');
         Route::post('/orders/{orderId}/status', [KdsController::class, 'updateStatus'])->name('orders.updateStatus');
