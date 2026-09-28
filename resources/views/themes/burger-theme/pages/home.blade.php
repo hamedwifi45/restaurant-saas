@@ -2,7 +2,7 @@
 
 @section('content')
 
-    <!-- ==================== Hero Section (معدّل: ربط الشرط والعناوين بـ theme.json) ==================== -->
+    <!-- Hero Section -->
     @if(theme_setting('show_hero_banner', true))
         <section class="relative h-screen flex items-center justify-center overflow-hidden">
             @if($restaurant->cover_image)
@@ -20,12 +20,10 @@
                     </span>
                 </div>
 
-                {{-- عنوان البانر الديناميكي من theme.json أو اسم المطعم --}}
                 <h1 class="text-5xl md:text-7xl font-black mb-4">
                     {{ theme_setting('hero_title', $restaurant->name) }}
                 </h1>
 
-                {{-- العنوان الفرعي الديناميكي من theme.json --}}
                 <p class="text-2xl md:text-3xl mb-8 font-medium">
                     {{ theme_setting('hero_subtitle', $restaurant->description ?? 'طعم لا يُقاوم') }}
                 </p>
@@ -41,7 +39,7 @@
                     </a>
                 </div>
 
-                <!-- Stats (أصلي دون تغيير) -->
+                <!-- Stats -->
                 <div class="flex gap-8 justify-center mt-12 flex-wrap">
                     <div class="text-center">
                         <div class="text-4xl font-black text-primary">+٥٠٠</div>
@@ -60,7 +58,7 @@
         </section>
     @endif
 
-    <!-- ==================== بانر العروض (أصلي دون تغيير) ==================== -->
+    <!-- بانر العروض -->
     @if($restaurant->activeOffers()->count() > 0)
         <section class="py-12 bg-gradient-to-r from-red-500 to-orange-500 text-white">
             <div class="container mx-auto px-4">
@@ -81,7 +79,7 @@
         </section>
     @endif
 
-    <!-- ==================== Browse Categories Section (أصلي دون تغيير) ==================== -->
+    <!-- Browse Categories Section -->
     <section class="py-16 bg-white">
         <div class="container mx-auto px-4">
             <div class="text-center mb-12">
@@ -108,7 +106,7 @@
         </div>
     </section>
 
-    <!-- ==================== Popular Items Section (معدّل: ربط نمط البطاقة card_style) ==================== -->
+    <!-- Popular Items Section -->
     <section class="py-16 bg-gray-50">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-end mb-12">
@@ -122,17 +120,9 @@
                 </a>
             </div>
 
-            {{-- تحديد نمط البطاقات بناءً على قيمة card_style المحددة من الفلمنت --}}
-            @php
-                $cardStyle = theme_setting('card_style', 'elevated');
-                $cardClasses = $cardStyle === 'flat' 
-                    ? 'bg-white rounded-2xl border border-gray-200 overflow-hidden group hover:border-primary transition duration-300' 
-                    : 'bg-white rounded-2xl shadow-lg overflow-hidden group hover:-translate-y-2 transition duration-300';
-            @endphp
-
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 @forelse($restaurant->products()->where('is_available', true)->limit(4)->get() as $product)
-                    <div class="{{ $cardClasses }}">
+                    <div class="{{ theme_setting('card_style', 'elevated') === 'flat' ? 'bg-white rounded-2xl border border-gray-200 overflow-hidden group hover:border-primary transition duration-300' : 'bg-white rounded-2xl shadow-lg overflow-hidden group hover:-translate-y-2 transition duration-300' }}">
                         <div class="relative h-48 overflow-hidden">
                             @if($product->image)
                                 <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}"
@@ -176,7 +166,7 @@
         </div>
     </section>
 
-    <!-- ==================== Features Section (أصلي دون تغيير) ==================== -->
+    <!-- Features Section -->
     <section class="py-16 bg-white">
         <div class="container mx-auto px-4">
             <h2 class="text-4xl font-black text-center mb-12 text-gray-800">لماذا نحن</h2>
@@ -209,7 +199,7 @@
         </div>
     </section>
 
-    <!-- ==================== About Section (أصلي دون تغيير) ==================== -->
+    <!-- About Section -->
     <section id="about" class="py-16 bg-gray-50">
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -255,7 +245,7 @@
         </div>
     </section>
 
-    <!-- ==================== Contact Section (أصلي دون تغيير) ==================== -->
+    <!-- Contact Section -->
     <section id="contact" class="py-16 bg-white">
         <div class="container mx-auto px-4">
             <h2 class="text-4xl font-black text-center mb-12 text-gray-800">تواصل معنا</h2>

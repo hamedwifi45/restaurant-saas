@@ -35,32 +35,40 @@
 
                 <!-- شريط التقدم المرئي -->
                 <div class="p-8 bg-gray-50 border-b border-gray-100">
-                    @php
-                        $steps = ['pending' => 1, 'preparing' => 2, 'on_way' => 3, 'delivered' => 4];
-                        $currentStep = $steps[$order->status] ?? 1;
-                        $labels = [
-                            1 => ['title' => 'تم الاستلام', 'icon' => '✓'],
-                            2 => ['title' => 'جاري التحضير', 'icon' => '🍳'],
-                            3 => ['title' => 'في الطريق إليك', 'icon' => '🛵'],
-                            4 => ['title' => 'تم التوصيل', 'icon' => '🏠']
-                        ];
-                    @endphp
-
                     <div class="relative flex justify-between items-center">
                         <div class="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-10 transform -translate-y-1/2"></div>
 
-                        @foreach($labels as $stepNum => $label)
-                            @php $isActive = $currentStep >= $stepNum; @endphp
-                            <div class="flex flex-col items-center gap-3 relative z-10">
-                                <div
-                                    class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 
-                                                {{ $isActive ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
-                                    {{ $label['icon'] }}
-                                </div>
-                                <span
-                                    class="text-sm font-bold {{ $isActive ? 'text-gray-800' : 'text-gray-400' }}">{{ $label['title'] }}</span>
+                        <!-- الخطوة 1 -->
+                        <div class="flex flex-col items-center gap-3 relative z-10">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 bg-primary text-white shadow-lg scale-110">
+                                ✓
                             </div>
-                        @endforeach
+                            <span class="text-sm font-bold text-gray-800">تم الاستلام</span>
+                        </div>
+
+                        <!-- الخطوة 2 -->
+                        <div class="flex flex-col items-center gap-3 relative z-10">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                                🍳
+                            </div>
+                            <span class="text-sm font-bold {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">جاري التحضير</span>
+                        </div>
+
+                        <!-- الخطوة 3 -->
+                        <div class="flex flex-col items-center gap-3 relative z-10">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                                🛵
+                            </div>
+                            <span class="text-sm font-bold {{ in_array($order->status, ['on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">في الطريق إليك</span>
+                        </div>
+
+                        <!-- الخطوة 4 -->
+                        <div class="flex flex-col items-center gap-3 relative z-10">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ $order->status === 'delivered' ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                                🏠
+                            </div>
+                            <span class="text-sm font-bold {{ $order->status === 'delivered' ? 'text-gray-800' : 'text-gray-400' }}">تم التوصيل</span>
+                        </div>
                     </div>
                 </div>
 
@@ -103,13 +111,6 @@
                             <span class="text-primary">💳</span> ملخص الفاتورة
                         </h3>
 
-                        @php
-                            // حساب الضريبة من المجموع الفرعي
-                            $taxAmount = $order->total_amount * 0.15;
-                            $deliveryFee = $order->delivery_fee ?? 0;
-                            $discount = $order->discount ?? 0;
-                        @endphp
-
                         <div class="space-y-3">
                             <div class="flex justify-between text-gray-600">
                                 <span>المجموع الفرعي:</span>
@@ -118,33 +119,31 @@
 
                             <div class="flex justify-between text-gray-600">
                                 <span>الضريبة (١٥٪):</span>
-                                <span>{{ number_format($taxAmount, 2) }} ر.س</span>
+                                <span>{{ number_format($order->total_amount * 0.15, 2) }} ر.س</span>
                             </div>
 
-                            @if($deliveryFee > 0)
+                            @if(($order->delivery_fee ?? 0) > 0)
                                 <div class="flex justify-between text-gray-600">
                                     <span>رسوم التوصيل:</span>
-                                    <span>{{ number_format($deliveryFee, 2) }} ر.س</span>
+                                    <span>{{ number_format($order->delivery_fee, 2) }} ر.س</span>
                                 </div>
                             @endif
 
-                            @if($discount > 0)
+                            @if(($order->discount ?? 0) > 0)
                                 <div class="flex justify-between text-green-600 font-bold">
                                     <span>الخصم:</span>
-                                    <span>- {{ number_format($discount, 2) }} ر.س</span>
+                                    <span>- {{ number_format($order->discount, 2) }} ر.س</span>
                                 </div>
                             @endif
 
                             <div class="flex justify-between text-gray-600">
                                 <span>طريقة الدفع:</span>
-                                <span
-                                    class="font-bold">{{ $order->payment_method === 'cash' ? 'نقدي عند الاستلام' : 'تحويل بنكي' }}</span>
+                                <span class="font-bold">{{ $order->payment_method === 'cash' ? 'نقدي عند الاستلام' : 'تحويل بنكي' }}</span>
                             </div>
 
                             <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
                                 <span class="font-black text-gray-800">الإجمالي النهائي:</span>
-                                <span class="text-2xl font-black text-primary">{{ number_format($order->final_amount, 2) }}
-                                    ل.س</span>
+                                <span class="text-2xl font-black text-primary">{{ number_format($order->final_amount, 2) }} ل.س</span>
                             </div>
                         </div>
                     </div>
@@ -156,15 +155,13 @@
                 <h3 class="font-black text-2xl mb-8 text-gray-800 border-b pb-4">محتويات الطلب</h3>
                 <div class="space-y-6">
                     @foreach($order->items as $item)
-                        <div
-                            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b last:border-0 last:pb-0">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b last:border-0 last:pb-0">
                             <div class="flex items-center gap-4">
                                 @if($item->product && $item->product->image)
                                     <img src="{{ media_url($item->product->image) }}" alt="{{ $item->product->name }}"
                                         class="w-16 h-16 rounded-2xl object-cover border border-orange-100">
                                 @else
-                                    <div
-                                        class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">
+                                    <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">
                                         🍔
                                     </div>
                                 @endif
@@ -176,7 +173,6 @@
                                             الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س
                                         </p>
 
-                                        <!-- زر عرض المنتج -->
                                         <a href="{{ route('product.show', [$restaurant->slug, $item->product->id]) }}"
                                             class="inline-block mt-2 text-sm text-primary hover:underline font-bold">
                                             عرض المنتج ←
@@ -191,7 +187,6 @@
                                 </div>
                             </div>
 
-                            <!-- ✅ التصحيح: استخدام total بدلاً من subtotal -->
                             <span class="font-black text-xl text-gray-800">{{ number_format($item->total, 2) }} ر.س</span>
                         </div>
                     @endforeach
@@ -222,10 +217,9 @@
                     </button>
                 </div>
             </div>
-            <!-- زر التقييم (يظهر فقط إذا كان الطلب مكتمل ولم يتم تقييمه) -->
+
             @if($order->status === 'delivered' && !$order->is_reviewed && $order->delivered_at && $order->delivered_at->diffInMinutes(now()) >= 10)
-                <div
-                    class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl shadow-lg p-8 mb-8 text-center border-2 border-yellow-200">
+                <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl shadow-lg p-8 mb-8 text-center border-2 border-yellow-200">
                     <div class="text-5xl mb-4">⭐</div>
                     <h3 class="text-2xl font-black text-gray-800 mb-2">كيف كانت تجربتك؟</h3>
                     <p class="text-gray-600 mb-6">شاركنا رأيك لنساعدنا على التحسين</p>
@@ -235,6 +229,7 @@
                     </a>
                 </div>
             @endif
+
             <!-- خيارات المساعدة -->
             <div class="text-center">
                 <p class="text-gray-500 mb-4">هل لديك استفسار حول هذا الطلب؟</p>
@@ -250,6 +245,7 @@
                 </div>
             </div>
     </section>
+
     @if($order->delivery_latitude && $order->delivery_longitude)
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script>
@@ -278,6 +274,7 @@
             setInterval(refreshDriverLocation, 10000);
         </script>
     @endif
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const trackUrl = "{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}";

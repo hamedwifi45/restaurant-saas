@@ -5,6 +5,10 @@ namespace App\Providers;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Restaurant;
+use App\Models\RestaurantThemeSetting;
+use App\Observers\RestaurantObserver;
+use App\Observers\RestaurantThemeSettingObserver;
 use App\Policies\CategoryPolicy;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
@@ -45,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
         }
         $this->configureDefaults();
         $this->registerPolicies();
+        Restaurant::observe(RestaurantObserver::class);
+        RestaurantThemeSetting::observe(RestaurantThemeSettingObserver::class);
     }
 
     protected function registerPolicies(): void

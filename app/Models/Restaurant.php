@@ -45,6 +45,7 @@ class Restaurant extends Model
         'commission_rate' => 'decimal:2',
         'subscription_fee' => 'decimal:2',
         'trial_ends_at' => 'datetime',
+        'theme_settings' => 'array',
     ];
 
     // Relationships

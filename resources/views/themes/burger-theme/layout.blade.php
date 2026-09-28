@@ -22,13 +22,10 @@
     
     <!-- PWA Manifest & Icons ديناميكية -->
     <link rel="manifest" href="{{ route('pwa.manifest', $restaurant->slug) }}">
-    @php
-        $iconUrl = media_url($restaurant->logo) ?? asset('/icons/default-icon.png');
-    @endphp
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ media_url($restaurant->logo) ?? $iconUrl }}">
-    <link rel="apple-touch-icon" href="{{ $iconUrl }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ media_url($restaurant->logo) ?? asset('/icons/default-icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ media_url($restaurant->logo) ?? asset('/icons/default-icon.png') }}">
     
-    <!-- ==================== Libraries & Fonts (إضافة الخطوط للـ JSON) ==================== -->
+    <!-- ==================== Libraries & Fonts ==================== -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -40,8 +37,15 @@
     @stack('head')
     <x-theme-styles :restaurant="$restaurant" />
 
-    <!-- ==================== Custom Styles (تعديل الألوان والخطوط لتصبح ديناميكية) ==================== -->
+    <!-- ==================== Custom Styles ==================== -->
+    
     <style>
+        
+        
+        
+
+        /* تطبيق متغير الحواف على الأزرار والبطاقات */
+        
         :root {
             --primary: {{ theme_setting('primary_color', '#FF6B35') }};
             --secondary: {{ theme_setting('secondary_color', '#FFFFFF') }};
@@ -52,13 +56,21 @@
         }
         
         * {
-            font-family: var(--font-family, 'Tajawal', sans-serif);
+            font-family: var(--font-family);
             scroll-behavior: smooth;
         }
         
         body {
             background-color: var(--background);
             color: #333;
+        }
+        .rounded-theme,
+        .btn-primary,
+        .card,
+        input,
+        select,
+        button {
+            border-radius: var(--border-radius) !important;
         }
 
         /* Custom Scrollbar */
@@ -85,7 +97,6 @@
             box-shadow: 0 10px 20px -10px rgba(0,0,0,0.3);
         }
 
-        <!-- من هنا إلى نهاية الـ Style الأصلي لم يتغير بفضل الحفاظ على الانيميشنز والأنماط -->
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
@@ -143,11 +154,47 @@
             visibility: visible;
         }
     </style>
+    <script>
+        window.addEventListener('message', function (event) {
+            if (!event.data) return;
+
+            const data = event.data;
+            if (data.type === 'THEME_VARIABLE_CHANGE' || data.key) {
+                const key = data.key;
+                const value = data.value;
+                const root = document.documentElement;
+
+                if (!key) return;
+
+                // 1. تحديث الألوان فوراً وتغطية جميع تسميات المتغيرات
+                if (key === 'primary_color') {
+                    root.style.setProperty('--primary', value);
+                    root.style.setProperty('--primary_color', value);
+                } else if (key === 'secondary_color') {
+                    root.style.setProperty('--secondary', value);
+                    root.style.setProperty('--secondary_color', value);
+                } else if (key === 'background_color') {
+                    root.style.setProperty('--background', value);
+                    root.style.setProperty('--background_color', value);
+                } 
+                
+                // 2. تحديث الانحناءات والحواف
+                else if (key === 'border_radius') {
+                    const radius = isNaN(value) ? value : value + 'px';
+                    root.style.setProperty('--border-radius', radius);
+                }
+
+                // 3. تطبيق أي متغير CSS مخصص
+                if (data.cssVar) {
+                    root.style.setProperty(data.cssVar, value);
+                }
+            }
+        });
+    </script>
 </head>
 <body class="antialiased flex flex-col min-h-screen">
 
-    <!-- ==================== Top Bar (إعلانات سريعة) ==================== -->
-    <!-- [من هذا السطر إلى بداية الـ Header الكود كما هو بدون تغيير] -->
+    <!-- ==================== Top Bar ==================== -->
     <div class="bg-primary text-white text-xs md:text-sm py-2 hidden md:block">
         <div class="container mx-auto px-4 flex justify-between items-center">
             <span class="flex items-center gap-2">
@@ -164,19 +211,12 @@
         </div>
     </div>
 
-    <!-- ==================== Header & Navigation (ربط نمط الهيدر الديناميكي) ==================== -->
-    @php
-        $headerStyle = theme_setting('header_style', 'sticky');
-        $headerClasses = $headerStyle === 'transparent' 
-            ? 'bg-transparent text-white absolute top-0 left-0 w-full z-40' 
-            : 'bg-white shadow-sm sticky top-0 z-40 transition-all duration-300';
-    @endphp
-
-    <header class="{{ $headerClasses }}" id="main-header">
+    <!-- ==================== Header & Navigation ==================== -->
+    <header class="{{ theme_setting('header_style', 'sticky') === 'transparent' ? 'bg-transparent text-white absolute top-0 left-0 w-full z-40' : 'bg-white shadow-sm sticky top-0 z-40 transition-all duration-300' }}" id="main-header">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 
-                <!-- Logo & Brand (نفس الكود الأصلي) -->
+                <!-- Logo & Brand -->
                 <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="flex items-center gap-3 group">
                     @if($restaurant->logo)
                         <img src="{{ media_url($restaurant->logo) }}"
@@ -193,7 +233,7 @@
                     </div>
                 </a>
 
-                <!-- Desktop Navigation (نفس الكود الأصلي) -->
+                <!-- Desktop Navigation -->
                 <nav class="hidden lg:flex items-center gap-8">
                     <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">الرئيسية</a>
                     <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">القائمة</a>
@@ -201,33 +241,16 @@
                     <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">تتبع الطلب</a>
                 </nav>
 
-                <!-- Cart & Actions (نفس كود السلة الأصلي بالكامل) -->
+                <!-- Cart & Actions -->
                 <div class="flex items-center gap-3 md:gap-4">
                     
                     <!-- Quick Cart Preview (Dropdown) -->
                     <div class="relative group">
-                        @php
-                            $restaurantCart = session('cart_'.$restaurant->id, []);
-                            $restaurantCartCount = 0;
-                            $restaurantCartTotal = 0;
-                            $restaurantCartItems = [];
-
-                            foreach ($restaurantCart as $cartId => $cartDetails) {
-                                $cartProduct = \App\Models\Product::where('restaurant_id', $restaurant->id)->find($cartId);
-                                $cartQuantity = (int) ($cartDetails['qty'] ?? 0);
-
-                                if ($cartProduct && $cartQuantity > 0) {
-                                    $restaurantCartCount += $cartQuantity;
-                                    $restaurantCartTotal += $cartProduct->price * $cartQuantity;
-                                    $restaurantCartItems[] = ['product' => $cartProduct, 'quantity' => $cartQuantity];
-                                }
-                            }
-                        @endphp
                         <button class="btn-primary px-4 md:px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg relative hover:shadow-xl transition">
                             <span class="text-xl">🛒</span>
                             <span class="font-bold hidden sm:inline">السلة</span>
                             <span id="cart-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                                {{ $restaurantCartCount }}
+                                {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'qty')) }}
                             </span>
                         </button>
 
@@ -235,40 +258,36 @@
                         <div class="cart-dropdown absolute left-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                             <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                                 <h3 class="font-bold text-gray-800 text-sm">منتجاتك المختارة</h3>
-                                <span id="mini-cart-count" class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">{{ $restaurantCartCount }} عناصر</span>
+                                <span id="mini-cart-count" class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                                    {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'qty')) }} عناصر
+                                </span>
                             </div>
                             
                             <div id="mini-cart-items" class="max-h-64 overflow-y-auto p-2 space-y-2">
-                                @if($restaurantCartItems)
-                                    @foreach($restaurantCartItems as $cartItem)
-                                        @php $product = $cartItem['product']; @endphp
-                                        @if($product)
-                                            <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
-                                                <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" class="w-12 h-12 rounded-md object-cover bg-gray-100">
-                                                <div class="flex-1 min-w-0">
-                                                    <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}</h4>
-                                                    <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ر.س × {{ $cartItem['quantity'] }}</p>
-                                                </div>
+                                @forelse($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get() as $product)
+                                    @if(($cartQty = (session('cart_'.$restaurant->id)[$product->id]['qty'] ?? 0)) > 0)
+                                        <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
+                                            <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" class="w-12 h-12 rounded-md object-cover bg-gray-100">
+                                            <div class="flex-1 min-w-0">
+                                                <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}</h4>
+                                                <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ر.س × {{ $cartQty }}</p>
                                             </div>
-                                        @endif
-                                    @endforeach
-                                @else
+                                        </div>
+                                    @endif
+                                @empty
                                     <div class="text-center py-8 px-4">
                                         <div class="text-4xl mb-2">🍽️</div>
                                         <p class="text-gray-500 text-sm font-medium">السلة فارغة حالياً</p>
                                         <p class="text-gray-400 text-xs mt-1">ابدأ بإضافة منتجات لذيذة</p>
                                     </div>
-                                @endif
+                                @endforelse
                             </div>
 
                             <div class="p-4 bg-gray-50 border-t border-gray-100">
                                 <div class="flex justify-between mb-3 text-sm font-bold text-gray-700">
                                     <span>المجموع:</span>
                                     <span id="mini-cart-total">
-                                        @php
-                                            $total = $restaurantCartTotal;
-                                        @endphp
-                                        {{ number_format($total, 2) }} ر.س
+                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['qty'] ?? 0); }), 2) }} ر.س
                                     </span>
                                 </div>
                                 <a href="{{ route('cart.index', $restaurant->slug) }}" class="block w-full btn-primary text-center py-2.5 rounded-xl text-sm font-bold hover:shadow-md transition">
@@ -286,7 +305,7 @@
             </div>
         </div>
 
-        <!-- Mobile Menu (Off-canvas) (نفس الكود الأصلي) -->
+        <!-- Mobile Menu (Off-canvas) -->
         <div id="mobile-menu" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" onclick="toggleMobileMenu()">
             <div class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
                 <div class="flex justify-between items-center mb-8 border-b pb-4">
@@ -312,7 +331,7 @@
         @yield('content')
     </main>
 
-    <!-- ==================== Footer Section (من هنا إلى نهاية السكربتات أصلي بالكامل) ==================== -->
+    <!-- ==================== Footer Section ==================== -->
     <footer class="bg-gray-900 text-white pt-16 pb-8 mt-auto">
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
@@ -422,23 +441,19 @@
         </div>
     </footer>
 
-    <!-- ==================== Floating Elements (أصلي بالكامل) ==================== -->
-    
-    <!-- زر تثبيت التطبيق -->
+    <!-- ==================== Floating Elements ==================== -->
     <button id="install-pwa-btn" class="fixed bottom-24 left-5 z-40 bg-primary text-white px-5 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 hover:scale-105">
         <span>📱</span>
         <span>تثبيت التطبيق</span>
     </button>
 
-    <!-- زر العودة للأعلى -->
     <button id="scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-6 right-6 z-40 bg-gray-800 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-primary transition-all duration-300">
         ↑
     </button>
 
-    <!-- حاوية الإشعارات -->
     <div id="toast-container"></div>
 
-    <!-- ==================== JavaScript Logic (السكربتات الأصلية 100% دون أي اقتطاع) ==================== -->
+    <!-- ==================== JavaScript Logic ==================== -->
     <script>
         // 1. Mobile Menu Toggle
         function toggleMobileMenu() {
@@ -446,7 +461,7 @@
             if (menu.classList.contains('hidden')) {
                 menu.classList.remove('hidden');
                 menu.querySelector('div').classList.add('mobile-menu-open');
-                document.body.style.overflow = 'hidden'; // منع التمرير
+                document.body.style.overflow = 'hidden';
             } else {
                 menu.querySelector('div').classList.remove('mobile-menu-open');
                 setTimeout(() => {
@@ -517,7 +532,6 @@
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 deferredPrompt = e;
-                // إظهار الزر بتأثير انسيابي
                 installBtn.classList.remove('translate-y-20', 'opacity-0');
             });
 
@@ -594,7 +608,7 @@
             return String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
         }
 
-        // 7. نظام الإشعارات (Toast) المتطور
+        // 7. نظام الإشعارات (Toast)
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');

@@ -18,7 +18,6 @@ class RestaurantController extends Controller
 
         // جلب الإعدادات من قاعدة البيانات، أو استخدام القيم الافتراضية
         $settings = $restaurant->themeSettings?->settings ?? $restaurant->theme?->default_settings ?? [];
-
         return view('restaurant.dashboard', compact('settings'));
     }
 
@@ -35,10 +34,10 @@ class RestaurantController extends Controller
             ->orderBy('sort_order')
             ->take(6)
             ->get();
-
+        request()->attributes->set('current_restaurant', $restaurant);
         // تحديد مسار الثيم (سنستخدم burger-theme كافتراضي حالياً)
         $themePath = ThemeHelper::getThemePath($restaurant);
-
+        
         return view("themes.{$themePath}.pages.home", compact('restaurant', 'categories'));
     }
 

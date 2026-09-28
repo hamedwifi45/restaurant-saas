@@ -23,13 +23,8 @@
             </div>
         </header>
 
-        @forelse ($orders as $order)
-            @php
-                $isClaimedByMe = $order->driver_id === auth()->id();
-                $isUnassigned = is_null($order->driver_id);
-            @endphp
-            
-            <article class="overflow-hidden rounded-3xl border {{ $isUnassigned ? 'border-amber-400/50 bg-slate-900/40' : 'border-slate-200 bg-white' }} shadow-xl" data-order="{{ $order->id }}" data-status="{{ $order->status }}">
+        @forelse ($orders as$order)
+            <article class="overflow-hidden rounded-3xl border {{ is_null($order->driver_id) ? 'border-amber-400/50 bg-slate-900/40' : 'border-slate-200 bg-white' }} shadow-xl" data-order="{{ $order->id }}" data-status="{{ $order->status }}">
                 <div class="grid lg:grid-cols-[minmax(0,1fr)_390px]">
                     <!-- خريطة موقع المشتري فقط -->
                     <div class="min-h-[360px] bg-slate-200" 
@@ -38,16 +33,16 @@
                          data-customer-lng="{{ $order->longitude ?? $order->customer_longitude ?? $order->lng ?? $order->delivery_longitude }}">
                     </div>
 
-                    <div class="flex flex-col gap-5 p-5 sm:p-7 {{ $isUnassigned ? 'text-white' : '' }}">
+                    <div class="flex flex-col gap-5 p-5 sm:p-7 {{ is_null($order->driver_id) ? 'text-white' : '' }}">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-widest text-orange-500">{{ $order->restaurant?->name }}</p>
                                 <h2 class="mt-1 text-xl font-black">طلب {{ $order->tracking_code }}</h2>
                             </div>
                             <div class="flex flex-col items-end gap-2">
-                                @if ($isUnassigned)
+                                @if (is_null($order->driver_id))
                                     <span class="shrink-0 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-black text-amber-400 border border-amber-500/30">🔥 متاح للاستلام</span>
-                                @elseif ($isClaimedByMe)
+                                @elseif ($order->driver_id === auth()->id())
                                     <span class="shrink-0 rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">
                                         قيد التوصيل
                                     </span>
@@ -55,13 +50,13 @@
                             </div>
                         </div>
 
-                        <div class="space-y-3 border-y {{ $isUnassigned ? 'border-slate-800' : 'border-slate-100' }} py-4 text-sm">
+                        <div class="space-y-3 border-y {{ is_null($order->driver_id) ? 'border-slate-800' : 'border-slate-100' }} py-4 text-sm">
                             <div class="flex gap-3">
                                 <span class="text-orange-500">●</span>
                                 <span class="font-bold">{{ $order->customer_name }}</span>
                                 <a class="mr-auto text-orange-500 underline" href="tel:{{ $order->customer_phone }}">اتصال</a>
                             </div>
-                            <div class="flex gap-3 {{ $isUnassigned ? 'text-slate-400' : 'text-slate-600' }}">
+                            <div class="flex gap-3 {{ is_null($order->driver_id) ? 'text-slate-400' : 'text-slate-600' }}">
                                 <span class="text-orange-500">⌖</span>
                                 <span>{{ $order->delivery_address ?: 'لا يوجد عنوان مسجل' }}</span>
                             </div>
@@ -73,18 +68,18 @@
                                 @foreach ($order->items as $item)
                                     <div class="flex justify-between">
                                         <span>{{ $item->product?->name ?? 'منتج محذوف' }}</span>
-                                        <span class="font-bold {{ $isUnassigned ? 'text-slate-400' : 'text-slate-500' }}">×{{ $item->quantity }}</span>
+                                        <span class="font-bold {{ is_null($order->driver_id) ? 'text-slate-400' : 'text-slate-500' }}">×{{ $item->quantity }}</span>
                                     </div>
                                 @endforeach
                             </div>
                         </div>
 
                         <div class="mt-auto space-y-2">
-                            @if ($isUnassigned)
+                            @if (is_null($order->driver_id))
                                 <button type="button" data-accept-order="{{ $order->id }}" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 font-black text-white transition hover:bg-emerald-500 active:scale-[0.99]">
                                     قبول وتوصيل الطلب
                                 </button>
-                            @elseif ($isClaimedByMe)
+                            @elseif ($order->driver_id === auth()->id())
                                 <button type="button" data-deliver-order="{{ $order->id }}" class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
                                     تأكيد التسليم
                                 </button>
@@ -115,7 +110,6 @@
             },
         });
 
-        // عرض موقع العميل فقط على الخريطة من قاعدة البيانات
         document.querySelectorAll('[data-order]').forEach((card) => {
             const orderId = card.dataset.order;
             const mapElement = document.getElementById(`map-${orderId}`);
@@ -142,7 +136,6 @@
             }
         });
 
-        // 1. قبول الطلب
         document.querySelectorAll('[data-accept-order]').forEach((button) => {
             button.addEventListener('click', async () => {
                 const orderId = button.dataset.acceptOrder;
@@ -171,7 +164,6 @@
             });
         });
 
-        // 2. تأكيد تسليم الطلب
         document.querySelectorAll('[data-deliver-order]').forEach((button) => {
             button.addEventListener('click', async () => {
                 if (!window.confirm('هل تريد تأكيد تسليم هذا الطلب؟')) return;

@@ -35,12 +35,9 @@
                 <!-- السعر -->
                 <div class="flex items-baseline gap-3 mb-6">
                     <span class="text-4xl font-black text-primary">{{ number_format($product->price, 2) }} ر.س</span>
-                    @if($product->old_price && $product->old_price > $product->price)
+                    @if($product->old_price && $product->old_price >$product->price)
                         <span class="text-xl text-gray-400 line-through">{{ number_format($product->old_price, 2) }} ر.س</span>
-                        @php
-                            $discount = round((($product->old_price - $product->price) / $product->old_price) * 100);
-                        @endphp
-                        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">خصم {{ $discount }}%</span>
+                        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">خصم {{ round((($product->old_price - $product->price) /$product->old_price) * 100) }}%</span>
                     @endif
                 </div>
 
@@ -72,7 +69,6 @@
 </section>
 
 <!-- قسم التقييمات -->
-<!-- قسم التقييمات -->
 <section class="py-16 bg-white">
     <div class="container mx-auto px-4 max-w-4xl">
         
@@ -81,12 +77,11 @@
             @if($reviews->count() > 0)
                 <div class="flex items-center justify-center gap-2">
                     <div class="flex text-yellow-400 text-2xl">
-                        @php $avgRating = $reviews->avg('rating'); @endphp
                         @for($i = 1; $i <= 5; $i++)
-                            <span>{{ $i <= round($avgRating) ? '⭐' : '☆' }}</span>
+                            <span>{{ $i <= round($reviews->avg('rating')) ? '⭐' : '☆' }}</span>
                         @endfor
                     </div>
-                    <span class="text-2xl font-bold text-gray-800">{{ number_format($avgRating, 1) }}</span>
+                    <span class="text-2xl font-bold text-gray-800">{{ number_format($reviews->avg('rating'), 1) }}</span>
                     <span class="text-gray-500">({{ $reviews->count() }} تقييم)</span>
                 </div>
             @endif
@@ -110,7 +105,7 @@
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
                             <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-full flex items-center justify-center text-xl font-bold text-primary">
-                                {{ substr($review->customer_name, 0, 1) }}
+                                {{ mb_substr($review->customer_name, 0, 1) }}
                             </div>
                             <div>
                                 <h3 class="font-bold text-gray-800">{{ $review->customer_name }}</h3>
@@ -289,10 +284,8 @@
 </div>
 
 <script>
-    // متغيرات عامة
     let selectedRating = 0;
 
-    // فتح/إغلاق Modal التقييم
     function openReviewModal() {
         document.getElementById('review-modal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -315,7 +308,6 @@
         updateStars(0);
     }
 
-    // التحقق من رمز التتبع
     async function verifyTrackingCode() {
         const code = document.getElementById('tracking-code-input').value.trim().toUpperCase();
         const errorDiv = document.getElementById('tracking-error');
@@ -327,7 +319,6 @@
             return;
         }
 
-        // حالة التحميل
         verifyBtn.disabled = true;
         verifyBtn.innerHTML = '<span class="animate-spin">⏳</span> جاري التحقق...';
         errorDiv.classList.add('hidden');
@@ -340,7 +331,6 @@
             });
 
             if (response.data.success) {
-                // نجاح التحقق
                 document.getElementById('verified-order-id').value = response.data.order_id;
                 document.getElementById('step-1').classList.add('hidden');
                 document.getElementById('step-2').classList.remove('hidden');
@@ -362,7 +352,6 @@
         document.getElementById('step-2').classList.add('hidden');
     }
 
-    // تفاعل النجوم
     const stars = document.querySelectorAll('#rating-stars label span');
     stars.forEach(star => {
         star.addEventListener('click', function() {
@@ -385,7 +374,6 @@
         });
     }
 
-    // رفع الصور
     const uploadArea = document.getElementById('upload-area');
     const imageInput = document.getElementById('image-input');
     const previewContainer = document.getElementById('image-preview');
@@ -413,7 +401,6 @@
         });
     });
 
-    // إرسال التقييم
     document.getElementById('review-form').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -434,11 +421,8 @@
             });
 
             if (response.data.success) {
-                // عرض رسالة نجاح
                 alert('شكراً لتقييمك! تم إرساله بنجاح');
                 closeReviewModal();
-                
-                // إضافة التقييم الجديد للقائمة (اختياري - يمكن إعادة تحميل الصفحة)
                 location.reload();
             }
         } catch (error) {
@@ -449,7 +433,6 @@
         }
     });
 
-    // Modal الصور
     function openImageModal(url) {
         document.getElementById('modal-image').src = url;
         document.getElementById('image-modal').classList.remove('hidden');

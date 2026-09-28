@@ -1,9 +1,10 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
+
 if (! function_exists('theme_setting')) {
     function theme_setting(string $key, mixed $default = null): mixed
     {
-        // جلب المطعم من الـ Route الحالي أو من المستخدم المسجل
         $restaurant = request()->get('current_restaurant') 
             ?? auth()->user()?->restaurant;
 
@@ -11,16 +12,29 @@ if (! function_exists('theme_setting')) {
             return $default;
         }
 
-        $savedSettings = $restaurant->themeSetting?->settings ?? [];
+        $cacheKey = "restaurant_theme_settings_{$restaurant->id}";
 
-        // 1. إذا كانت القيمة محفوظة لدى المطعم، أرجعها
-        if (array_key_exists($key, $savedSettings)) {
-            return $savedSettings[$key];
+        $allSettings = Cache::remember($cacheKey, 86400, function () use ($restaurant) {
+            $allowed = $restaurant->theme?->allowed_variables ?? [];
+            $defaults = [];
+
+            foreach ($allowed as $varKey => $varData) {
+                $defaults[$varKey] = $varData['default'] ?? null;
+            }
+
+            $saved = $restaurant->themeSettings?->settings 
+                ?? $restaurant->theme_settings 
+                ?? [];
+
+            return array_merge($defaults, $saved);
+        });
+
+        $value = $allSettings[$key] ?? $default;
+
+        if ($key === 'border_radius' && is_numeric($value)) {
+            return $value . 'px';
         }
 
-        // 2. وإلا، أرجع القيمة الافتراضية المحددة في allowed_variables للثيم
-        $allowed = $restaurant->theme?->allowed_variables ?? [];
-
-        return $allowed[$key]['default'] ?? $default;
+        return $value;
     }
 }

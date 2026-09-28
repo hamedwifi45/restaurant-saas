@@ -73,11 +73,8 @@
                                         <!-- شارات المنتج -->
                                         <div class="absolute top-4 right-4 flex flex-col gap-2">
                                             @if($product->old_price && $product->old_price > $product->price)
-                                                @php
-                                                    $discount = round((($product->old_price - $product->price) / $product->old_price) * 100);
-                                                @endphp
                                                 <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                                    خصم {{ $discount }}%
+                                                    خصم {{ round((($product->old_price - $product->price) / $product->old_price) * 100) }}%
                                                 </span>
                                             @endif
                                             

@@ -4,6 +4,7 @@ namespace App\Filament\Restaurant\Pages;
 
 use App\Models\RestaurantThemeSetting;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,6 +16,7 @@ use Filament\Pages\Page;
 use Filament\Panel;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Cache;
 use UnitEnum;
 
 class RestaurantThemeSettings extends Page implements HasForms
@@ -56,8 +58,54 @@ class RestaurantThemeSettings extends Page implements HasForms
     }
 
     /**
-     * تغيير اسم الدالة إلى form لتتعرف عليها خاصية $this->form
+     * إضافة زر "إرجاع للوضع الافتراضي" في أعلى الصفحة
      */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('resetToDefaults')
+                ->label('إرجاع للوضع الافتراضي')
+                ->icon('heroicon-m-arrow-path')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('استعادة الإعدادات الافتراضية')
+                ->modalDescription('هل أنت ممتأكد من رغبتك في إعادة جميع الألوان والتنسيقات إلى الوضع الافتراضي للثيم؟')
+                ->action(function () {
+                    $restaurant = auth()->user()?->restaurant;
+
+                    if (! $restaurant) return;
+
+                    // جلب الإعدادات الافتراضية المحددة في الثيم
+                    $allowed = $restaurant->theme?->allowed_variables ?? [];
+                    $defaults = [];
+
+                    foreach ($allowed as $varKey => $varData) {
+                        $defaults[$varKey] = $varData['default'] ?? null;
+                    }
+
+                    // تحديث قاعدة البيانات بالقيم الافتراضية
+                    RestaurantThemeSetting::updateOrCreate(
+                        ['restaurant_id' => $restaurant->id],
+                        [
+                            'theme_id' => $restaurant->theme_id,
+                            'settings' => $defaults,
+                        ]
+                    );
+
+                    // تفريغ كاش المطعم فوراً
+                    Cache::forget("restaurant_theme_settings_{$restaurant->id}");
+
+                    // إعادة تعبئة النموذج بالبيانات الافتراضية
+                    $this->form->fill($defaults);
+
+                    Notification::make()
+                        ->title('تمت إعادة الإعدادات الافتراضية بنجاح')
+                        ->success()
+                        ->send();
+                }),
+        ];
+    }
+
     public function form(Schema $schema): Schema
     {
         $restaurant = auth()->user()?->restaurant;
@@ -103,7 +151,7 @@ class RestaurantThemeSettings extends Page implements HasForms
                     ->description('يتم جلب الحقول تلقائياً بناءً على إعدادات الثيم النشط')
                     ->schema($formComponents),
             ])
-            ->statePath('data'); // ربط مدخلات النموذج بمصفوفة $data
+            ->statePath('data');
     }
 
     public function save(): void
@@ -116,7 +164,6 @@ class RestaurantThemeSettings extends Page implements HasForms
             return;
         }
 
-        // جلب البيانات المفحوصة والمتحقق منها مباشرة من النموذج
         $formData = $this->form->getState();
 
         RestaurantThemeSetting::updateOrCreate(
@@ -126,6 +173,9 @@ class RestaurantThemeSettings extends Page implements HasForms
                 'settings' => $formData,
             ]
         );
+
+        // مسح الكاش لضمان انطباق التعديلات فوراً
+        Cache::forget("restaurant_theme_settings_{$restaurant->id}");
 
         Notification::make()
             ->title('تم حفظ التغييرات')

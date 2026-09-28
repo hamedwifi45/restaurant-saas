@@ -7,7 +7,7 @@
     <title>شاشة عرض المطبخ | KDS - نظام إدارة الطلبات</title>
     <meta name="description" content="نظام عرض المطبخ - Kitchen Display System لإدارة وتتبع الطلبات">
 
-    <!-- Fontsource Inter (نفس الخط المستخدم في صفحة تتبع الطلبات) -->
+    <!-- Fontsource Inter -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/inter@latest/arabic.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/inter@latest/latin.css" />
 
@@ -16,7 +16,7 @@
     @vite(['resources/js/app.js'])
     <style>
         :root {
-            /* ===== الألوان الأساسية - يتم استيرادها من PHP ===== */
+            /* ===== الألوان الأساسية ===== */
             --primary-color: #3B82F6;
             --primary-light: #60A5FA;
             --primary-dark: #2563EB;
@@ -96,9 +96,6 @@
             --kds-touch-target: 48px;
         }
 
-        /* ============================================
-           إعادة التعيين والأساسيات
-           ============================================ */
         *,
         *::before,
         *::after {
@@ -132,9 +129,7 @@
             color: inherit;
         }
 
-        /* ============================================
-           رأس الصفحة (Header)
-           ============================================ */
+        /* رأس الصفحة (Header) */
         .kds-header {
             position: sticky;
             top: 0;
@@ -175,7 +170,6 @@
             line-height: var(--line-height-tight);
         }
 
-        /* PHP: <?php echo e($restaurant->name); ?> */
         .brand-name {
             font-size: var(--font-size-lg);
             font-weight: var(--font-weight-bold);
@@ -188,7 +182,6 @@
             font-weight: var(--font-weight-medium);
         }
 
-        /* إحصائيات الرأس */
         .header-stats {
             display: flex;
             gap: var(--spacing-sm);
@@ -245,7 +238,6 @@
             font-weight: var(--font-weight-normal);
         }
 
-        /* الساعة */
         .header-clock {
             display: flex;
             flex-direction: column;
@@ -269,7 +261,6 @@
             color: var(--text-light);
         }
 
-        /* أزرار التحكم */
         .header-actions {
             display: flex;
             gap: var(--spacing-sm);
@@ -301,9 +292,6 @@
             border-color: var(--primary-color);
         }
 
-        /* ============================================
-           لوحة المطبخ (Kanban Board)
-           ============================================ */
         .kds-board {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -312,9 +300,6 @@
             min-height: calc(100vh - var(--header-height));
         }
 
-        /* ============================================
-           عمود KDS
-           ============================================ */
         .kds-column {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -378,17 +363,8 @@
         }
 
         @keyframes pulse-dot {
-
-            0%,
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-
-            50% {
-                transform: scale(1.2);
-                opacity: 0.7;
-            }
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
         }
 
         .column-count {
@@ -472,10 +448,6 @@
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
         }
-
-        /* ============================================
-           بطاقة الطلب (Order Card)
-           ============================================ */
         .order-card {
             background: var(--bg-card);
             border: 2px solid var(--border-color);
@@ -487,7 +459,7 @@
             position: relative;
         }
 
-        @keyframes slideInCard {
+       @keyframes slideInCard {
             from {
                 opacity: 0;
                 transform: translateY(-15px) scale(0.96);
@@ -535,12 +507,10 @@
             }
         }
 
-        /* تنسيق الطوارئ (urgent) */
         .order-card.urgent {
             border-color: var(--danger-color) !important;
             background: linear-gradient(135deg, var(--bg-card) 0%, rgba(239, 68, 68, 0.05) 100%);
-            animation: slideInCard 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                urgentPulse 1.5s ease-in-out infinite;
+            animation: slideInCard 0.4s cubic-bezier(0.4, 0, 0.2, 1), urgentPulse 1.5s ease-in-out infinite;
         }
 
         @keyframes urgentPulse {
@@ -555,7 +525,6 @@
             }
         }
 
-        /* رأس البطاقة */
         .card-header {
             padding: var(--spacing-md);
             display: flex;
@@ -577,7 +546,7 @@
             border: 1px solid;
         }
 
-        .order-type-badge.delivery {
+.order-type-badge.delivery {
             background: rgba(59, 130, 246, 0.1);
             color: var(--primary-color);
             border-color: var(--primary-light);
@@ -598,8 +567,6 @@
         .order-type-badge .type-icon {
             font-size: var(--font-size-base);
         }
-
-        /* عداد الوقت */
         .order-timer {
             display: flex;
             align-items: center;
@@ -613,7 +580,7 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .order-timer.warning {
+       .order-timer.warning {
             background: rgba(245, 158, 11, 0.15);
             color: var(--accent-color);
         }
@@ -1057,11 +1024,7 @@
 
 <body>
 
-    <!-- ============================================
-         رأس الصفحة (Header)
-         ============================================ -->
     <header class="kds-header" role="banner">
-        <!-- الشعار -->
         <div class="brand">
             <div class="brand-logo" aria-hidden="true">
                 <i class="fa-solid fa-utensils"></i>
@@ -1072,21 +1035,16 @@
             </div>
         </div>
 
-        <!-- إحصائيات -->
         <div class="header-stats" aria-label="إحصائيات الطلبات">
             <div class="stat-chip active">
-                <div class="stat-icon">
-                    <i class="fa-solid fa-fire"></i>
-                </div>
+                <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
                 <div>
                     <div class="stat-value" id="statActive">0</div>
                     <div class="stat-label">طلبات نشطة</div>
                 </div>
             </div>
             <div class="stat-chip avg-time">
-                <div class="stat-icon">
-                    <i class="fa-regular fa-clock"></i>
-                </div>
+                <div class="stat-icon"><i class="fa-regular fa-clock"></i></div>
                 <div>
                     <div class="stat-value" id="statAvgTime">0 د</div>
                     <div class="stat-label">متوسط التحضير</div>
@@ -1103,13 +1061,11 @@
             </div>
         </div>
 
-        <!-- الساعة -->
         <div class="header-clock" aria-live="polite">
             <div class="clock-time" id="clockTime">--:--:--</div>
             <div class="clock-date" id="clockDate">--</div>
         </div>
 
-        <!-- أزرار التحكم -->
         <div class="header-actions">
             <button class="icon-btn active" id="btnSound" aria-label="تشغيل/كتم الصوت" title="الصوت">
                 <i class="fa-solid fa-volume-high"></i>
@@ -1123,12 +1079,8 @@
         </div>
     </header>
 
-    <!-- ============================================
-         لوحة المطبخ (Kanban Board)
-         ============================================ -->
     <main class="kds-board" role="main">
 
-        <!-- عمود: طلبات جديدة -->
         <section class="kds-column new" aria-label="الطلبات الجديدة">
             <header class="kds-column-header">
                 <div class="column-title">
@@ -1138,11 +1090,10 @@
                 <span class="column-count" id="countNew">0</span>
             </header>
             <div class="kds-column-body" id="columnNew">
-                <!-- البطاقات تُحقن ديناميكياً -->
+                
             </div>
         </section>
 
-        <!-- عمود: جاري التحضير -->
         <section class="kds-column preparing" aria-label="الطلبات قيد التحضير">
             <header class="kds-column-header">
                 <div class="column-title">
@@ -1151,12 +1102,9 @@
                 </div>
                 <span class="column-count" id="countPreparing">0</span>
             </header>
-            <div class="kds-column-body" id="columnPreparing">
-                <!-- البطاقات تُحقن ديناميكياً -->
-            </div>
+            <div class="kds-column-body" id="columnPreparing"></div>
         </section>
 
-        <!-- عمود: جاهزة -->
         <section class="kds-column ready" aria-label="الطلبات الجاهزة">
             <header class="kds-column-header">
                 <div class="column-title">
@@ -1165,16 +1113,12 @@
                 </div>
                 <span class="column-count" id="countReady">0</span>
             </header>
-            <div class="kds-column-body" id="columnReady">
-                <!-- البطاقات تُحقن ديناميكياً -->
-            </div>
+            <div class="kds-column-body" id="columnReady"></div>
         </section>
     </main>
 
-    <!-- حاوية Toast -->
     <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-    <!-- شريط الاتصال -->
     <div class="connection-bar" id="connectionBar" role="alert">
         <div class="spinner"></div>
         <span>جاري إعادة الاتصال بالخادم...</span>
@@ -1280,7 +1224,6 @@
             }
 
             setupEventListeners() {
-                // تفعيل وتفعيل الصوت عند أي تفاعل للمستخدم لفك حظر المتصفح
                 const unlockAudio = () => {
                     if (this.audioContext && this.audioContext.state === 'suspended') {
                         this.audioContext.resume();
@@ -1483,7 +1426,7 @@
 
                 this.updateStats();
             }
-            // ========== إنشاء بطاقة طلب ==========
+
             createOrderCard(order) {
                 const card = document.createElement('article');
                 card.className = `order-card type-${order.type} status-${order.status}`;
@@ -1572,7 +1515,6 @@
                 `;
                 }).join('');
 
-                // إضافة ملاحظة الطلب العامة فوق أزرار الإجراءات مباشرة
                 const orderNote = order.notes || order.order_note || order.note;
                 const orderNoteHtml = orderNote ? `
                 <div class="order-general-note" style="margin: 8px 0; padding: 6px 10px; background: rgba(245, 158, 11, 0.1); border-right: 3px solid #f59e0b; border-radius: 4px; color: #b45309; font-size: 0.85rem; font-weight: 600;">
@@ -1661,7 +1603,6 @@
                 return card;
             }
 
-            // ========== معالجة الإجراءات ==========
             async handleAction(action, orderId) {
                 const order = this.orders.get(orderId);
                 if (!order) return;
@@ -1722,7 +1663,6 @@
                 return flow[currentStatus] || currentStatus;
             }
 
-            // ========== معالجة طلب جديد ==========
             handleNewOrder(order) {
                 this.orders.set(order.id, order);
                 if (!this.seenOrderIds.has(order.id)) {
@@ -1733,7 +1673,6 @@
                 this.renderAllOrders();
             }
 
-            // ========== تحديث الإحصائيات ==========
             updateStats() {
                 let active = 0;
                 let urgent = 0;
@@ -1777,7 +1716,6 @@
                 });
             }
 
-            // ========== إضافة طلب تجريبي ==========
             addDemoOrder() {
                 const types = ['dine-in', 'takeaway', 'delivery'];
                 const names = ['أبو سارة', 'ليلى حسن', 'عمر السالم', 'سلمى الخطيب', 'يوسف النجار'];
@@ -1848,7 +1786,6 @@
                 this.handleNewOrder(newOrder);
             }
 
-            // ========== Toast Notifications ==========
             showToast(type, title, message, duration = 4000) {
                 const container = document.getElementById('toastContainer');
                 if (!container) return;
@@ -1896,11 +1833,7 @@
             }
         }
 
-        // ============================================
-        // بدء التطبيق
-        // ============================================
         let kds;
-
         document.addEventListener('DOMContentLoaded', () => {
             kds = new KitchenDisplaySystem(KDS_CONFIG);
             kds.init();

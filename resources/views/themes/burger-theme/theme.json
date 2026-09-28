@@ -1,8 +1,8 @@
 {
-  "name": "برجر كلاسيك",
+  "name": "برجر 2 كلاسيك",
   "author": "منصة المطاعم",
-  "version": "1.0.0",
-  "slug": "classic-burger",
+  "version": "2.0.0",
+  "slug": "classic-2-burger",
 
   "allowed_variables": {
     "primary_color": {

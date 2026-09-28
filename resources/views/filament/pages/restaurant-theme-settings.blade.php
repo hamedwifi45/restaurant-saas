@@ -4,7 +4,6 @@
         $theme = $restaurant?->theme;
     @endphp
 
-    {{-- هيدر الصفحة والشارة --}}
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
         <div>
             <p class="text-sm text-gray-500 dark:text-gray-400">تعديل القيم المسموح بها من ملف theme.json لمعاينة وحفظ مظهر الموقع.</p>
@@ -23,16 +22,18 @@
             <p class="mt-2 text-sm text-gray-500">قم بتعيين ثيم للمطعم أولاً من لوحة الإدارة ثم عد إلى هذه الصفحة.</p>
         </div>
     @else
-        <div class="grid gap-6 xl:grid-cols-12 h-[calc(100vh-180px)]">
+        <!-- تم إزالة الطول الثابت في الجوال ليعمل التمرير الطبيعي، وإضافته فقط لشاشات xl -->
+        <div class="grid gap-6 xl:grid-cols-12 xl:h-[calc(100vh-180px)]">
             
-            {{-- القسم الأيسر: نموذج الحقول الديناميكية الخاص بـ Filament --}}
-            <div class="xl:col-span-5 overflow-y-auto p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
-                <form wire:submit.prevent="save" class="space-y-6">
-                    
-                    {{-- جلب كافة الحقول التي تم إنشاؤها في كلاس PHP تلقائياً --}}
-                    {{ $this->form }}
+            <!-- القسم الأيسر: النموذج -->
+            <!-- في الجوال: ارتفاع تلقائي، في الشاشات الكبيرة: ارتفاع كامل مع تمرير داخلي -->
+            <div class="xl:col-span-5 h-auto xl:h-full xl:overflow-y-auto p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
+                <form wire:submit.prevent="save" class="space-y-6 flex-grow flex flex-col justify-between">
+                    <div class="flex-grow">
+                        {{ $this->form }}
+                    </div>
 
-                    <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <div class="pt-4 mt-6 border-t border-gray-100 dark:border-gray-800">
                         <x-filament::button type="submit" size="lg" class="w-full">
                             حفظ التغييرات
                         </x-filament::button>
@@ -40,28 +41,27 @@
                 </form>
             </div>
 
-            {{-- القسم الأيمن: الشاشة الحقيقية للمعاينة اللحظية عبر Iframe --}}
-            <div class="xl:col-span-7 bg-gray-100 dark:bg-gray-950 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
-                <div class="bg-gray-200 dark:bg-gray-900 px-4 py-3 border-b border-gray-300 dark:border-gray-800 flex items-center justify-between text-xs font-bold text-gray-600 dark:text-gray-400">
+            <!-- القسم الأيمن: المعاينة -->
+            <!-- في الجوال: ارتفاع ثابت 600px ليكون قابلاً للاستخدام، في الشاشات الكبيرة: ارتفاع كامل -->
+            <div style="height: 58rem;" class="xl:col-span-7 h-[600px] xl:h-full bg-gray-100 dark:bg-gray-950 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
+                <div class="bg-gray-200 dark:bg-gray-900 px-4 py-3 border-b border-gray-300 dark:border-gray-800 flex items-center justify-between text-xs font-bold text-gray-600 dark:text-gray-400 shrink-0">
                     <span class="flex items-center gap-2">
                         <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
                         معاينة متجر المطعم المباشرة
                     </span>
-                    <span class="text-gray-400 dark:text-gray-500 font-normal">تحديث لحظي عند تغيير الألوان</span>
+                    <span class="text-gray-400 dark:text-gray-500 font-normal hidden sm:block">تحديث لحظي عند تغيير الألوان</span>
                 </div>
                 
-                {{-- عرض متجر المطعم الحقيقي داخل Iframe --}}
                 <iframe 
                     id="theme-preview-iframe"
                     src="{{ route('restaurant.home', $restaurant->slug ?? 'demo') }}?preview=1" 
-                    class="w-full h-full border-none">
+                    class="w-full h-full md:h-[5rem] flex-grow border-none">
                 </iframe>
             </div>
 
         </div>
     @endif
 
-    {{-- جسر إرسال التحديثات اللحظية من Livewire إلى Iframe بدون إعادة تحميل الصفحة --}}
     <script>
         document.addEventListener('livewire:initialized', () => {
             Livewire.on('theme-variable-updated', (event) => {
