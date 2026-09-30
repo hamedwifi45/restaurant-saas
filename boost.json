@@ -16,8 +16,8 @@
         "fluxui-development",
         "livewire-development",
         "pest-testing",
-        "tailwindcss-development",
         "echo-development",
+        "tailwindcss-development",
         "blaze-optimize"
     ]
 }

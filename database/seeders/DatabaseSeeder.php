@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Spatie\Permission\Models\Role;
 use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Invoice;
@@ -127,6 +128,11 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        Role::firstOrCreate(['name' => 'super_admin']);
+        Role::firstOrCreate(['name' => 'restaurant_admin']);
+        Role::firstOrCreate(['name' => 'kitchen_staff']);
+        Role::firstOrCreate(['name' => 'driver']);
 
         $this->call(DeliveryTrackingSeeder::class);
 

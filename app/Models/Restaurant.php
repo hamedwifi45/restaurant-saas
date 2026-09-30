@@ -24,6 +24,7 @@ class Restaurant extends Model
         'email',
         'address',
         'city',
+        'plan',
         'delivery_fee',
         'estimated_delivery_time',
         'theme_id',
@@ -38,7 +39,27 @@ class Restaurant extends Model
         'is_active',
         'trial_ends_at',
     ];
-
+    public const PLAN_FEATURES = [
+        'starter' => [
+            'qr_menu',
+            'table_qr',
+            'cash_payment',
+            'bank_transfer',
+            'basic_sales_report',
+        ],
+        'pro' => [
+            'qr_menu',
+            'table_qr',
+            'cash_payment',
+            'bank_transfer',
+            'basic_sales_report',
+            'advanced_financial_analytics', // التحليلات المالية المتقدمة
+            'theme_editor',                // محرر الثيمات
+            'kds',                         // شاشة المطبخ KDS
+            'gps_tracking',                // تتبع المندوب اللحظي
+            'pwa',                         // تطبيق PWA
+        ],
+    ];
     protected $casts = [
         'is_active' => 'boolean',
         'delivery_fee' => 'decimal:2',
@@ -152,5 +173,15 @@ class Restaurant extends Model
     public function getReviewsCountAttribute(): int
     {
         return $this->reviews()->count();
+    }
+    public function hasFeature(string $feature): bool
+    {
+        $plan = $this->plan ?? 'starter';
+        
+        return in_array(
+            $feature, 
+            self::PLAN_FEATURES[$plan] ?? self::PLAN_FEATURES['starter'], 
+            true
+        );
     }
 }
