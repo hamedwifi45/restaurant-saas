@@ -16,20 +16,19 @@ class PwaController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
-        // تحديد الأيقونة (شعار المطعم أو أيقونة افتراضية)
+        // تحديد الأيقونة باستخدام media_url لضمان مسار صحيح وصورة تعمل
         $iconUrl = $restaurant->logo
-            ? asset('storage/' . $restaurant->logo)
-            : asset('/icons/default-icon.png');
+            ? media_url($restaurant->logo)
+            : asset('storage/products/01M359T5S4QVWJ0P4HB5DH5YM1.jpg');
 
-        // بناء الـ Manifest بتصحيح جميع أخطاء Chrome
         $manifest = [
             'name' => $restaurant->name . ' - ' . ($restaurant->description ?? 'طعم لا يُقاوم'),
             'short_name' => $restaurant->name,
             'description' => $restaurant->description ?? 'اطلب أشهى الأطباق مع توصيل سريع',
 
-            // ✅ تصحيح مشكلة Scope: استخدام مسارات نسبية لضمان التطابق التام
+            // ✅ مطابقة الـ start_url والـ scope بدون أسلاش زائدة في النهاية
             'start_url' => '/' . $restaurant->slug,
-            'scope' => '/' . $restaurant->slug . '/',
+            'scope' => '/' . $restaurant->slug,
 
             'display' => 'standalone',
             'background_color' => $restaurant->background_color ?? '#1A1A1A',
@@ -44,31 +43,15 @@ class PwaController extends Controller
                     'src' => $iconUrl,
                     'sizes' => '192x192',
                     'type' => 'image/png',
-                    'purpose' => 'any' // ✅ تم تغييرها من 'any maskable' لتجنب التحذير
+                    'purpose' => 'any'
                 ],
                 [
                     'src' => $iconUrl,
                     'sizes' => '512x512',
                     'type' => 'image/png',
-                    'purpose' => 'any' // ✅ تم تغييرها من 'any maskable' لتجنب التحذير
+                    'purpose' => 'any'
                 ],
             ],
-
-            // ✅ إضافة لقطات الشاشة لحل تحذيرات Richer PWA Install UI
-            'screenshots' => [
-                [
-                    'src' => 'https://via.placeholder.com/1280x720/FF6B35/FFFFFF?text=Desktop+View',
-                    'sizes' => '1280x720',
-                    'type' => 'image/png',
-                    'form_factor' => 'wide' // ✅ لحل تحذير سطح المكتب
-                ],
-                [
-                    'src' => 'https://via.placeholder.com/750x1334/FF6B35/FFFFFF?text=Mobile+View',
-                    'sizes' => '750x1334',
-                    'type' => 'image/png',
-                    'form_factor' => 'narrow' // ✅ لحل تحذير الجوال
-                ]
-            ]
         ];
 
         return response()->json($manifest)
@@ -79,19 +62,15 @@ class PwaController extends Controller
     /**
      * Service Worker ديناميكي لكل مطعم
      */
-    /**
- * Service Worker ديناميكي لكل مطعم
- */
-public function serviceWorker($slug)
-{
-    $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+    public function serviceWorker($slug)
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-    $sw = <<<JS
-const CACHE_NAME = '{$restaurant->slug}-v3'; // رفع الإصدار لـ v3 لتطبيق التعديلات
+        $sw = <<<JS
+const CACHE_NAME = '{$restaurant->slug}-v4';
 const urlsToCache = [
     '/{$restaurant->slug}',
-    '/{$restaurant->slug}/manifest.json',
-    'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap'
+    '/{$restaurant->slug}/manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -102,9 +81,7 @@ self.addEventListener('install', event => {
     );
 });
 
-// جلب الموارد وتفادي أخطاء الشبكة Uncaught TypeError
 self.addEventListener('fetch', event => {
-    // معالجة طلبات GET فقط لتجنب التعارض مع طلبات POST أو API
     if (event.request.method !== 'GET') return;
 
     event.respondWith(
@@ -113,7 +90,6 @@ self.addEventListener('fetch', event => {
                 if (response) {
                     return response;
                 }
-                // إضافة catch لمنع انهيار الـ Service Worker عند فشل جلب روابط خارجية
                 return fetch(event.request).catch(() => {
                     return new Response('', {
                         status: 408,
@@ -139,8 +115,8 @@ self.addEventListener('activate', event => {
 });
 JS;
 
-    return response($sw, 200)
-        ->header('Content-Type', 'application/javascript')
-        ->header('Service-Worker-Allowed', '/' . $restaurant->slug . '/');
-}
+        return response($sw, 200)
+            ->header('Content-Type', 'application/javascript')
+            ->header('Service-Worker-Allowed', '/' . $restaurant->slug);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ThemeHelper;
+use App\Models\Driver;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\Review;
@@ -37,7 +38,6 @@ class RestaurantController extends Controller
         request()->attributes->set('current_restaurant', $restaurant);
         // تحديد مسار الثيم (سنستخدم burger-theme كافتراضي حالياً)
         $themePath = ThemeHelper::getThemePath($restaurant);
-        
         return view("themes.{$themePath}.pages.home", compact('restaurant', 'categories'));
     }
 

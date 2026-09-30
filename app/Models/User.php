@@ -18,6 +18,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
+
 /**
  * @property int $id
  * @property string $name
@@ -65,7 +66,10 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     {
         return $this->belongsTo(Restaurant::class);
     }
-
+    public function driverProfile()
+    {
+        return $this->hasOne(Driver::class);
+    }
     /**
      * Get the user's initials
      */

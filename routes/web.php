@@ -59,13 +59,14 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('{slug}/driver')->group(function () {
         Route::get('/orders', [DriverController::class, 'index'])->name('driver.orders');
         Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('dashboard');
-        Route::get('/orders/{order:tracking_code}/tracking', [DriverController::class, 'tracking'])->name('driver.order.tracking');
+        
         Route::get('/orders/{order}', [DriverController::class, 'show'])->name('driver.order.show');
         Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
         Route::post('/orders/{order}/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
         Route::post('/orders/{order}/status', [DriverController::class, 'updateStatus'])->name('driver.status.update');
     });
 });
+Route::get('{slug}/driver/orders/{order:tracking_code}/tracking', [DriverController::class, 'tracking'])->name('driver.order.tracking');
 
 /*
 |--------------------------------------------------------------------------

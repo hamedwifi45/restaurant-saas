@@ -1269,7 +1269,7 @@
                     </div>
                     <div class="driver-info">
                         <!-- PHP: اسم المندوب -->
-                        <div class="driver-name" id="driverName">{{ $order->driver?->name ?? 'المندوب' }}</div>
+                        <div class="driver-name" id="driverName">{{ $order->driverUser?->name ?? 'المندوب' }}</div>
                         <div class="driver-rating">
                             <span class="stars" aria-label="التقييم 4.8 من 5">★★★★★</span>
                             <!-- PHP: التقييم -->

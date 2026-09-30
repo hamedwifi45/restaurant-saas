@@ -76,8 +76,7 @@ class DriverController extends Controller
 
 
 
-    public function index(Request $request, string $slug)
-    {
+    public function index(Request $request, string $slug){
         $driver = $request->user();
 
         // 1. جلب المطعم
@@ -85,37 +84,32 @@ class DriverController extends Controller
 
         // 2. التحقق من صلاحيات المندوب
         abort_unless(
-            $driver?->role === 'driver' && $driver->restaurant_id === $restaurant->id,
+            $driver?->role === 'driver' && $driver->restaurant_id === $restaurant->id || auth()->user()?->role === 'super_admin' || auth()->user()?->role === 'restaurant_admin',
             403,
             'غير مصرح لك بالوصول لطلبات هذا المطعم.'
         );
 
-        // 3. البحث عن الطلب الخاص بالمندوب إذا كان لديه طلب قيد التوصيل حالياً
-        $activeOrder = Order::query()
+        // 3. جلب الطلبات النشطة الخاصة بهذا المندوب فقط (قيد الاستلام أو التوصيل)
+        $myActiveOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
             ->where('driver_id', $driver->id)
-            ->whereIn('status', ['ready', 'on_way'])
+            ->whereIn('status', ['ready', 'on_way', 'accepted'])
             ->with(['restaurant', 'items.product'])
             ->latest()
             ->get();
 
-        // 4. الشرط: إذا كان يملك طلباً نشطاً يتم إرجاعه فقط، وإلا يتم جلب الطلبات الشاغرة
-        if ($activeOrder->isNotEmpty()) {
-            $order = $activeOrder->first();
-            return redirect()->route('driver.order.tracking', [$slug, $order->tracking_code]);
-        } else {
-            $orders = Order::query()
-                ->where('restaurant_id', $restaurant->id)
-                ->whereNull('driver_id')
-                ->where('status', 'ready')
-                ->with(['restaurant', 'items.product'])
-                ->latest()
-                ->get();
-        }
+        // 4. جلب الطلبات الشاغرة المتاحة لجميع المندوبين (التي ليس لها مندوب)
+        $availableOrders = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->whereNull('driver_id')
+            ->where('status', 'ready')
+            ->with(['restaurant', 'items.product'])
+            ->latest()
+            ->get();
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        return view("themes.{$themePath}.driver.orders", compact('orders', 'restaurant'));
+        return view("themes.{$themePath}.driver.orders", compact('restaurant', 'myActiveOrders', 'availableOrders'));
     }
 
     public function acceptOrder(Request $request, string $slug, Order $order)
@@ -155,11 +149,12 @@ class DriverController extends Controller
 
     public function tracking(Request $request, string $slug, Order $order): View|RedirectResponse
     {
-        // 1. التوجيه لصفحة الفاتورة فور اكتمال الطلب وتسليمه
-        if ($order->status === 'delivered') {
-            // يمكنك تغيير اسم الروت 'invoice.show' للروت الخاض بالفاتورة لديك لاحقاً
-            return redirect()->route('invoice.show', ['slug' => $slug, 'order' => $order->tracking_code]);
+        if ($order->status === 'delivered' && !auth()->check()){
+            return redirect()->route('order.invoice', ["slug" => $slug ,"trackingCode"=> $order->tracking_code ]);
         }
+        if ($order->status === 'delivered' ) {
+            return redirect()->route('driver.orders', ['slug' => $slug]);
+        }  
 
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $user = $request->user();
@@ -169,17 +164,18 @@ class DriverController extends Controller
         if ($user && $user->role === 'driver' && $user->restaurant_id === $restaurant->id && $order->driver_id === $user->id) {
             $isDriver = true;
         } else {
-            // 3. إذا لم يكن السائق، يتم التحقق من الكوكي للتأكد أنه المشتري ومن نفس الجهاز
-            $savedCookie = $request->cookie('order_device_token_' . $order->id);
+        $hasDeviceCookie = request()->cookie('order_device_token_' . $order->id) === $order->device_token;
+        $isAssignedDriver = auth()->check() && (auth()->id() === $order->driver_id || auth()->user()->role === 'driver');
+        $isAdmin = auth()->check() && in_array(auth()->user()->role, ['restaurant_admin', 'super_admin']);            
+        // $savedCookie = $request->cookie('order_device_token_' . $order->id);
 
-            if (!$savedCookie || $savedCookie !== $order->device_token) {
+            if (! $hasDeviceCookie && ! $isAssignedDriver && ! $isAdmin) {
                 abort(403, 'غير مصرح لك بالوصول لصفحة التتبع إلا من الجهاز الذي تم إنشاء الطلب منه.');
             }
         }
 
         $themePath = ThemeHelper::getThemePath($restaurant);
         $order->load(['restaurant', 'driver', 'items.product']);
-
         // إرسال المتغير isDriver لملف الـ Blade لتحديد هل تظهر لوحة التحكم أم العرض فقط
         return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant', 'isDriver', 'slug'));
     }

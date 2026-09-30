@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\Driver;
 
 class Order extends Model
 {
@@ -95,9 +96,22 @@ class Order extends Model
         return $this->belongsTo(Restaurant::class);
     }
 
-    public function driver(): BelongsTo
+    public function driverUser()
     {
-        return $this->belongsTo(Driver::class, 'driver_id');
+        return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    // العلاقة المباشرة مع البروفايل عبر user_id
+    public function driver()
+    {
+        return $this->hasOneThrough(
+            Driver::class,
+            User::class,
+            'id',        // المفتاح الخارجي في جدول users الذي يطابق orders.driver_id
+            'user_id',   // المفتاح الخارجي في جدول drivers الذي يطابق users.id
+            'driver_id', // المفتاح المحلي في جدول orders
+            'id'         // المفتاح المحلي في جدول users
+        );
     }
 
     public function restaurantTable(): BelongsTo

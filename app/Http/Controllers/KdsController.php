@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderReadyForDelivery;
 use App\Helpers\ThemeHelper;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -38,7 +39,9 @@ class KdsController extends Controller
         $order = Order::Where('tracking_code', $orderId)->first();
         $order->status = $request->status;
         $order->save();
-
+        if ($order->status === 'ready') {
+            broadcast(new OrderReadyForDelivery($order))->toOthers();
+        }
         // 3. إرجاع استجابة JSON للـ JavaScript
         return response()->json([
             'success' => true,
