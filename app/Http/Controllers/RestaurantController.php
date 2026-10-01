@@ -122,7 +122,8 @@ class RestaurantController extends Controller
             }
         }
 
-        $cartTotal = $cartSubtotal * 1.15;
+        $taxRate = (float) ($restaurant->tax_percentage ?? 0);
+        $cartTotal = $cartSubtotal * (1 + ($taxRate / 100));
 
         return view("themes.{$themePath}.pages.menu", compact(
             'restaurant',

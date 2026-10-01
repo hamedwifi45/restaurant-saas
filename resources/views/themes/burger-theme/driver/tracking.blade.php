@@ -1389,9 +1389,9 @@
             viewMode: 'driver', //@json($isDriver ? 'driver' : 'customer'),
             csrfToken: document.querySelector('meta[name="csrf-token"]').content,
             updateInterval: 5000,
-            apiEndpoint: @json(route('driver.order.show', [$order->restaurant->id, $order])),
-            locationEndpoint: @json(route('driver.location.update', [$order->restaurant->id, $order])),
-            statusEndpoint: @json(route('driver.status.update', [$order->restaurant->id, $order])),
+            apiEndpoint: @json(route('driver.order.show', [$order->restaurant->slug, $order])),
+            locationEndpoint: @json(route('driver.location.update', [$order->restaurant->slug, $order])),
+            statusEndpoint: @json(route('driver.status.update', [$order->restaurant->slug, $order])),
             initialData: {
                 restaurant: {
                     name: @json($order->restaurant?->name)

@@ -39,7 +39,7 @@ it('builds table QR links from the configured public application URL', function 
 });
 
 it('shows the current cart items and prices in the table menu summary', function () {
-    $restaurant = Restaurant::factory()->create();
+    $restaurant = Restaurant::factory()->create(['tax_percentage' => 15]);
     $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
     $product = Product::factory()->create([
         'restaurant_id' => $restaurant->id,
@@ -80,7 +80,7 @@ it('renders Syrian phone validation and an immediate checkout processing overlay
 });
 
 it('returns updated cart items and totals when a menu item is added asynchronously', function () {
-    $restaurant = Restaurant::factory()->create();
+    $restaurant = Restaurant::factory()->create(['tax_percentage' => 15]);
     $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
     $product = Product::factory()->create([
         'restaurant_id' => $restaurant->id,

@@ -12,9 +12,9 @@ use Illuminate\View\View;
 
 class DriverController extends Controller
 {
-    public function dashboard(string $slug): View
+    public function dashboard(Request $request, string $slug): View
     {
-        $driver = auth()->user();
+        $driver = $request->user();
 
         // 1. جلب المطعم المطلوب
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
@@ -74,22 +74,17 @@ class DriverController extends Controller
         ));
     }
 
-
-
-    public function index(Request $request, string $slug){
+    public function index(Request $request, string $slug)
+    {
         $driver = $request->user();
-
-        // 1. جلب المطعم
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-        // 2. التحقق من صلاحيات المندوب
         abort_unless(
-            $driver?->role === 'driver' && $driver->restaurant_id === $restaurant->id || auth()->user()?->role === 'super_admin' || auth()->user()?->role === 'restaurant_admin',
+            $driver?->role === 'driver' && $driver->restaurant_id === $restaurant->id,
             403,
             'غير مصرح لك بالوصول لطلبات هذا المطعم.'
         );
 
-        // 3. جلب الطلبات النشطة الخاصة بهذا المندوب فقط (قيد الاستلام أو التوصيل)
         $myActiveOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
             ->where('driver_id', $driver->id)
@@ -98,7 +93,6 @@ class DriverController extends Controller
             ->latest()
             ->get();
 
-        // 4. جلب الطلبات الشاغرة المتاحة لجميع المندوبين (التي ليس لها مندوب)
         $availableOrders = Order::query()
             ->where('restaurant_id', $restaurant->id)
             ->whereNull('driver_id')
@@ -115,6 +109,9 @@ class DriverController extends Controller
     public function acceptOrder(Request $request, string $slug, Order $order)
     {
         $driver = $request->user();
+        $this->authorizeDriverTenantOrder($request, $slug, $order);
+
+        abort_unless($order->driver_id === null && $order->status === 'ready', 403);
 
         // التأكد من أن المندوب لا يملك طلباً جارٍ توصيله حالياً
         $hasActiveOrder = Order::where('driver_id', $driver->id)
@@ -124,23 +121,26 @@ class DriverController extends Controller
         if ($hasActiveOrder) {
             // إضافة رمز 422 ليتعرف JavaScript على وجود خطأ
             return response()->json([
-                'message' => 'لديك طلب نشط بالفعل، يجب إكماله وتسليمه أولاً.'
+                'message' => 'لديك طلب نشط بالفعل، يجب إكماله وتسليمه أولاً.',
             ], 422);
         }
 
         // ربط الطلب بالمندوب وتحويل حالته إلى on_way
         $order->update([
             'driver_id' => $driver->id,
-            'status'    => 'on_way',
+            'status' => 'on_way',
         ]);
 
         return response()->json([
-            'message' => 'تم استلام الطلب بنجاح.'
+            'message' => 'تم استلام الطلب بنجاح.',
         ]);
     }
+
     public function show(Request $request, string $slug, Order $order): JsonResponse
     {
-        if (!is_null($order->driver_id) && $order->driver_id !== auth()->id()) {
+        $this->authorizeDriverTenantOrder($request, $slug, $order);
+
+        if ($order->driver_id !== $request->user()->id) {
             abort(403, 'لا تملك صلاحية الوصول لهذا الطلب.');
         }
 
@@ -149,40 +149,45 @@ class DriverController extends Controller
 
     public function tracking(Request $request, string $slug, Order $order): View|RedirectResponse
     {
-        if ($order->status === 'delivered' && !auth()->check()){
-            return redirect()->route('order.invoice', ["slug" => $slug ,"trackingCode"=> $order->tracking_code ]);
-        }
-        if ($order->status === 'delivered' ) {
-            return redirect()->route('driver.orders', ['slug' => $slug]);
-        }  
-
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $user = $request->user();
+
+        abort_unless($order->restaurant_id === $restaurant->id, 404);
+
+        if ($order->status === 'delivered' && ! $user) {
+            return redirect()->route('order.invoice', ['slug' => $slug, 'trackingCode' => $order->tracking_code]);
+        }
+        if ($order->status === 'delivered') {
+            return redirect()->route('driver.orders', ['slug' => $slug]);
+        }
+
         $isDriver = false;
 
         // 2. فحص ما إذا كان الزائر هو السائق المسؤول عن الطلب
         if ($user && $user->role === 'driver' && $user->restaurant_id === $restaurant->id && $order->driver_id === $user->id) {
             $isDriver = true;
         } else {
-        $hasDeviceCookie = request()->cookie('order_device_token_' . $order->id) === $order->device_token;
-        $isAssignedDriver = auth()->check() && (auth()->id() === $order->driver_id || auth()->user()->role === 'driver');
-        $isAdmin = auth()->check() && in_array(auth()->user()->role, ['restaurant_admin', 'super_admin']);            
-        // $savedCookie = $request->cookie('order_device_token_' . $order->id);
+            $hasDeviceCookie = filled($order->device_token)
+                && request()->cookie('order_device_token_'.$order->id) === $order->device_token;
+            $isAdmin = $user?->role === 'super_admin'
+                || ($user?->role === 'restaurant_admin' && $user->restaurant_id === $restaurant->id);
+            // $savedCookie = $request->cookie('order_device_token_' . $order->id);
 
-            if (! $hasDeviceCookie && ! $isAssignedDriver && ! $isAdmin) {
+            if (! $hasDeviceCookie && ! $isAdmin) {
                 abort(403, 'غير مصرح لك بالوصول لصفحة التتبع إلا من الجهاز الذي تم إنشاء الطلب منه.');
             }
         }
 
         $themePath = ThemeHelper::getThemePath($restaurant);
         $order->load(['restaurant', 'driver', 'items.product']);
+
         // إرسال المتغير isDriver لملف الـ Blade لتحديد هل تظهر لوحة التحكم أم العرض فقط
         return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant', 'isDriver', 'slug'));
     }
 
     public function updateLocation(Request $request, string $slug, Order $order): JsonResponse
     {
-        $this->authorizeDriverOrder($request, $order);
+        $this->authorizeDriverOrder($request, $slug, $order);
 
         abort_unless(in_array($order->status, ['ready', 'on_way'], true), 422, 'تم إغلاق تتبع هذا الطلب.');
 
@@ -207,7 +212,7 @@ class DriverController extends Controller
 
     public function updateStatus(Request $request, string $slug, Order $order): JsonResponse
     {
-        $this->authorizeDriverOrder($request, $order);
+        $this->authorizeDriverOrder($request, $slug, $order);
 
         $validated = $request->validate([
             'status' => ['required', 'in:on_way,delivered'],
@@ -228,16 +233,32 @@ class DriverController extends Controller
         ]);
     }
 
-    private function authorizeDriverOrder(Request $request, Order $order): void
+    private function authorizeDriverOrder(Request $request, string $slug, Order $order): void
     {
+        $driver = $request->user();
+        $restaurant = Restaurant::query()->where('slug', $slug)->firstOrFail();
+
+        abort_unless(
+            $driver?->role === 'driver'
+                && $driver->restaurant_id === $restaurant->id
+                && $order->restaurant_id === $restaurant->id
+                && $order->driver_id === $driver->id,
+            403,
+            'غير مصرح لك بإجراء تغييرات على هذا الطلب.'
+        );
+    }
+
+    private function authorizeDriverTenantOrder(Request $request, string $slug, Order $order): void
+    {
+        $restaurant = Restaurant::query()->where('slug', $slug)->firstOrFail();
         $driver = $request->user();
 
         abort_unless(
             $driver?->role === 'driver'
-                && $driver->restaurant_id === $order->restaurant_id
-                && $order->driver_id === $driver->id,
+                && $driver->restaurant_id === $restaurant->id
+                && $order->restaurant_id === $restaurant->id,
             403,
-            'غير مصرح لك بإجراء تغييرات على هذا الطلب.'
+            'غير مصرح لك بالوصول إلى طلبات هذا المطعم.'
         );
     }
 
@@ -265,7 +286,7 @@ class DriverController extends Controller
             'restaurant' => [
                 'name' => $order->restaurant?->name,
             ],
-            'items' => $order->items->map(fn($item): array => [
+            'items' => $order->items->map(fn ($item): array => [
                 'name' => $item->product?->name ?? 'منتج محذوف',
                 'quantity' => $item->quantity,
             ])->values()->all(),

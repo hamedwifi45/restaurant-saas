@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ThemeHelper;
-use App\Models\Offer;
 use App\Models\Restaurant;
-use Illuminate\Http\Request;
 
 class OfferController extends Controller
 {
@@ -22,10 +20,12 @@ class OfferController extends Controller
         $offers = $restaurant->activeOffers()
             ->orderBy('created_at', 'desc')
             ->get();
+        $coupons = $restaurant->activeCoupons()
+            ->orderBy('ends_at')
+            ->get();
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-
-        return view("themes.{$themePath}.pages.offers", compact('restaurant', 'offers'));
+        return view("themes.{$themePath}.pages.offers", compact('restaurant', 'offers', 'coupons'));
     }
 }

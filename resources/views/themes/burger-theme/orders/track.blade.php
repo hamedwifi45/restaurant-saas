@@ -118,8 +118,8 @@
                             </div>
 
                             <div class="flex justify-between text-gray-600">
-                                <span>الضريبة (١٥٪):</span>
-                                <span>{{ number_format($order->total_amount * 0.15, 2) }} ر.س</span>
+                                <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
+                                <span>{{ number_format($order->tax_amount ?? 0, 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
                             </div>
 
                             @if(($order->delivery_fee ?? 0) > 0)

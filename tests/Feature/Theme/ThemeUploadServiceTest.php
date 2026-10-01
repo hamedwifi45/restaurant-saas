@@ -37,6 +37,8 @@ class ThemeUploadServiceTest extends TestCase
             'pages/home.blade.php' => '<div>Home</div>',
             'pages/menu.blade.php' => '<div>Menu</div>',
             'pages/product.blade.php' => '<div>Product</div>',
+            'pages/offers.blade.php' => '<div>Offers</div>',
+            'pages/kds-board.blade.php' => '<div>KDS board</div>',
             'cart/cart.blade.php' => '<div>Cart</div>',
             'cart/checkout.blade.php' => '<div>Checkout</div>',
             'cart/success.blade.php' => '<div>Success</div>',
@@ -45,11 +47,14 @@ class ThemeUploadServiceTest extends TestCase
             'orders/invoice.blade.php' => '<div>Invoice</div>',
             'reviews/reviews.blade.php' => '<div>Reviews</div>',
             'reviews/review-form.blade.php' => '<div>Review Form</div>',
+            'driver/dashboard.blade.php' => '<div>Driver dashboard</div>',
+            'driver/orders.blade.php' => '<div>Driver orders</div>',
+            'driver/tracking.blade.php' => '<div>Driver tracking</div>',
         ]);
 
         $result = app(ThemeUploadService::class)->upload($zipPath, 'theme-upload-demo');
 
-        $this->assertTrue($result['success']);
+        $this->assertTrue($result['success'], $result['message']);
         $this->assertFileExists(resource_path('views/themes/theme-upload-demo/theme.json'));
         $this->assertDatabaseHas('themes', [
             'slug' => 'theme-upload-demo',

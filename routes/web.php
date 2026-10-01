@@ -29,6 +29,8 @@ Route::view('/', 'welcome')->name('home');
 */
 Route::middleware(['auth'])->group(function () {
 
+    Route::view('/dashboard', 'dashboard')->name('dashboard');
+
     // إدارة الثيمات (Themes)
     Route::middleware('can:access-theme-editor')->group(function () {
         Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
@@ -59,7 +61,7 @@ Route::middleware(['auth'])->group(function () {
     // مسارات المندوبين (Drivers)
     Route::prefix('{slug}/driver')->middleware('can:access-driver-panel')->group(function () {
         Route::get('/orders', [DriverController::class, 'index'])->name('driver.orders');
-        Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('driver.dashboard');
 
         Route::get('/orders/{order}', [DriverController::class, 'show'])->name('driver.order.show');
         Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
@@ -101,10 +103,10 @@ Route::prefix('{slug}')->group(function () {
 
     // الطلب والدفع (Checkout & Orders)
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
-    Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
+    Route::post('/checkout', [OrderController::class, 'store'])->middleware('throttle:10,1')->name('checkout.store');
     Route::get('/order/success/{code}', [OrderController::class, 'success'])->name('order.success');
     Route::post('/apply-offer', [OrderController::class, 'applyOffer'])->name('offer.apply');
-    Route::post('/apply-coupon', [OrderController::class, 'applyCoupon'])->name('coupon.apply');
+    Route::post('/apply-coupon', [OrderController::class, 'applyCoupon'])->middleware('throttle:10,1')->name('coupon.apply');
 
     // تتبع الطلبات
     Route::get('/track', [OrderController::class, 'trackForm'])->name('order.track.form');

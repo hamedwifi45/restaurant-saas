@@ -19,7 +19,7 @@ it('allows an assigned driver to update a delivery location', function () {
     ]);
 
     $this->actingAs($driver)
-        ->postJson(route('driver.location.update', $order), [
+        ->postJson(route('driver.location.update', [$restaurant->slug, $order]), [
             'latitude' => 33.51,
             'longitude' => 36.21,
         ])
@@ -45,31 +45,31 @@ it('shows only the driver orders and completes delivery transitions', function (
     ]);
 
     $this->actingAs($driver)
-        ->get(route('driver.orders'))
+        ->get(route('driver.orders', $restaurant->slug))
         ->assertSuccessful()
         ->assertSee($order->tracking_code)
         ->assertSee($order->customer_name);
 
     $this->actingAs($driver)
-        ->get(route('dashboard'))
+        ->get(route('driver.dashboard', $restaurant->slug))
         ->assertSuccessful()
         ->assertSee('لوحة المندوب')
         ->assertSee($order->tracking_code);
 
     $this->actingAs($driver)
-        ->get(route('driver.order.tracking', $order))
+        ->get(route('driver.order.tracking', [$restaurant->slug, $order->tracking_code]))
         ->assertSuccessful()
         ->assertSee('نظام تتبع الطلبات والتوصيل')
         ->assertSee($order->tracking_code);
 
     $this->actingAs($driver)
-        ->getJson(route('driver.order.show', $order))
+        ->getJson(route('driver.order.show', [$restaurant->slug, $order]))
         ->assertSuccessful()
         ->assertJsonPath('tracking_code', $order->tracking_code)
         ->assertJsonPath('status', 'on_way');
 
     $this->actingAs($driver)
-        ->postJson(route('driver.status.update', $order), ['status' => 'delivered'])
+        ->postJson(route('driver.status.update', [$restaurant->slug, $order]), ['status' => 'delivered'])
         ->assertSuccessful()
         ->assertJsonPath('status', 'delivered');
 
@@ -82,7 +82,7 @@ it('does not expose an unassigned order to a driver', function () {
     $order = Order::factory()->create(['restaurant_id' => $restaurant->id, 'status' => 'ready']);
 
     $this->actingAs($driver)
-        ->getJson(route('driver.order.show', $order))
+        ->getJson(route('driver.order.show', [$restaurant->slug, $order]))
         ->assertForbidden();
 });
 
@@ -100,7 +100,7 @@ it('does not allow a driver to update another restaurant order', function () {
     ]);
 
     $this->actingAs($driver)
-        ->postJson(route('driver.location.update', $order), [
+        ->postJson(route('driver.location.update', [$otherRestaurant->slug, $order]), [
             'latitude' => 33.51,
             'longitude' => 36.21,
         ])
@@ -120,7 +120,7 @@ it('stops accepting location updates after delivery', function () {
     ]);
 
     $this->actingAs($driver)
-        ->postJson(route('driver.location.update', $order), [
+        ->postJson(route('driver.location.update', [$restaurant->slug, $order]), [
             'latitude' => 33.51,
             'longitude' => 36.21,
         ])

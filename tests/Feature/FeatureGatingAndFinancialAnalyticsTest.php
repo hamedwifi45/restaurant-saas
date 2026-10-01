@@ -25,6 +25,7 @@ use Livewire\Livewire;
 test('checkout persists consistent order and invoice financial amounts', function () {
     $restaurant = Restaurant::factory()->create([
         'delivery_fee' => 10,
+        'tax_percentage' => 15,
     ]);
     $product = Product::factory()->create([
         'restaurant_id' => $restaurant->id,

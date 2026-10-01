@@ -91,12 +91,13 @@ class OrderController extends Controller
             $subtotal += $products->get($id)->price * $quantity;
         }
 
-        $tax = $subtotal * 0.15;
+        $taxRate = (float) ($restaurant->tax_percentage ?? 0);
+        $tax = round($subtotal * $taxRate / 100, 2);
         $total = $subtotal + $tax;
 
         // ===== الحسابات الخاصة بصفحة إتمام الطلب (Checkout Calculations) =====
-        $baseSubtotal = $total / 1.15;
-        $baseTax = $total - $baseSubtotal;
+        $baseSubtotal = $subtotal;
+        $baseTax = $tax;
         $deliveryFee = $restaurant->delivery_fee ?? 0;
 
         // حساب خصم العرض التلقائي
@@ -229,7 +230,8 @@ class OrderController extends Controller
         $subtotal = round($subtotal, 2);
         $offerDiscount = round($offerDiscount, 2);
         $couponDiscount = round($couponDiscount, 2);
-        $tax = round($subtotal * 0.15, 2);
+        $taxRate = (float) ($restaurant->tax_percentage ?? 0);
+        $tax = round($subtotal * $taxRate / 100, 2);
         $deliveryFee = $table ? 0 : round((float) ($restaurant->delivery_fee ?? 0), 2);
         $finalAmount = round($subtotal + $tax + $deliveryFee - ($offerDiscount + $couponDiscount), 2);
         $deviceToken = Str::random(40);

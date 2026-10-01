@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -29,6 +31,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
+ * @property-read Restaurant|null $restaurant
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -58,20 +61,34 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
             'restaurant' => $this->role === 'super_admin'
                 || ($this->role === 'restaurant_admin'
                     && filled($this->restaurant_id)
-                    && ($this->restaurant?->is_active ?? false)),
+                    && $this->restaurant()->where('is_active', true)->exists()),
             'sham' => $this->role === 'super_admin',
             default => false,
         };
     }
 
+    /**
+     * @return BelongsTo<Restaurant, $this>
+     */
     public function restaurant(): BelongsTo
     {
         return $this->belongsTo(Restaurant::class);
     }
 
-    public function driverProfile()
+    /**
+     * @return HasOne<Driver, $this>
+     */
+    public function driverProfile(): HasOne
     {
         return $this->hasOne(Driver::class);
+    }
+
+    /**
+     * @return HasMany<Order, $this>
+     */
+    public function assignedOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'driver_id');
     }
 
     /**

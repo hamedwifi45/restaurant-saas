@@ -88,12 +88,12 @@
                                 <span class="text-green-600 font-bold">مجاني</span>
                             </div>
                             <div class="flex justify-between text-gray-600">
-                                <span>الضريبة (١٥٪)</span>
-                                <span>{{ number_format($total * 0.15, 2) }} ر.س</span>
+                                <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪)</span>
+                                <span>{{ number_format($total * (($restaurant->tax_percentage ?? 0) / 100), 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
                             </div>
                             <div class="border-t pt-4 flex justify-between text-xl font-black text-gray-800">
                                 <span>الإجمالي</span>
-                                <span class="text-primary">{{ number_format($total * 1.15, 2) }} ر.س</span>
+                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)), 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
                             </div>
                         </div>
 

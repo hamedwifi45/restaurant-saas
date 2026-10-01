@@ -138,7 +138,7 @@
                 </div>
 
                 <div class="flex justify-between text-gray-700">
-                    <span>الضريبة (١٥٪):</span>
+                    <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
                     <span class="font-bold">{{ number_format($order->final_amount - $order->subtotal - $order->delivery_fee + $order->discount + $order->coupon_discount, 2) }} ر.س</span>
                 </div>
 

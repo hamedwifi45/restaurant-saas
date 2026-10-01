@@ -1,0 +1,63 @@
+{
+  "name": "القالب الشرقي الراقي",
+  "author": "منصة المطاعم",
+  "version": "1.0.0",
+  "slug": "oriental-theme",
+  "description": "قالب عربي متجاوب باتجاه RTL للمطاعم الشرقية.",
+  "default_settings": {
+    "primary_color": "#9A3412",
+    "font_family": "Tajawal",
+    "hero_title": "نكهات شرقية أصيلة",
+    "hero_subtitle": "أشهى الأطباق تُحضّر لكم بكل حب"
+  },
+  "allowed_variables": {
+    "primary_color": {
+      "section": "الألوان والخطوط",
+      "type": "color",
+      "label": "اللون الرئيسي",
+      "description": "لون العلامة التجارية للأزرار والعناصر التفاعلية",
+      "default": "#9A3412",
+      "css_var": "--primary-color"
+    },
+    "font_family": {
+      "section": "الألوان والخطوط",
+      "type": "select",
+      "label": "نوع الخط العربي",
+      "options": {
+        "Tajawal": "Tajawal",
+        "Cairo": "Cairo",
+        "Almarai": "Almarai"
+      },
+      "default": "Tajawal",
+      "css_var": "--font-family"
+    },
+    "hero_title": {
+      "section": "الواجهة الرئيسية",
+      "type": "text",
+      "label": "عنوان الواجهة",
+      "default": "نكهات شرقية أصيلة"
+    },
+    "hero_subtitle": {
+      "section": "الواجهة الرئيسية",
+      "type": "text",
+      "label": "وصف الواجهة",
+      "default": "أشهى الأطباق تُحضّر لكم بكل حب"
+    },
+    "show_hero_banner": {
+      "section": "الواجهة الرئيسية",
+      "type": "toggle",
+      "label": "إظهار الواجهة الرئيسية",
+      "default": true
+    },
+    "card_style": {
+      "section": "التصميم",
+      "type": "select",
+      "label": "نمط البطاقات",
+      "options": {
+        "elevated": "بظلال",
+        "flat": "بإطار بسيط"
+      },
+      "default": "elevated"
+    }
+  }
+}

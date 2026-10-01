@@ -134,7 +134,7 @@ class CartController extends Controller
                 'count' => $count,
                 'subtotal' => $total,
                 'total' => $total,
-                'grand_total' => $total * 1.15,
+                'grand_total' => $total * (1 + ((float) ($restaurant->tax_percentage ?? 0) / 100)),
                 'items' => $items,
             ]);
         }
@@ -156,7 +156,7 @@ class CartController extends Controller
         ]);
 
         // التأكد من أن المنتج ينتمي للمطعم
-        Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
+        $product = Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
 
         $cart = session($sessionKey, []);
 
@@ -165,9 +165,16 @@ class CartController extends Controller
             session([$sessionKey => $cart]);
         }
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'product_id' => $product->id,
+                'quantity' => (int) $cart[$product->id]['qty'],
+            ]);
+        }
+
         return redirect()->route('cart.index', $slug)->with('success', 'تم تحديث كمية المنتج');
     }
-    
 
     /**
      * حذف منتج من السلة
@@ -181,13 +188,20 @@ class CartController extends Controller
             'product_id' => 'required|exists:products,id',
         ]);
 
-        Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
+        $product = Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
 
         $cart = session($sessionKey, []);
 
         if (isset($cart[$request->product_id])) {
             unset($cart[$request->product_id]);
             session([$sessionKey => $cart]);
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'product_id' => $product->id,
+            ]);
         }
 
         return redirect()->route('cart.index', $slug)->with('success', 'تم حذف المنتج من السلة');

@@ -56,10 +56,12 @@ class RestaurantThemeSettingsTest extends TestCase
             'slug' => 'example-restaurant',
             'subdomain' => 'example',
             'theme_id' => $theme->id,
+            'plan' => 'pro',
             'is_active' => true,
         ]);
 
         $user = User::factory()->create([
+            'role' => 'restaurant_admin',
             'restaurant_id' => $restaurant->id,
         ]);
 

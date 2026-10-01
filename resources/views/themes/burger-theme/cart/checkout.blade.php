@@ -47,7 +47,7 @@
                             <span id="subtotal-display">{{ number_format($baseSubtotal, 2) }} ر.س</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>الضريبة (١٥٪):</span>
+                            <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
                             <span id="tax-display">{{ number_format($baseTax, 2) }} ر.س</span>
                         </div>
                         @if($deliveryFee > 0)

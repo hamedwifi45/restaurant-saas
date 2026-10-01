@@ -16,6 +16,7 @@ use App\Filament\Restaurant\Resources\Offers\OfferResource;
 use App\Filament\Restaurant\Resources\Orders\OrderResource;
 use App\Filament\Restaurant\Resources\Products\ProductResource;
 use App\Filament\Restaurant\Resources\RestaurantTables\RestaurantTableResource;
+use App\Filament\Restaurant\Resources\Staff\StaffResource;
 use App\Filament\Restaurant\Widgets\FinancialOverviewWidget;
 use App\Filament\Restaurant\Widgets\OrderTypeChartWidget;
 use App\Filament\Restaurant\Widgets\PaymentMethodChartWidget;
@@ -61,6 +62,7 @@ class RestaurantPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
             ->navigationGroups([
+                NavigationGroup::make('إدارة المطعم')->icon('heroicon-o-user-group'),
                 NavigationGroup::make('التشغيل')->icon('heroicon-o-command-line'),
                 NavigationGroup::make('القائمة')->icon('heroicon-o-clipboard-document-list'),
                 NavigationGroup::make('التسويق')->icon('heroicon-o-megaphone'),
@@ -79,6 +81,7 @@ class RestaurantPanelProvider extends PanelProvider
                 CouponResource::class,
                 DriverResource::class,
                 RestaurantTableResource::class,
+                StaffResource::class,
             ])
             ->discoverResources(in: app_path('Filament/Restaurant/Resources'), for: 'App\\Filament\\Restaurant\\Resources')
             ->discoverPages(in: app_path('Filament/Restaurant/Pages'), for: 'App\\Filament\\Restaurant\\Pages')

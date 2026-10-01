@@ -46,7 +46,13 @@ class DriverResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('role', 'driver')
-            ->where('restaurant_id', Auth::user()?->restaurant_id);
+            ->where('restaurant_id', Auth::user()?->restaurant_id)
+            ->with('driverProfile')
+            ->withCount([
+                'assignedOrders as completed_orders_count' => fn (Builder $query): Builder => $query
+                    ->where('restaurant_id', Auth::user()?->restaurant_id)
+                    ->where('status', 'delivered'),
+            ]);
     }
 
     public static function canViewAny(): bool
