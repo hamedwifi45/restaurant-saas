@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="{{ $restaurant->description ?? 'اطلب أبيخ الأطباق من ' . $restaurant->name . ' مع توصيل سريع وجودة لا تضاهى.' }}">
+    <meta name="description" content="{{ $restaurant->description ?? 'اطلب أشهى الأطباق من ' . $restaurant->name . ' مع توصيل سريع وجودة لا تضاهى.' }}">
     <meta name="keywords" content="طعام, توصيل, مطعم, {{ $restaurant->name }}, وجبات سريعة">
     <meta name="author" content="{{ $restaurant->name }}">
 
@@ -347,7 +347,7 @@
                         <h3 class="text-2xl font-black">{{ $restaurant->name }}</h3>
                     </div>
                     <p class="text-gray-400 leading-relaxed mb-6 text-sm">
-                        {{ $restaurant->description ?? 'نقدم أبيخ الأطباق بمكونات طازجة وجودة عالية لنضمن لك تجربة طعام لا تُنسى. اطلب الآن واستمتع بالطعم الأصلي.' }}
+                        {{ $restaurant->description ?? 'نقدم أشهى الأطباق بمكونات طازجة وجودة عالية لنضمن لك تجربة طعام لا تُنسى. اطلب الآن واستمتع بالطعم الأصلي.' }}
                     </p>
                     <div class="flex gap-3">
                         <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-primary transition transform hover:scale-110">📘</a>
@@ -627,6 +627,5 @@
             }, 3500);
         }
     </script>
-    
 </body>
 </html>

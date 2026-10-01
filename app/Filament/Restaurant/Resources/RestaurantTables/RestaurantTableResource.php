@@ -46,7 +46,12 @@ class RestaurantTableResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('restaurant_id', auth()->user()?->restaurant_id);
+            ->where('restaurant_id', Auth::user()?->restaurant_id);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->restaurant?->hasFeature('table_qr') ?? false;
     }
 
     public static function getRelations(): array

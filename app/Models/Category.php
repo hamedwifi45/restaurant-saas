@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Category extends Model
 {
@@ -46,6 +47,20 @@ class Category extends Model
     protected static function boot()
     {
         parent::boot();
+
+        static::saved(function (Category $category): void {
+            foreach (array_unique(array_filter([
+                (int) $category->getOriginal('restaurant_id'),
+                (int) $category->restaurant_id,
+            ])) as $restaurantId) {
+                Cache::forget('restaurant-menu:'.$restaurantId);
+            }
+        });
+
+        static::deleted(function (Category $category): void {
+            Cache::forget('restaurant-menu:'.$category->restaurant_id);
+        });
+
         if (auth()->check() && auth()->user()->role != 'super_admin') {
             static::creating(function ($category) {
                 if (auth()->check() && auth()->user()->restaurant_id) {

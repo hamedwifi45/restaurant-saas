@@ -2,15 +2,15 @@
 
 namespace App\Filament\Sham\Resources\Restaurants\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use App\Filament\Sham\Resources\Restaurants\Actions\ImpersonateRestaurantAdmin;
+use App\Models\Restaurant;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 
 class RestaurantsTable
@@ -19,101 +19,64 @@ class RestaurantsTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->label('اسم المطعم')
-                    ->searchable(),
-                TextColumn::make('slug')
-                    ->label('Slug')
-                    ->searchable(),
+                ImageColumn::make('logo')->label('الشعار')->disk('public')->circular(),
+                TextColumn::make('name')->label('اسم المطعم')->searchable()->sortable(),
+                TextColumn::make('restaurantAdmin.name')->label('اسم المالك')->searchable(),
+                TextColumn::make('restaurantAdmin.email')->label('بريد المالك')->searchable(),
+                TextColumn::make('plan')
+                    ->label('الباقة')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'pro' ? 'success' : 'gray')
+                    ->formatStateUsing(fn (string $state): string => strtoupper($state)),
+                ToggleColumn::make('is_active')->label('نشط'),
                 TextColumn::make('subdomain')
-                    ->label('Subdomain')
+                    ->label('الرابط')
+                    ->formatStateUsing(fn (?string $state, Restaurant $record): string => $state ?: $record->slug)
+                    ->url(fn (Restaurant $record): string => route('restaurant.home', ['slug' => $record->slug]))
+                    ->openUrlInNewTab()
                     ->searchable(),
-                TextColumn::make('logo')
-                    ->label('شعار')
-                    ->searchable(),
-                ImageColumn::make('cover_image')
-                    ->label('صورة الغلاف')
-                    ->disk('public'),
-                TextColumn::make('phone')
-                    ->label('رقم الهاتف')
-                    ->searchable(),
-                TextColumn::make('email')
-                    ->label('Email address')
-                    ->searchable(),
-                TextColumn::make('city')
-                    ->label('مدينة')
-                    ->searchable(),
-                TextColumn::make('delivery_fee')
-                    ->label('رسوم التوصيل')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('estimated_delivery_time')
-                    ->label('وقت التوصيل المقدر')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('theme_id')
-                    ->label('Theme ID')
-                    ->searchable()
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('primary_color')
-                    ->label('اللون الأساسي')
-                    ->searchable(),
-                TextColumn::make('secondary_color')
-                    ->label('اللون الثانوي')
-                    ->searchable(),
-                TextColumn::make('background_color')
-                    ->label('لون الخلفية')
-                    ->searchable(),
-                ImageColumn::make('qr_code_image')
-                    ->label('صورة الكود QR')
-                    ->disk('public'),
-                TextColumn::make('pricing_type')
-                    ->label('نوع التسعير')
-                    ->searchable(),
-                TextColumn::make('commission_rate')
-                    ->label('معدل العمولة')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('subscription_fee')
-                    ->label('رسوم الاشتراك')
-                    ->numeric()
-                    ->sortable(),
-                IconColumn::make('is_active')
-                    ->label('نشط')
-                    ->boolean(),
-                TextColumn::make('trial_ends_at')
-                    ->label('نهاية الفترة التجريبية')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('deleted_at')
-                    ->label('تاريخ الحذف')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('تاريخ الإنشاء')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->label('تاريخ التحديث')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                TrashedFilter::make(),
+                    ->dateTime('Y-m-d')
+                    ->sortable(),
             ])
             ->recordActions([
+                Action::make('changePlan')
+                    ->label('تغيير الباقة')
+                    ->icon('heroicon-o-sparkles')
+                    ->form([
+                        Select::make('plan')
+                            ->label('الباقة الجديدة')
+                            ->options(['starter' => 'Starter', 'pro' => 'Pro'])
+                            ->required(),
+                    ])
+                    ->fillForm(fn (Restaurant $record): array => ['plan' => $record->plan])
+                    ->action(function (Restaurant $record, array $data): void {
+                        $record->update(['plan' => $data['plan']]);
+                        Notification::make()->title('تم تغيير باقة المطعم')->success()->send();
+                    }),
+                Action::make('toggleStatus')
+                    ->label(fn (Restaurant $record): string => $record->is_active ? 'إيقاف الحساب' : 'تفعيل الحساب')
+                    ->icon(fn (Restaurant $record): string => $record->is_active ? 'heroicon-o-no-symbol' : 'heroicon-o-check-circle')
+                    ->color(fn (Restaurant $record): string => $record->is_active ? 'danger' : 'success')
+                    ->requiresConfirmation()
+                    ->action(function (Restaurant $record): void {
+                        $isActive = ! $record->is_active;
+                        $record->update(['is_active' => $isActive]);
+
+                        Notification::make()
+                            ->title($isActive ? 'تم تفعيل حساب المطعم' : 'تم إيقاف حساب المطعم')
+                            ->color($isActive ? 'success' : 'warning')
+                            ->send();
+                    }),
+                Action::make('impersonate')
+                    ->label('تسجيل الدخول كمدير مطعم')
+                    ->icon('heroicon-o-arrow-right-start-on-rectangle')
+                    ->visible(fn (Restaurant $record): bool => $record->is_active && $record->restaurantAdmin !== null)
+                    ->requiresConfirmation()
+                    ->modalDescription('سيتم فتح لوحة المطعم بحساب المالك، ويمكنك العودة إلى لوحة الإدارة من خيار إنهاء تسجيل الدخول بالنيابة.')
+                    ->action(fn (Restaurant $record) => app(ImpersonateRestaurantAdmin::class)->handle($record)),
                 EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
-                ]),
             ]);
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 
 class Product extends Model
 {
@@ -51,6 +52,19 @@ class Product extends Model
     protected static function boot()
     {
         parent::boot();
+
+        static::saved(function (Product $product): void {
+            foreach (array_unique(array_filter([
+                (int) $product->getOriginal('restaurant_id'),
+                (int) $product->restaurant_id,
+            ])) as $restaurantId) {
+                Cache::forget('restaurant-menu:'.$restaurantId);
+            }
+        });
+
+        static::deleted(function (Product $product): void {
+            Cache::forget('restaurant-menu:'.$product->restaurant_id);
+        });
 
         static::creating(function ($product) {
             if (auth()->check() && auth()->user()->restaurant_id) {

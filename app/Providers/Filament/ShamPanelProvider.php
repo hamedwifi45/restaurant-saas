@@ -2,16 +2,19 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Admin\Resources\Users\UserResource;
 use App\Filament\Sham\Resources\Categories\CategoryResource;
 use App\Filament\Sham\Resources\Invoices\InvoiceResource;
 use App\Filament\Sham\Resources\Orders\OrderResource;
 use App\Filament\Sham\Resources\Products\ProductResource;
 use App\Filament\Sham\Resources\Restaurants\RestaurantResource;
 use App\Filament\Sham\Resources\Themes\ThemeResource;
+use App\Filament\Sham\Widgets\SystemOverviewWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -46,14 +49,18 @@ class ShamPanelProvider extends PanelProvider
             ->font('Tajawal')
             ->spa() // تفعيل Single Page Application للأنيميشن
             ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                NavigationGroup::make('إدارة المنصة'),
+            ])
             ->darkMode(false)
             ->resources([
+                UserResource::class,
                 RestaurantResource::class,
                 CategoryResource::class,
                 ProductResource::class,
                 OrderResource::class,
                 ThemeResource::class,
-                InvoiceResource::class
+                InvoiceResource::class,
             ])
             ->discoverResources(in: app_path('Filament/Sham/Resources'), for: 'App\\Filament\\Sham\\Resources')
             ->discoverPages(in: app_path('Filament/Sham/Pages'), for: 'App\\Filament\\Sham\\Pages')
@@ -64,6 +71,7 @@ class ShamPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                SystemOverviewWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -80,7 +88,7 @@ class ShamPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->authMiddleware([
-            Authenticate::class,
-        ]); // إضافة الثيم المخصص
+                Authenticate::class,
+            ]); // إضافة الثيم المخصص
     }
 }

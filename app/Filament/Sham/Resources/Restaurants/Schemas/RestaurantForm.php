@@ -2,6 +2,8 @@
 
 namespace App\Filament\Sham\Resources\Restaurants\Schemas;
 
+use App\Models\Restaurant;
+use App\Models\User;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -9,6 +11,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class RestaurantForm
@@ -17,147 +20,72 @@ class RestaurantForm
     {
         return $schema
             ->components([
-                // --- المعلومات الأساسية ---
-                TextInput::make('name')
-                    ->label('اسم المطعم')
-                    ->required()
-                    ->maxLength(255),
-
-                TextInput::make('slug')
-                    ->label('الرابط المختصر')
-                    ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
-
-                TextInput::make('subdomain')
-                    ->label('النطاق الفرعي')
-                    ->nullable()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255),
-
-                Textarea::make('description')
-                    ->label('الوصف')
-                    ->columnSpanFull(),
-
-                FileUpload::make('logo')
-                    ->label('الشعار')
-                    ->image()
-                    ->disk('public')
-                    ->directory('restaurants/logos'),
-                TextInput::make('logo_url')
-                    ->label('أو رابط الشعار')
-                    ->url()
-                    ->maxLength(2048),
-
-                FileUpload::make('cover_image')
-                    ->label('صورة الغلاف')
-                    ->image()
-                    ->disk('public')
-                    ->directory('restaurants/covers'),
-                TextInput::make('cover_image_url')
-                    ->label('أو رابط صورة الغلاف')
-                    ->url()
-                    ->maxLength(2048),
-
-                // --- معلومات التواصل والموقع ---
-                TextInput::make('phone')
-                    ->label('رقم الهاتف')
-                    ->tel()
-                    ->nullable(),
-
-                TextInput::make('email')
-                    ->label('البريد الإلكتروني')
-                    ->email()
-                    ->nullable(),
-
-                Textarea::make('address')
-                    ->label('العنوان الكامل')
-                    ->nullable()
-                    ->columnSpanFull(),
-
-                TextInput::make('city')
-                    ->label('المدينة')
-                    ->nullable(),
-
-                TextInput::make('delivery_fee')
-                    ->label('رسوم التوصيل')
-                    ->numeric()
-                    ->prefix('ل.س')
-                    ->default(0),
-
-                TextInput::make('estimated_delivery_time')
-                    ->label('وقت التوصيل المتوقع (دقيقة)')
-                    ->numeric()
-                    ->suffix('دقيقة')
-                    ->nullable(),
-
-                // --- التصميم والألوان ---
-                Select::make('theme_id')
-                    ->label('التصميم')
-                    ->relationship('theme', 'name')
-                    ->required()
-                    ->searchable(),
-
-                ColorPicker::make('primary_color')
-                    ->label('اللون الأساسي')
-                    ->default('#FF6B35'),
-
-                ColorPicker::make('secondary_color')
-                    ->label('اللون الثانوي')
-                    ->default('#FFFFFF'),
-
-                ColorPicker::make('background_color')
-                    ->label('لون الخلفية')
-                    ->default('#1A1A1A'),
-
-                // --- الدفع والتسعير ---
-                FileUpload::make('qr_code_image')
-                    ->label('صورة QR الدفع')
-                    ->image()
-                    ->disk('public')
-                    ->directory('restaurants/qrcodes'),
-                TextInput::make('qr_code_image_url')
-                    ->label('أو رابط صورة QR الدفع')
-                    ->url()
-                    ->maxLength(2048),
-
-                Textarea::make('bank_details')
-                    ->label('تفاصيل الحساب البنكي')
-                    ->nullable()
-                    ->columnSpanFull(),
-
-                Select::make('pricing_type')
-                    ->label('نموذج التسعير')
-                    ->options([
-                        'commission' => 'عمولة على الطلبات',
-                        'subscription' => 'اشتراك شهري ثابت',
+                Section::make('بيانات المطعم')
+                    ->schema([
+                        TextInput::make('name')->label('اسم المطعم')->required()->maxLength(255),
+                        TextInput::make('slug')->label('الرابط المختصر')->required()->unique(ignoreRecord: true)->maxLength(255),
+                        TextInput::make('subdomain')->label('النطاق الفرعي')->nullable()->unique(ignoreRecord: true)->maxLength(255),
+                        Select::make('plan')->label('الباقة')->options(['starter' => 'Starter', 'pro' => 'Pro'])->required()->default('starter'),
+                        Textarea::make('description')->label('الوصف')->columnSpanFull(),
+                        Select::make('theme_id')->label('التصميم')->relationship('theme', 'name')->required()->searchable(),
+                        FileUpload::make('logo')->label('الشعار')->image()->disk('public')->directory('restaurants/logos'),
+                        TextInput::make('logo_url')->label('أو رابط الشعار')->url()->maxLength(2048),
+                        FileUpload::make('cover_image')->label('صورة الغلاف')->image()->disk('public')->directory('restaurants/covers'),
+                        TextInput::make('cover_image_url')->label('أو رابط صورة الغلاف')->url()->maxLength(2048),
                     ])
-                    ->default('commission'),
-
-                TextInput::make('commission_rate')
-                    ->label('نسبة العمولة (%)')
-                    ->numeric()
-                    ->minValue(0)
-                    ->maxValue(100)
-                    ->step(0.01)
-                    ->suffix('%'),
-
-                TextInput::make('subscription_fee')
-                    ->label('رسوم الاشتراك الشهري')
-                    ->numeric()
-                    ->minValue(0)
-                    ->step(0.01)
-                    ->prefix('ر.س'),
-
-                // --- الحالة والفترة التجريبية ---
-                Toggle::make('is_active')
-                    ->label('مطعم مفعل')
-                    ->default(true),
-
-                DatePicker::make('trial_ends_at')
-                    ->label('نهاية الفترة التجريبية')
-                    ->nullable()
-                    ->native(false),
+                    ->columns(2),
+                Section::make('حساب مالك المطعم')
+                    ->schema([
+                        TextInput::make('owner_name')->label('اسم المالك')->required()->maxLength(255),
+                        TextInput::make('owner_email')
+                            ->label('بريد المالك')
+                            ->email()
+                            ->required()
+                            ->maxLength(255)
+                            ->unique(
+                                table: User::class,
+                                column: 'email',
+                                ignorable: fn (?Restaurant $record) => $record?->restaurantAdmin,
+                            ),
+                        TextInput::make('owner_password')
+                            ->label('كلمة المرور')
+                            ->password()
+                            ->revealable()
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->dehydrated(fn (?string $state): bool => filled($state)),
+                        TextInput::make('owner_phone')->label('هاتف المالك')->tel()->maxLength(30),
+                    ])
+                    ->columns(2),
+                Section::make('التواصل والتشغيل')
+                    ->schema([
+                        TextInput::make('phone')->label('رقم الهاتف')->tel()->maxLength(30),
+                        TextInput::make('email')->label('البريد الإلكتروني')->email()->maxLength(255),
+                        Textarea::make('address')->label('العنوان الكامل')->columnSpanFull(),
+                        TextInput::make('city')->label('المدينة')->maxLength(120),
+                        TextInput::make('delivery_fee')->label('رسوم التوصيل')->numeric()->minValue(0)->default(0),
+                        TextInput::make('estimated_delivery_time')->label('وقت التوصيل المتوقع (دقيقة)')->numeric()->suffix('دقيقة'),
+                        TextInput::make('currency_symbol')->label('رمز العملة')->maxLength(12)->default('ل.س'),
+                        TextInput::make('tax_percentage')->label('نسبة الضريبة')->numeric()->minValue(0)->maxValue(100)->suffix('%')->default(0),
+                    ])
+                    ->columns(2),
+                Section::make('التصميم والدفع')
+                    ->schema([
+                        ColorPicker::make('primary_color')->label('اللون الأساسي')->default('#FF6B35'),
+                        ColorPicker::make('secondary_color')->label('اللون الثانوي')->default('#FFFFFF'),
+                        ColorPicker::make('background_color')->label('لون الخلفية')->default('#1A1A1A'),
+                        FileUpload::make('qr_code_image')->label('صورة QR الدفع')->image()->disk('public')->directory('restaurants/qrcodes'),
+                        TextInput::make('qr_code_image_url')->label('أو رابط صورة QR الدفع')->url()->maxLength(2048),
+                        Textarea::make('bank_details')->label('تفاصيل الحساب البنكي')->columnSpanFull(),
+                        Select::make('pricing_type')->label('نموذج التسعير')->options(['commission' => 'عمولة على الطلبات', 'subscription' => 'اشتراك شهري ثابت'])->default('commission'),
+                        TextInput::make('commission_rate')->label('نسبة العمولة (%)')->numeric()->minValue(0)->maxValue(100)->step(0.01)->suffix('%')->default(0),
+                        TextInput::make('subscription_fee')->label('رسوم الاشتراك الشهري')->numeric()->minValue(0)->step(0.01)->default(0),
+                        TextInput::make('whatsapp_number')->label('رقم واتساب')->tel()->maxLength(30),
+                        TextInput::make('instagram_url')->label('رابط إنستغرام')->url()->maxLength(2048),
+                        TextInput::make('facebook_url')->label('رابط فيسبوك')->url()->maxLength(2048),
+                        Toggle::make('is_active')->label('الحساب نشط')->default(true),
+                        DatePicker::make('trial_ends_at')->label('نهاية الفترة التجريبية')->native(false),
+                    ])
+                    ->columns(2),
             ]);
     }
 }

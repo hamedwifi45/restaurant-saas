@@ -15,12 +15,19 @@ class Invoice extends Model
         'invoice_number',
         'subtotal',
         'tax_amount',
+        'delivery_fee',
         'total_amount',
+        'final_amount',
         'status',
         'paid_at',
     ];
 
     protected $casts = [
+        'subtotal' => 'decimal:2',
+        'tax_amount' => 'decimal:2',
+        'delivery_fee' => 'decimal:2',
+        'total_amount' => 'decimal:2',
+        'final_amount' => 'decimal:2',
         'paid_at' => 'datetime',
     ];
 

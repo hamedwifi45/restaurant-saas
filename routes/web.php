@@ -28,18 +28,19 @@ Route::view('/', 'welcome')->name('home');
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
-    
-    // إدارة الثيمات (Themes)
-    Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
-    Route::post('themes/{theme}/activate', [ThemeController::class, 'activate'])->name('themes.activate');
-    Route::post('themes/{theme}/clone', [ThemeController::class, 'clone'])->name('themes.clone');
-    Route::post('themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('themes.reset-settings');
-    Route::resource('themes', ThemeController::class);
 
+    // إدارة الثيمات (Themes)
+    Route::middleware('can:access-theme-editor')->group(function () {
+        Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
+        Route::post('themes/{theme}/activate', [ThemeController::class, 'activate'])->name('themes.activate');
+        Route::post('themes/{theme}/clone', [ThemeController::class, 'clone'])->name('themes.clone');
+        Route::post('themes/{theme}/reset-settings', [ThemeController::class, 'resetSettings'])->name('themes.reset-settings');
+        Route::resource('themes', ThemeController::class);
+    });
 
     // واجهة المطبخ (KDS)
-    Route::redirect('/{slug}/kds', '/kitchen/{slug}/display');
-    Route::prefix('kitchen')->name('kitchen.')->group(function () {
+    Route::redirect('/{slug}/kds', '/kitchen/{slug}/display')->middleware('can:access-kds');
+    Route::prefix('kitchen')->name('kitchen.')->middleware('can:access-kds')->group(function () {
         Route::get('/{slug}/display', [KdsController::class, 'index'])->name('display');
         Route::post('/orders/{orderId}/status', [KdsController::class, 'updateStatus'])->name('orders.updateStatus');
     });
@@ -47,19 +48,19 @@ Route::middleware(['auth'])->group(function () {
     // API لوحة تحكم المطعم والطاولات
     Route::prefix('restaurant')->group(function () {
         Route::get('/tables/{table}/qr', [RestaurantTableController::class, 'qr'])->name('restaurant.table.qr');
-        
+
         Route::prefix('api')->group(function () {
-            Route::get('/theme/settings', [ThemeSettingsController::class, 'getSettings'])->name('restaurant.theme.settings.get');
-            Route::post('/theme/settings', [ThemeSettingsController::class, 'updateSettings'])->name('restaurant.theme.settings.update');
+            Route::get('/theme/settings', [ThemeSettingsController::class, 'getSettings'])->middleware('can:access-theme-editor')->name('restaurant.theme.settings.get');
+            Route::post('/theme/settings', [ThemeSettingsController::class, 'updateSettings'])->middleware('can:access-theme-editor')->name('restaurant.theme.settings.update');
             Route::get('/dashboard/summary', [RestaurantDashboardController::class, 'summary'])->name('restaurant.dashboard.summary');
         });
     });
 
     // مسارات المندوبين (Drivers)
-    Route::prefix('{slug}/driver')->group(function () {
+    Route::prefix('{slug}/driver')->middleware('can:access-driver-panel')->group(function () {
         Route::get('/orders', [DriverController::class, 'index'])->name('driver.orders');
         Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('dashboard');
-        
+
         Route::get('/orders/{order}', [DriverController::class, 'show'])->name('driver.order.show');
         Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
         Route::post('/orders/{order}/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');

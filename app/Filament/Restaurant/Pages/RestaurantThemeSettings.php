@@ -42,6 +42,11 @@ class RestaurantThemeSettings extends Page implements HasForms
         return 'theme-settings';
     }
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('access-theme-editor') ?? false;
+    }
+
     public ?array $data = [];
 
     public function mount(): void
@@ -73,7 +78,9 @@ class RestaurantThemeSettings extends Page implements HasForms
                 ->action(function () {
                     $restaurant = auth()->user()?->restaurant;
 
-                    if (! $restaurant) return;
+                    if (! $restaurant) {
+                        return;
+                    }
 
                     // جلب الإعدادات الافتراضية المحددة في الثيم
                     $allowed = $restaurant->theme?->allowed_variables ?? [];

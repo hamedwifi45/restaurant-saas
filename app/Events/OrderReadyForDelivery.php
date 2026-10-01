@@ -1,19 +1,20 @@
 <?php
+
 namespace App\Events;
 
 use App\Models\Order;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class OrderReadyForDelivery implements ShouldBroadcastNow
+class OrderReadyForDelivery implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public array $orderData;
+
     public int $restaurantId;
 
     public function __construct(Order $order)
@@ -38,7 +39,7 @@ class OrderReadyForDelivery implements ShouldBroadcastNow
     {
         // قناة خاصة بمندوبي هذا المطعم حصراً
         return [
-            new PrivateChannel('restaurant.' . $this->restaurantId . '.drivers'),
+            new PrivateChannel('restaurant.'.$this->restaurantId.'.drivers'),
         ];
     }
 

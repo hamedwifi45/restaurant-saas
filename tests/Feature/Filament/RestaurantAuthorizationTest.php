@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Resources\Categories\CategoryResource;
-use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Restaurant\Resources\Categories\CategoryResource;
+use App\Filament\Restaurant\Resources\Products\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;

@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class DriverResource extends Resource
@@ -45,7 +46,12 @@ class DriverResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('role', 'driver')
-            ->where('restaurant_id', auth()->user()->restaurant_id);
+            ->where('restaurant_id', Auth::user()?->restaurant_id);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->restaurant?->hasFeature('gps_tracking') ?? false;
     }
 
     public static function getPages(): array

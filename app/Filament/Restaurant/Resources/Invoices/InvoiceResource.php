@@ -14,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class InvoiceResource extends Resource
@@ -64,7 +65,7 @@ class InvoiceResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        $user = auth()->user();
+        $user = Auth::user();
 
         // إذا كان Super Admin، يرى كل الفواتير
         if ($user && $user->role === 'super_admin') {
@@ -74,8 +75,15 @@ class InvoiceResource extends Resource
         // إذا كان مدير مطعم، يرى فواتير مطعمه فقط
         if ($user && filled($user->restaurant_id)) {
             $query->where('restaurant_id', $user->restaurant_id);
+        } else {
+            $query->whereNull('restaurant_id');
         }
 
         return $query;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return in_array(Auth::user()?->role, ['restaurant_admin', 'super_admin'], true);
     }
 }

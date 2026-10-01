@@ -19,7 +19,6 @@ use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-
 /**
  * @property int $id
  * @property string $name
@@ -38,7 +37,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasRoles, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -56,8 +55,10 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function canAccessPanel(Panel $panel): bool
     {
         return match ($panel->getId()) {
-            'restaurant' => in_array($this->role, ['restaurant_admin', 'super_admin'], true)
-                && ($this->role === 'super_admin' || filled($this->restaurant_id)),
+            'restaurant' => $this->role === 'super_admin'
+                || ($this->role === 'restaurant_admin'
+                    && filled($this->restaurant_id)
+                    && ($this->restaurant?->is_active ?? false)),
             'sham' => $this->role === 'super_admin',
             default => false,
         };
@@ -67,10 +68,12 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     {
         return $this->belongsTo(Restaurant::class);
     }
+
     public function driverProfile()
     {
         return $this->hasOne(Driver::class);
     }
+
     /**
      * Get the user's initials
      */

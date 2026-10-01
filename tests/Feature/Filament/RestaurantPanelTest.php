@@ -30,7 +30,7 @@ it('loads the custom restaurant dashboard page for authenticated users', functio
 });
 
 it('renders dashboard figures from the authenticated restaurant orders', function () {
-    $restaurant = Restaurant::factory()->create();
+    $restaurant = Restaurant::factory()->create(['plan' => 'pro']);
     $user = User::factory()->create([
         'role' => 'restaurant_admin',
         'restaurant_id' => $restaurant->id,
@@ -51,5 +51,8 @@ it('renders dashboard figures from the authenticated restaurant orders', functio
     $response->assertOk()
         ->assertSee('125.000 ل.س')
         ->assertSee('زبون حقيقي')
-        ->assertSee('قيد الانتظار');
+        ->assertSee('قيد الانتظار')
+        ->assertDontSee('FinancialOverviewWidget')
+        ->assertDontSee('SalesChartWidget')
+        ->assertDontSee('PaymentMethodChartWidget');
 });

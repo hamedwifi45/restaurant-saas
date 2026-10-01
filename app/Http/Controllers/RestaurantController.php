@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ThemeHelper;
-use App\Models\Driver;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\Review;
+use Illuminate\Support\Facades\Cache;
 
 class RestaurantController extends Controller
 {
@@ -19,6 +19,7 @@ class RestaurantController extends Controller
 
         // جلب الإعدادات من قاعدة البيانات، أو استخدام القيم الافتراضية
         $settings = $restaurant->themeSettings?->settings ?? $restaurant->theme?->default_settings ?? [];
+
         return view('restaurant.dashboard', compact('settings'));
     }
 
@@ -38,6 +39,7 @@ class RestaurantController extends Controller
         request()->attributes->set('current_restaurant', $restaurant);
         // تحديد مسار الثيم (سنستخدم burger-theme كافتراضي حالياً)
         $themePath = ThemeHelper::getThemePath($restaurant);
+
         return view("themes.{$themePath}.pages.home", compact('restaurant', 'categories'));
     }
 
@@ -79,14 +81,16 @@ class RestaurantController extends Controller
             ->firstOrFail();
 
         // تحميل التصنيفات النشطة مع منتجاتها المتاحة
-        $categories = $restaurant->categories()
-            ->where('is_active', true)
-            ->with(['products' => function ($query) {
-                $query->where('is_available', true)
-                    ->orderBy('sort_order');
-            }])
-            ->orderBy('sort_order')
-            ->get();
+        $categories = Cache::remember('restaurant-menu:'.$restaurant->id, now()->addMinutes(60), function () use ($restaurant) {
+            return $restaurant->categories()
+                ->where('is_active', true)
+                ->with(['products' => function ($query) {
+                    $query->where('is_available', true)
+                        ->orderBy('sort_order');
+                }])
+                ->orderBy('sort_order')
+                ->get();
+        });
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 

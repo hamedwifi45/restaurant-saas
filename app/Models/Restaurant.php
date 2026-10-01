@@ -24,6 +24,11 @@ class Restaurant extends Model
         'email',
         'address',
         'city',
+        'currency_symbol',
+        'tax_percentage',
+        'whatsapp_number',
+        'instagram_url',
+        'facebook_url',
         'plan',
         'delivery_fee',
         'estimated_delivery_time',
@@ -39,6 +44,7 @@ class Restaurant extends Model
         'is_active',
         'trial_ends_at',
     ];
+
     public const PLAN_FEATURES = [
         'starter' => [
             'qr_menu',
@@ -60,11 +66,13 @@ class Restaurant extends Model
             'pwa',                         // تطبيق PWA
         ],
     ];
+
     protected $casts = [
         'is_active' => 'boolean',
         'delivery_fee' => 'decimal:2',
         'commission_rate' => 'decimal:2',
         'subscription_fee' => 'decimal:2',
+        'tax_percentage' => 'decimal:2',
         'trial_ends_at' => 'datetime',
         'theme_settings' => 'array',
     ];
@@ -84,6 +92,11 @@ class Restaurant extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
     public function tables(): HasMany
@@ -139,6 +152,11 @@ class Restaurant extends Model
         return $this->belongsTo(Theme::class);
     }
 
+    public function restaurantAdmin(): HasOne
+    {
+        return $this->hasOne(User::class)->where('role', 'restaurant_admin');
+    }
+
     public function themeSettings(): HasOne
     {
         return $this->hasOne(RestaurantThemeSetting::class);
@@ -174,13 +192,14 @@ class Restaurant extends Model
     {
         return $this->reviews()->count();
     }
+
     public function hasFeature(string $feature): bool
     {
         $plan = $this->plan ?? 'starter';
-        
+
         return in_array(
-            $feature, 
-            self::PLAN_FEATURES[$plan] ?? self::PLAN_FEATURES['starter'], 
+            $feature,
+            self::PLAN_FEATURES[$plan] ?? self::PLAN_FEATURES['starter'],
             true
         );
     }

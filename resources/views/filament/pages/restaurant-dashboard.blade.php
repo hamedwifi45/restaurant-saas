@@ -11,6 +11,7 @@
     $formatMoney = static fn (float|int $value): string => number_format($value, 0, ',', '.').' ل.س';
 @endphp
 
+<x-filament-panels::page>
 <div dir="rtl" class="space-y-6 pb-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -92,3 +93,4 @@
         </section>
     </div>
 </div>
+</x-filament-panels::page>

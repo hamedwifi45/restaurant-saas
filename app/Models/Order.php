@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Models\Driver;
 
 class Order extends Model
 {
@@ -24,6 +23,7 @@ class Order extends Model
         'coupon_id',
         'coupon_code',
         'coupon_discount',
+        'tax_amount',
         'delivery_type',
         'device_token',
         'delivery_address',
@@ -49,12 +49,19 @@ class Order extends Model
         'review',
         'offer_id',
         'discount_amount',
-        
+
     ];
 
     protected function casts(): array
     {
         return [
+            'subtotal' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
+            'delivery_fee' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'coupon_discount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'final_amount' => 'decimal:2',
             'delivery_latitude' => 'decimal:7',
             'delivery_longitude' => 'decimal:7',
             'driver_latitude' => 'decimal:7',
@@ -62,6 +69,7 @@ class Order extends Model
             'driver_location_updated_at' => 'datetime',
         ];
     }
+
     protected $appends = ['type'];
 
     public function getTypeAttribute()
@@ -139,5 +147,4 @@ class Order extends Model
     {
         return $this->hasMany(Order_item::class);
     }
-    
 }

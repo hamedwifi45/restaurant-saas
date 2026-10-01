@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Resources\Categories\CategoryResource;
-use App\Filament\Resources\Orders\OrderResource;
-use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Restaurant\Resources\Categories\CategoryResource;
+use App\Filament\Restaurant\Resources\Orders\OrderResource;
+use App\Filament\Restaurant\Resources\Products\ProductResource;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;

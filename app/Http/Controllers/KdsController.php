@@ -16,6 +16,8 @@ class KdsController extends Controller
     public function index($slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+        abort_unless((int) auth()->user()->restaurant_id === (int) $restaurant->id, 403);
+
         $themePath = ThemeHelper::getThemePath($restaurant);
         $orderCollection = Order::with(['items', 'restaurantTable', 'driver'])
             ->where('restaurant_id', $restaurant->id)
@@ -31,22 +33,30 @@ class KdsController extends Controller
     public function updateStatus(Request $request, $orderId)
     {
         // 1. التحقق من صحة الحالة المجهزة
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|in:new,preparing,ready,completed',
         ]);
 
         // 2. البحث عن الطلب وتحديث حالته
-        $order = Order::Where('tracking_code', $orderId)->first();
-        $order->status = $request->status;
+        $order = Order::where('tracking_code', $orderId)->firstOrFail();
+        $restaurant = $order->restaurant;
+        abort_unless((int) auth()->user()->restaurant_id === (int) $restaurant->id, 403);
+
+        $order->status = match ($validated['status']) {
+            'new' => 'pending',
+            'completed' => 'delivered',
+            default => $validated['status'],
+        };
         $order->save();
         if ($order->status === 'ready') {
             broadcast(new OrderReadyForDelivery($order))->toOthers();
         }
+
         // 3. إرجاع استجابة JSON للـ JavaScript
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث حالة الطلب بنجاح',
-            'status' => $order->status,
+            'status' => $validated['status'],
         ]);
     }
 }

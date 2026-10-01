@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\OrderCreated;
+use App\Events\OrderReadyForDelivery;
 use App\Http\Resources\KdsOrderResource;
 use App\Models\Category;
 use App\Models\Order;
@@ -8,6 +9,8 @@ use App\Models\Order_item;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Models\User;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Support\Facades\Event;
 
 it('opens a table QR link and keeps the table in the customer session', function () {
@@ -59,6 +62,23 @@ it('shows the current cart items and prices in the table menu summary', function
         ->assertSee('2 عناصر');
 });
 
+it('renders Syrian phone validation and an immediate checkout processing overlay', function () {
+    $restaurant = Restaurant::factory()->create();
+    $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
+    $product = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+    ]);
+
+    $this->withSession([
+        'cart_'.$restaurant->id => [$product->id => ['qty' => 1]],
+    ])->get(route('checkout', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('pattern="(09|\+?9639)\d{8}"', false)
+        ->assertSee('id="checkout-processing"', false)
+        ->assertSee('جارٍ معالجة طلبك...');
+});
+
 it('returns updated cart items and totals when a menu item is added asynchronously', function () {
     $restaurant = Restaurant::factory()->create();
     $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
@@ -99,7 +119,7 @@ it('creates a dine-in order linked to the scanned table', function () {
         'restaurant_table_restaurant_id' => $restaurant->id,
     ])->post(route('checkout.store', $restaurant->slug), [
         'name' => 'عميل الطاولة',
-        'phone' => '0999999999',
+        'phone' => '+963930123456',
         'payment_method' => 'cash',
     ]);
 
@@ -125,24 +145,68 @@ it('creates a dine-in order linked to the scanned table', function () {
     Event::assertDispatched(OrderCreated::class);
 });
 
-it('does not require a phone number for a table order', function () {
+it('requires a valid Syrian phone number for a table order', function () {
     $restaurant = Restaurant::factory()->create();
     $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
     $product = Product::factory()->create(['restaurant_id' => $restaurant->id, 'category_id' => $category->id]);
     $table = RestaurantTable::factory()->create(['restaurant_id' => $restaurant->id]);
 
-    Event::fake();
-
-    $this->withSession([
+    $session = [
         'cart_'.$restaurant->id => [$product->id => ['qty' => 1]],
         'restaurant_table_id' => $table->id,
         'restaurant_table_restaurant_id' => $restaurant->id,
-    ])->post(route('checkout.store', $restaurant->slug), [
+    ];
+
+    $this->withSession($session)->post(route('checkout.store', $restaurant->slug), [
         'name' => 'عميل الطاولة',
         'payment_method' => 'cash',
-    ])->assertRedirect();
+    ])->assertSessionHasErrors('phone');
 
-    $this->assertDatabaseHas('orders', ['restaurant_table_id' => $table->id, 'customer_phone' => null]);
+    $this->withSession($session)->post(route('checkout.store', $restaurant->slug), [
+        'name' => 'عميل الطاولة',
+        'phone' => '1234567890',
+        'payment_method' => 'cash',
+    ])->assertSessionHasErrors('phone');
+});
+
+it('does not narrow the customer phone column when null orders exist during rollback', function () {
+    $order = Order::factory()->create(['customer_phone' => null]);
+    $migration = require database_path('migrations/2026_09_23_020000_make_customer_phone_nullable.php');
+
+    $migration->down();
+
+    $this->assertModelExists($order->fresh());
+    expect($order->fresh()->customer_phone)->toBeNull();
+});
+
+it('persists KDS display statuses as valid order statuses', function () {
+    $restaurant = Restaurant::factory()->create();
+    $user = User::factory()->create(['restaurant_id' => $restaurant->id]);
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'tracking_code' => 'KDS-STATUS-TEST',
+    ]);
+
+    $this->withoutMiddleware()->actingAs($user)
+        ->get(route('kitchen.display', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('pendingStatusUpdates', false);
+
+    $this->withoutMiddleware()->actingAs($user)
+        ->postJson(route('kitchen.orders.updateStatus', ['orderId' => $order->tracking_code]), ['status' => 'new'])
+        ->assertSuccessful()
+        ->assertJsonPath('status', 'new');
+
+    expect($order->fresh()->status)->toBe('pending');
+
+    $order->update(['status' => 'ready']);
+
+    $this->withoutMiddleware()->actingAs($user)
+        ->postJson(route('kitchen.orders.updateStatus', ['orderId' => $order->tracking_code]), ['status' => 'completed'])
+        ->assertSuccessful()
+        ->assertJsonPath('status', 'completed');
+
+    expect($order->fresh()->status)->toBe('delivered');
 });
 
 it('serializes the table number and product name for the kitchen display', function () {
@@ -177,4 +241,9 @@ it('broadcasts an order only on its restaurant KDS channel', function () {
 
     expect($channel->name)->toBe('private-restaurant.'.$restaurant->id.'.kds')
         ->and($channel->name)->not->toContain((string) $otherRestaurant->id);
+});
+
+it('queues order-created and order-ready broadcasts', function () {
+    expect(is_subclass_of(OrderCreated::class, ShouldBroadcast::class))->toBeTrue()
+        ->and(is_subclass_of(OrderReadyForDelivery::class, ShouldBroadcast::class))->toBeTrue();
 });

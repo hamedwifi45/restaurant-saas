@@ -55,79 +55,81 @@ class OrderController extends Controller
     }
 
     public function checkout($slug)
-{
-    $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-    $sessionKey = 'cart_'.$restaurant->id;
-    $cart = session($sessionKey, []);
+        $sessionKey = 'cart_'.$restaurant->id;
+        $cart = session($sessionKey, []);
 
-    if (empty($cart)) {
-        return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
-    }
-
-    $productIds = array_keys($cart);
-    $products = Product::where('restaurant_id', $restaurant->id)
-        ->where('is_available', true)
-        ->whereIn('id', $productIds)
-        ->get()
-        ->keyBy('id');
-
-    if ($products->count() !== count(array_unique($productIds))) {
-        session()->forget($sessionKey);
-
-        return redirect()->route('restaurant.menu', $slug)
-            ->with('error', 'تحتوي السلة على منتج غير متاح لهذا المطعم');
-    }
-
-    $subtotal = 0;
-    foreach ($cart as $id => $details) {
-        $quantity = (int) ($details['qty'] ?? 0);
-
-        if ($quantity < 1) {
-            return redirect()->route('restaurant.menu', $slug)
-                ->with('error', 'تحتوي السلة على كمية غير صالحة');
+        if (empty($cart)) {
+            return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
         }
 
-        $subtotal += $products->get($id)->price * $quantity;
+        $productIds = array_keys($cart);
+        $products = Product::where('restaurant_id', $restaurant->id)
+            ->where('is_available', true)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($products->count() !== count(array_unique($productIds))) {
+            session()->forget($sessionKey);
+
+            return redirect()->route('restaurant.menu', $slug)
+                ->with('error', 'تحتوي السلة على منتج غير متاح لهذا المطعم');
+        }
+
+        $subtotal = 0;
+        foreach ($cart as $id => $details) {
+            $quantity = (int) ($details['qty'] ?? 0);
+
+            if ($quantity < 1) {
+                return redirect()->route('restaurant.menu', $slug)
+                    ->with('error', 'تحتوي السلة على كمية غير صالحة');
+            }
+
+            $subtotal += $products->get($id)->price * $quantity;
+        }
+
+        $tax = $subtotal * 0.15;
+        $total = $subtotal + $tax;
+
+        // ===== الحسابات الخاصة بصفحة إتمام الطلب (Checkout Calculations) =====
+        $baseSubtotal = $total / 1.15;
+        $baseTax = $total - $baseSubtotal;
+        $deliveryFee = $restaurant->delivery_fee ?? 0;
+
+        // حساب خصم العرض التلقائي
+        /** @var Offer|null $activeOffer */
+        $activeOffer = $restaurant->activeOffers()
+            ->where('min_order_amount', '<=', $baseSubtotal)
+            ->first();
+
+        $autoDiscount = $activeOffer ? $activeOffer->getDiscountAmount($baseSubtotal) : 0;
+
+        // الإجمالي النهائي الأولي
+        $initialFinalTotal = $baseSubtotal + $baseTax + $deliveryFee - $autoDiscount;
+
+        $themePath = ThemeHelper::getThemePath($restaurant);
+
+        $table = session('restaurant_table_restaurant_id') === $restaurant->id
+            ? $restaurant->tables()->find(session('restaurant_table_id'))
+            : null;
+
+        return view("themes.{$themePath}.cart.checkout", compact(
+            'restaurant',
+            'total',
+            'slug',
+            'table',
+            'baseSubtotal',
+            'baseTax',
+            'deliveryFee',
+            'activeOffer',
+            'autoDiscount',
+            'initialFinalTotal'
+        ));
     }
 
-    $tax = $subtotal * 0.15;
-    $total = $subtotal + $tax;
-
-    // ===== الحسابات الخاصة بصفحة إتمام الطلب (Checkout Calculations) =====
-    $baseSubtotal = $total / 1.15;
-    $baseTax = $total - $baseSubtotal;
-    $deliveryFee = $restaurant->delivery_fee ?? 0;
-
-    // حساب خصم العرض التلقائي
-    $activeOffer = $restaurant->activeOffers()
-        ->where('min_order_amount', '<=', $baseSubtotal)
-        ->first();
-
-    $autoDiscount = $activeOffer ? $activeOffer->getDiscountAmount($baseSubtotal) : 0;
-
-    // الإجمالي النهائي الأولي
-    $initialFinalTotal = $baseSubtotal + $baseTax + $deliveryFee - $autoDiscount;
-
-    $themePath = ThemeHelper::getThemePath($restaurant);
-
-    $table = session('restaurant_table_restaurant_id') === $restaurant->id
-        ? $restaurant->tables()->find(session('restaurant_table_id'))
-        : null;
-
-    return view("themes.{$themePath}.cart.checkout", compact(
-        'restaurant',
-        'total',
-        'slug',
-        'table',
-        'baseSubtotal',
-        'baseTax',
-        'deliveryFee',
-        'activeOffer',
-        'autoDiscount',
-        'initialFinalTotal'
-    ));
-}
     /**
      * حفظ الطلب الجديد
      */
@@ -138,11 +140,11 @@ class OrderController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => [$table ? 'nullable' : 'required', 'string', 'max:20'],
+            'phone' => ['required', 'string', 'max:20', 'regex:/^(09|\+?9639)\d{8}$/'],
             'address' => 'nullable|string|max:1000',
             'latitude' => [$table ? 'nullable' : 'required', 'numeric', 'between:-90,90'],
             'longitude' => [$table ? 'nullable' : 'required', 'numeric', 'between:-180,180'],
-            'payment_method' => 'required|in:cash,transfer',
+            'payment_method' => 'required|in:cash,transfer,bank_transfer',
             'notes' => 'nullable|string',
             'offer_id' => 'nullable|exists:offers,id',
             'coupon_id' => 'nullable|exists:coupons,id',
@@ -224,10 +226,12 @@ class OrderController extends Controller
             }
         }
 
-        $tax = $subtotal * 0.15;
-        $deliveryFee = $restaurant->delivery_fee ?? 0;
-        $totalDiscount = $offerDiscount + $couponDiscount;
-        $finalAmount = $subtotal + $tax + $deliveryFee - $totalDiscount;
+        $subtotal = round($subtotal, 2);
+        $offerDiscount = round($offerDiscount, 2);
+        $couponDiscount = round($couponDiscount, 2);
+        $tax = round($subtotal * 0.15, 2);
+        $deliveryFee = $table ? 0 : round((float) ($restaurant->delivery_fee ?? 0), 2);
+        $finalAmount = round($subtotal + $tax + $deliveryFee - ($offerDiscount + $couponDiscount), 2);
         $deviceToken = Str::random(40);
         // إنشاء سجل الطلب
         $order = Order::create([
@@ -240,14 +244,16 @@ class OrderController extends Controller
             'delivery_longitude' => $request->longitude,
             'delivery_type' => $table ? 'dine_in' : 'delivery',
             'delivery_city' => $restaurant->city,
-            'delivery_fee' => $table ? 0 : $deliveryFee,
+            'delivery_fee' => $deliveryFee,
             'subtotal' => $subtotal,
+            'tax_amount' => $tax,
             'discount' => $offerDiscount,
+            'discount_amount' => $offerDiscount,
             'coupon_discount' => $couponDiscount,
             'offer_id' => $appliedOfferId,
             'coupon_id' => $appliedCouponId,
             'coupon_code' => $appliedCouponCode,
-            'total_amount' => $subtotal,
+            'total_amount' => $finalAmount,
             'final_amount' => $finalAmount,
             'payment_method' => $request->payment_method,
             'payment_status' => 'pending',
@@ -280,7 +286,9 @@ class OrderController extends Controller
             'invoice_number' => $invoiceNumber,
             'subtotal' => $subtotal,
             'tax_amount' => $tax,
+            'delivery_fee' => $deliveryFee,
             'total_amount' => $finalAmount,
+            'final_amount' => $finalAmount,
             'status' => 'pending',
         ]);
 

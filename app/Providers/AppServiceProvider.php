@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantThemeSetting;
+use App\Models\User;
 use App\Observers\RestaurantObserver;
 use App\Observers\RestaurantThemeSettingObserver;
 use App\Policies\CategoryPolicy;
@@ -51,6 +52,16 @@ class AppServiceProvider extends ServiceProvider
         $this->registerPolicies();
         Restaurant::observe(RestaurantObserver::class);
         RestaurantThemeSetting::observe(RestaurantThemeSettingObserver::class);
+        Gate::define('access-kds', fn (User $user): bool => in_array($user->role, ['restaurant_admin', 'kitchen_staff'], true)
+            && ($user->restaurant?->hasFeature('kds') ?? false)
+        );
+        Gate::define('access-driver-panel', fn (User $user): bool => $user->role === 'driver');
+        Gate::define('access-theme-editor', fn (User $user): bool => $user->role === 'restaurant_admin'
+            && ($user->restaurant?->hasFeature('theme_editor') ?? false)
+        );
+        Gate::define('advanced-financial-analytics', fn (User $user): bool => $user->role === 'restaurant_admin'
+            && ($user->restaurant?->hasFeature('advanced_financial_analytics') ?? false)
+        );
     }
 
     protected function registerPolicies(): void

@@ -1139,6 +1139,7 @@
             constructor(config) {
                 this.config = config;
                 this.orders = new Map();
+                this.pendingStatusUpdates = new Set();
                 this.soundEnabled = true;
                 this.audioContext = null;
                 this.updateTimer = null;
@@ -1605,7 +1606,7 @@
 
             async handleAction(action, orderId) {
                 const order = this.orders.get(orderId);
-                if (!order) return;
+                if (!order || this.pendingStatusUpdates.has(orderId)) return;
 
                 const statusMap = {
                     'start': 'preparing',
@@ -1618,6 +1619,16 @@
                 if (!newStatus) return;
 
                 const targetId = String(orderId).replace('#', '').trim();
+                const previousStatus = order.status;
+                this.pendingStatusUpdates.add(orderId);
+
+                if (newStatus === 'completed') {
+                    this.orders.delete(orderId);
+                } else {
+                    order.status = newStatus;
+                    this.orders.set(orderId, order);
+                }
+                this.renderAllOrders();
 
                 try {
                     const response = await fetch(`/kitchen/orders/${targetId}/status`, {
@@ -1635,11 +1646,8 @@
                     if (!response.ok) throw new Error('فشل التحديث في السيرفر');
 
                     if (newStatus === 'completed') {
-                        this.orders.delete(orderId);
                         this.showToast('success', 'تم التسليم', `تم أرشفة الطلب #${orderId} بنجاح`);
                     } else {
-                        order.status = newStatus;
-                        this.orders.set(orderId, order);
                         const statusLabels = {
                             'new': 'طلبات جديدة',
                             'preparing': 'جاري التحضير',
@@ -1648,10 +1656,13 @@
                         this.showToast('success', 'تم التحديث', `الطلب #${orderId} ← ${statusLabels[newStatus]}`);
                     }
 
-                    this.renderAllOrders();
-
                 } catch (error) {
+                    order.status = previousStatus;
+                    this.orders.set(orderId, order);
+                    this.renderAllOrders();
                     this.showToast('error', 'خطأ', 'تعذر تحديث حالة الطلب في السيرفر');
+                } finally {
+                    this.pendingStatusUpdates.delete(orderId);
                 }
             }
 

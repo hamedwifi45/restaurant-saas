@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Spatie\Permission\Models\Role;
 use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Invoice;
@@ -18,6 +17,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -25,6 +25,13 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        foreach (['super_admin', 'restaurant_admin', 'kitchen_staff', 'driver'] as $roleName) {
+            Role::firstOrCreate([
+                'name' => $roleName,
+                'guard_name' => 'web',
+            ]);
+        }
+
         $theme = Theme::query()->updateOrCreate(
             ['slug' => 'burger-theme'],
             [
@@ -45,7 +52,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        User::query()->updateOrCreate(
+        $admin = User::query()->updateOrCreate(
             ['email' => 'admin@example.com'],
             [
                 'name' => 'مدير المطعم',
@@ -55,6 +62,8 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+        $admin->syncRoles(['restaurant_admin']);
+
         $customer = User::query()->updateOrCreate(
             ['email' => 'customer@example.com'],
             [
@@ -118,7 +127,7 @@ class DatabaseSeeder extends Seeder
             'rating' => 5,
         ]);
 
-        User::query()->updateOrCreate(
+        $superAdmin = User::query()->updateOrCreate(
             ['email' => 'super@example.com'],
             [
                 'name' => 'مدير النظام',
@@ -128,22 +137,21 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+        $superAdmin->syncRoles(['super_admin']);
 
-        Role::firstOrCreate(['name' => 'super_admin']);
-        Role::firstOrCreate(['name' => 'restaurant_admin']);
-        Role::firstOrCreate(['name' => 'kitchen_staff']);
-        Role::firstOrCreate(['name' => 'driver']);
-
+        $this->call(DemoDataSeeder::class);
         $this->call(DeliveryTrackingSeeder::class);
 
         $this->command?->newLine();
-        $this->command?->info('بيانات الدخول العامة للاختبار');
-        $this->command?->line('مدير المطعم');
-        $this->command?->line('  Email: admin@example.com');
-        $this->command?->line('  Password: password');
-        $this->command?->line('مدير النظام');
-        $this->command?->line('  Email: super@example.com');
-        $this->command?->line('  Password: password');
-        $this->command?->line('للدخول إلى لوحة المندوب استخدم: /driver/orders');
+        $this->command?->table(
+            ['Role', 'Plan', 'Email', 'Password', 'Description / Access Scope'],
+            [
+                ['super_admin', 'all plans', 'superadmin@saas.com', 'password', 'Platform-wide access'],
+                ['restaurant_admin', 'starter', 'starter@restaurant.com', 'password', 'مطعم السلسلة الفضية'],
+                ['restaurant_admin', 'pro', 'pro@restaurant.com', 'password', 'مطعم قصر الشام'],
+                ['kitchen_staff', 'pro', 'kitchen@restaurant.com', 'password', 'KDS access for مطعم قصر الشام'],
+                ['driver', 'pro', 'driver@restaurant.com', 'password', 'Driver panel for مطعم قصر الشام'],
+            ]
+        );
     }
 }

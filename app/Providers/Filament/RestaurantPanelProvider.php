@@ -2,16 +2,25 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Restaurant\Pages\FinancialAnalytics;
 use App\Filament\Restaurant\Pages\RestaurantDashboard;
+use App\Filament\Restaurant\Pages\RestaurantProfileSettings;
 use App\Filament\Restaurant\Pages\RestaurantThemeSettings;
+use App\Filament\Restaurant\Pages\StopImpersonation;
 use App\Filament\Restaurant\Resources\Categories\CategoryResource;
 use App\Filament\Restaurant\Resources\Coupons\CouponResource;
 use App\Filament\Restaurant\Resources\Drivers\DriverResource;
+use App\Filament\Restaurant\Resources\Expenses\ExpenseResource;
 use App\Filament\Restaurant\Resources\Invoices\InvoiceResource;
 use App\Filament\Restaurant\Resources\Offers\OfferResource;
 use App\Filament\Restaurant\Resources\Orders\OrderResource;
 use App\Filament\Restaurant\Resources\Products\ProductResource;
 use App\Filament\Restaurant\Resources\RestaurantTables\RestaurantTableResource;
+use App\Filament\Restaurant\Widgets\FinancialOverviewWidget;
+use App\Filament\Restaurant\Widgets\OrderTypeChartWidget;
+use App\Filament\Restaurant\Widgets\PaymentMethodChartWidget;
+use App\Filament\Restaurant\Widgets\SalesChartWidget;
+use App\Filament\Restaurant\Widgets\TopProductsWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -56,6 +65,7 @@ class RestaurantPanelProvider extends PanelProvider
                 NavigationGroup::make('القائمة')->icon('heroicon-o-clipboard-document-list'),
                 NavigationGroup::make('التسويق')->icon('heroicon-o-megaphone'),
                 NavigationGroup::make('الإعدادات')->icon('heroicon-o-cog-6-tooth'),
+                NavigationGroup::make('التقارير والمالية')->icon('heroicon-o-chart-bar-square'),
             ])
             ->darkMode(false)
             ->viteTheme('resources/css/filament/restaurant/theme.css')
@@ -64,6 +74,7 @@ class RestaurantPanelProvider extends PanelProvider
                 ProductResource::class,
                 OrderResource::class,
                 InvoiceResource::class,
+                ExpenseResource::class,
                 OfferResource::class,
                 CouponResource::class,
                 DriverResource::class,
@@ -73,12 +84,20 @@ class RestaurantPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Restaurant/Pages'), for: 'App\\Filament\\Restaurant\\Pages')
             ->pages([
                 RestaurantDashboard::class,
+                FinancialAnalytics::class,
+                RestaurantProfileSettings::class,
                 RestaurantThemeSettings::class,
+                StopImpersonation::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                FinancialOverviewWidget::class,
+                TopProductsWidget::class,
+                OrderTypeChartWidget::class,
+                SalesChartWidget::class,
+                PaymentMethodChartWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

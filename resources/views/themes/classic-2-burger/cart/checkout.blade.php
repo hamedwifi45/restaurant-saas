@@ -24,8 +24,8 @@
                         <input type="text" name="name" required class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف @if(!$table)<span class="text-red-500">*</span>@else<span class="text-gray-400"> (اختياري)</span>@endif</label>
-                        <input type="tel" name="phone" id="customer-phone" @required(!$table) class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
+                        <input type="tel" name="phone" id="customer-phone" required pattern="(09|\+?9639)\d{8}" title="أدخل رقم هاتف سوري يبدأ بـ 09 أو 9639" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     @if(!$table)<div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل</label>
@@ -136,12 +136,29 @@
 
             <button type="submit" class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition">تأكيد الطلب ✅</button>
         </form>
+        <div id="checkout-processing" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50" role="status" aria-live="assertive" aria-hidden="true">
+            <div class="flex items-center gap-4 rounded-xl bg-white px-6 py-5 text-gray-800 shadow-xl">
+                <span class="inline-block h-7 w-7 animate-spin rounded-full border-4 border-current border-r-transparent" aria-hidden="true"></span>
+                <span>جارٍ معالجة طلبك...</span>
+            </div>
+        </div>
     </div>
 </section>
 
 @if(!$table)<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>@endif
 
 <script>
+    document.getElementById('checkout-form').addEventListener('submit', function () {
+        const overlay = document.getElementById('checkout-processing');
+        const submitButton = this.querySelector('[type="submit"]');
+
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        overlay.setAttribute('aria-hidden', 'false');
+        submitButton.disabled = true;
+        submitButton.textContent = 'جارٍ معالجة الطلب...';
+    });
+
     @if(!$table)
     const defaultLocation = [33.5138, 36.2765];
     const checkoutMap = L.map('checkout-map').setView(defaultLocation, 13);

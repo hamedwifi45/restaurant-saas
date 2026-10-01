@@ -11,7 +11,6 @@ use App\Models\Restaurant;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -21,6 +20,7 @@ class RestaurantResource extends Resource
     protected static ?string $model = Restaurant::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
+
     protected static ?string $navigationLabel = 'المطاعم';
 
     protected static ?string $modelLabel = 'مطعم';
@@ -34,7 +34,10 @@ class RestaurantResource extends Resource
         return RestaurantForm::configure($schema);
     }
 
-    
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('restaurantAdmin');
+    }
 
     public static function table(Table $table): Table
     {
