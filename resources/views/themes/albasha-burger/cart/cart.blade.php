@@ -34,7 +34,7 @@
                             <div class="w-24 h-24 flex-shrink-0">
                                 @if($item['product']->image)
                                     <img src="{{ media_url($item['product']->image) }}"
-                                         alt="{{ $item['product']->name }}" 
+                                         alt="{{ $item['product']->name }}" loading="lazy" decoding="async"
                                          class="w-full h-full object-cover rounded-xl">
                                 @else
                                     <div class="w-full h-full bg-gray-200 rounded-xl flex items-center justify-center text-2xl">🍽️</div>
@@ -85,7 +85,9 @@
                             </div>
                             <div class="flex justify-between text-gray-600">
                                 <span>التوصيل</span>
-                                <span class="text-green-600 font-bold">مجاني</span>
+                                <span class="{{ $deliveryFee > 0 ? 'font-bold' : 'text-green-600 font-bold' }}">
+                                    {{ $deliveryFee > 0 ? number_format($deliveryFee, 2).' '.($restaurant->currency_symbol ?? 'ر.س') : 'مجاني' }}
+                                </span>
                             </div>
                             <div class="flex justify-between text-gray-600">
                                 <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪)</span>
@@ -93,7 +95,7 @@
                             </div>
                             <div class="border-t pt-4 flex justify-between text-xl font-black text-gray-800">
                                 <span>الإجمالي</span>
-                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)), 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
+                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)) + $deliveryFee, 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
                             </div>
                         </div>
 

@@ -8,7 +8,7 @@
             
             <!-- الرأس -->
             <div class="bg-gradient-to-br from-primary to-orange-600 p-8 text-center text-white">
-                <div class="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div class="w-20 h-20 bg-white opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span class="text-5xl">⭐</span>
                 </div>
                 <h1 class="text-3xl font-black mb-2">قيّم تجربتك</h1>
@@ -137,7 +137,7 @@
                 div.className = 'relative aspect-square rounded-lg overflow-hidden';
                 div.innerHTML = `
                     <img src="${e.target.result}" class="w-full h-full object-cover">
-                    <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                    <div class="absolute top-2 right-2 bg-black opacity-50 text-white text-xs px-2 py-1 rounded">
                         صورة ${index + 1}
                     </div>
                 `;

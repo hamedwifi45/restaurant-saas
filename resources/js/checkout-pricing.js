@@ -4,15 +4,19 @@ document.addEventListener('alpine:init', () => {
         customerName: '',
         customerPhone: '',
         customerAddress: '',
-        customerLatitude: '',
-        customerLongitude: '',
+        lat: '',
+        lng: '',
         deliveryType: configuration.isDineIn ? 'dine_in' : 'delivery',
         processing: false,
-        distanceKm: null,
+        distance: null,
+        extraKilometers: 0,
+        deliveryFeeHelper: '',
         deliveryFee: Number(configuration.legacyFee),
+        total: 0,
         deliveryFeeDisplay: '',
         totalDisplay: '',
-        geofenceError: '',
+        isOutOfRange: false,
+        warningMessage: '',
         couponDiscount: 0,
 
         init() {
@@ -22,23 +26,23 @@ document.addEventListener('alpine:init', () => {
                 customerName: form.querySelector('[name="name"]'),
                 customerPhone: form.querySelector('[name="phone"]'),
                 customerAddress: form.querySelector('[name="address"]'),
-                customerLatitude: form.querySelector('[name="latitude"]'),
-                customerLongitude: form.querySelector('[name="longitude"]'),
+                lat: form.querySelector('[name="latitude"]'),
+                lng: form.querySelector('[name="longitude"]'),
             };
             const cookieNames = {
                 customerName: 'customer_name',
                 customerPhone: 'customer_phone',
                 customerAddress: 'customer_address',
-                customerLatitude: 'customer_lat',
-                customerLongitude: 'customer_lng',
+                lat: 'customer_lat',
+                lng: 'customer_lng',
             };
 
             Object.entries(fields).forEach(([stateName, input]) => {
                 let value = input?.value || this.readCookie(cookieNames[stateName]);
 
-                if (['customerLatitude', 'customerLongitude'].includes(stateName) && value) {
+                if (['lat', 'lng'].includes(stateName) && value) {
                     const coordinate = Number(value);
-                    const limit = stateName === 'customerLatitude' ? 90 : 180;
+                    const limit = stateName === 'lat' ? 90 : 180;
 
                     if (!Number.isFinite(coordinate) || Math.abs(coordinate) > limit) {
                         value = '';
@@ -58,8 +62,8 @@ document.addEventListener('alpine:init', () => {
 
             window.dispatchEvent(new CustomEvent('checkout-customer-cookies-restored', {
                 detail: {
-                    latitude: this.customerLatitude,
-                    longitude: this.customerLongitude,
+                    latitude: this.lat,
+                    longitude: this.lng,
                 },
             }));
 
@@ -76,8 +80,8 @@ document.addEventListener('alpine:init', () => {
                 customerName: 'name',
                 customerPhone: 'phone',
                 customerAddress: 'address',
-                customerLatitude: 'latitude',
-                customerLongitude: 'longitude',
+                lat: 'latitude',
+                lng: 'longitude',
             };
 
             Object.entries(fields).forEach(([stateName, fieldName]) => {
@@ -103,8 +107,8 @@ document.addEventListener('alpine:init', () => {
                 customer_name: this.customerName,
                 customer_phone: this.customerPhone,
                 customer_address: this.customerAddress,
-                customer_lat: this.customerLatitude,
-                customer_lng: this.customerLongitude,
+                customer_lat: this.lat,
+                customer_lng: this.lng,
             };
 
             Object.entries(values).forEach(([name, value]) => {
@@ -115,19 +119,21 @@ document.addEventListener('alpine:init', () => {
 
         recalculate() {
             this.syncCustomerFields();
-            const latitude = Number(this.customerLatitude);
-            const longitude = Number(this.customerLongitude);
+            const latitude = Number(this.lat);
+            const longitude = Number(this.lng);
             const restaurantLatitude = Number(configuration.restaurantLatitude);
             const restaurantLongitude = Number(configuration.restaurantLongitude);
-            const hasCustomerLocation = this.customerLatitude !== '' && this.customerLongitude !== ''
+            const hasCustomerLocation = this.lat !== '' && this.lng !== ''
                 && Number.isFinite(latitude) && Number.isFinite(longitude);
             const hasRestaurantLocation = configuration.restaurantLatitude !== null
                 && configuration.restaurantLongitude !== null
                 && Number.isFinite(restaurantLatitude) && Number.isFinite(restaurantLongitude);
             const isDineIn = configuration.isDineIn || this.deliveryType === 'dine_in';
 
-            this.geofenceError = '';
-            this.distanceKm = null;
+            this.isOutOfRange = false;
+            this.warningMessage = '';
+            this.distance = null;
+            this.extraKilometers = 0;
 
             if (isDineIn) {
                 this.deliveryFee = 0;
@@ -140,19 +146,20 @@ document.addEventListener('alpine:init', () => {
                     * Math.sin(longitudeDifference / 2) ** 2;
                 const boundedHaversine = Math.min(1, Math.max(0, haversine));
 
-                this.distanceKm = 6371 * 2 * Math.atan2(
+                this.distance = 6371 * 2 * Math.atan2(
                     Math.sqrt(boundedHaversine),
                     Math.sqrt(1 - boundedHaversine),
                 );
-                const extraKilometers = Math.max(0, this.distanceKm - Number(configuration.baseDeliveryKilometers));
+                this.extraKilometers = Math.max(0, this.distance - Number(configuration.baseDeliveryKilometers));
 
                 this.deliveryFee = Math.round((
                     Number(configuration.baseDeliveryFee)
-                    + (extraKilometers * Number(configuration.feePerAdditionalKilometer))
+                    + (this.extraKilometers * Number(configuration.feePerAdditionalKilometer))
                 ) * 100) / 100;
 
-                if (this.distanceKm > Number(configuration.deliveryRadius)) {
-                    this.geofenceError = `نعتذر، موقعك يبعد ${this.distanceKm.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${Number(configuration.deliveryRadius).toFixed(2)} كم)`;
+                if (this.distance > Number(configuration.deliveryRadius)) {
+                    this.isOutOfRange = true;
+                    this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${Number(configuration.deliveryRadius).toFixed(2)} كم)`;
                 }
             } else {
                 this.deliveryFee = hasRestaurantLocation
@@ -160,17 +167,18 @@ document.addEventListener('alpine:init', () => {
                     : Number(configuration.legacyFee);
             }
 
+            this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
             this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${configuration.currency}`;
-            const total = Number(configuration.subtotal)
+            this.total = Number(configuration.subtotal)
                 + Number(configuration.tax)
                 + this.deliveryFee
                 - Number(configuration.offerDiscount)
                 - this.couponDiscount;
-            this.totalDisplay = `${total.toFixed(2)} ${configuration.currency}`;
+            this.totalDisplay = `${this.total.toFixed(2)} ${configuration.currency}`;
 
             const form = this.formElement();
             if (form) {
-                form.dataset.outOfRange = this.geofenceError ? 'true' : 'false';
+                form.dataset.outOfRange = this.isOutOfRange ? 'true' : 'false';
             }
         },
 
@@ -179,16 +187,18 @@ document.addEventListener('alpine:init', () => {
         },
 
         formatDistance() {
-            return this.distanceKm === null ? '' : `${this.distanceKm.toFixed(2)} كم`;
+            return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
         },
 
         validateSubmission(event) {
             this.persistCustomer();
             this.recalculate();
 
-            if (this.geofenceError) {
+            if (this.isOutOfRange) {
                 event.preventDefault();
-                this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                this.$nextTick(() => {
+                    this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
 
                 return;
             }

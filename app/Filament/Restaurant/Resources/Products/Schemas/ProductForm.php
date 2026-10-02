@@ -45,16 +45,14 @@ class ProductForm
                     ->numeric()
                     ->prefix('$'),
                 FileUpload::make('image')
-                    ->label('الصورة')
+                    ->label('صورة المنتج')
                     ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                    ->preventFilePathTampering()
                     ->disk('public')
                     ->directory('products')
-                    ->maxSize(5120),
-                TextInput::make('image_url')
-                    ->label('أو رابط الصورة')
-                    ->url()
-                    ->maxLength(2048)
-                    ->helperText('اتركه فارغاً إذا رفعت صورة من جهازك.'),
+                    ->maxSize(5120)
+                    ->helperText('يرجى رفع صورة من جهازك بصيغة JPG أو PNG أو WEBP بحد أقصى 5 ميغابايت.'),
                 Toggle::make('is_available')
                     ->label('متوفر')
                     ->required(),

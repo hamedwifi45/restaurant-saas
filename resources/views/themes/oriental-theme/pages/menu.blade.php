@@ -3,6 +3,7 @@
 @section('title', 'قائمة الطعام | '.$restaurant->name)
 
 @section('content')
+@php($categories = isset($categories) && $categories instanceof \Illuminate\Support\Collection ? $categories : collect())
     <section class="mx-auto max-w-7xl px-4 py-10 sm:px-6" x-data="{ search: '', category: 'all' }">
         <div class="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
             <div><p class="oriental-text font-bold">نكهات مُعدّة بحب</p><h1 class="mt-1 text-3xl font-black sm:text-4xl">قائمة الطعام</h1></div>
@@ -12,8 +13,8 @@
                 <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-stone-400">⌕</span>
             </label>
         </div>
-        @if($table)
-            <p class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">طلبك على طاولة رقم {{ $table->number }}</p>
+        @if(isset($table) && $table)
+            <p class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">طلب داخلي - الطاولة رقم {{ $table->number }}</p>
         @endif
 
         <div class="mt-6 flex snap-x gap-2 overflow-x-auto pb-2">
@@ -35,7 +36,7 @@
                             <article data-name="{{ mb_strtolower($product->name) }}" x-show="!search || $el.dataset.name.includes(search.trim().toLowerCase())" class="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:shadow-md">
                                 <a href="{{ route('product.show', [$restaurant->slug, $product->id]) }}" class="flex gap-4 p-4">
                                     @if($product->image)
-                                        <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}" loading="lazy" class="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28">
+                                        <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}" loading="lazy" decoding="async" class="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28">
                                     @else
                                         <span class="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-3xl sm:h-28 sm:w-28">🍽️</span>
                                     @endif

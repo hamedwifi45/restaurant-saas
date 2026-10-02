@@ -54,7 +54,7 @@
 
                             <!-- شريط الفترة -->
                             @if($offer->ends_at)
-                                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs py-2 px-4">
+                                <div class="absolute bottom-0 left-0 right-0 bg-black opacity-70 text-white text-xs py-2 px-4">
                                     ⏰ ينتهي: {{ $offer->ends_at->format('Y-m-d') }}
                                 </div>
                             @endif

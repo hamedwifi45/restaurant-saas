@@ -12,7 +12,9 @@ use App\Models\Order_item;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Services\CartService;
 use App\Services\DeliveryPricingService;
+use App\Services\RestaurantTableSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -21,14 +23,18 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly DeliveryPricingService $deliveryPricing) {}
+    public function __construct(
+        private readonly DeliveryPricingService $deliveryPricing,
+        private readonly RestaurantTableSession $tableSession,
+        private readonly CartService $cartService,
+    ) {}
 
     public function track($slug, $code)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
-            ->with('invoice')
+            ->with(['invoice', 'items.product'])
             ->firstOrFail();
 
         $themePath = ThemeHelper::getThemePath($restaurant);
@@ -64,8 +70,7 @@ class OrderController extends Controller
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-        $sessionKey = 'cart_'.$restaurant->id;
-        $cart = session($sessionKey, []);
+        $cart = $this->cartService->get($restaurant);
 
         if (empty($cart)) {
             return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
@@ -79,7 +84,7 @@ class OrderController extends Controller
             ->keyBy('id');
 
         if ($products->count() !== count(array_unique($productIds))) {
-            session()->forget($sessionKey);
+            $this->cartService->forget($restaurant);
 
             return redirect()->route('restaurant.menu', $slug)
                 ->with('error', 'تحتوي السلة على منتج غير متاح لهذا المطعم');
@@ -87,7 +92,7 @@ class OrderController extends Controller
 
         $subtotal = 0;
         foreach ($cart as $id => $details) {
-            $quantity = (int) ($details['qty'] ?? 0);
+            $quantity = (int) $details['quantity'];
 
             if ($quantity < 1) {
                 return redirect()->route('restaurant.menu', $slug)
@@ -119,9 +124,7 @@ class OrderController extends Controller
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        $table = session('restaurant_table_restaurant_id') === $restaurant->id
-            ? $restaurant->tables()->find(session('restaurant_table_id'))
-            : null;
+        $table = $this->currentTable($restaurant);
 
         return view("themes.{$themePath}.cart.checkout", compact(
             'restaurant',
@@ -193,8 +196,7 @@ class OrderController extends Controller
             }
         }
 
-        $sessionKey = 'cart_'.$restaurant->id;
-        $cart = session($sessionKey, []);
+        $cart = $this->cartService->get($restaurant);
 
         if (empty($cart)) {
             return redirect()->back()->with('error', 'لا يمكن إتمام طلب فارغ');
@@ -214,7 +216,7 @@ class OrderController extends Controller
         }
 
         foreach ($cart as $id => $details) {
-            $quantity = (int) ($details['qty'] ?? 0);
+            $quantity = (int) $details['quantity'];
 
             if ($quantity < 1) {
                 return redirect()->back()->with('error', 'تحتوي السلة على كمية غير صالحة');
@@ -223,7 +225,7 @@ class OrderController extends Controller
             $product = $products->get($id);
             $subtotal += $product->price * $quantity;
             $itemsData[] = [
-                'product_id' => $id,
+                'product_id' => $details['product_id'],
                 'quantity' => $quantity,
                 'price' => $product->price,
                 'subtotal' => $product->price * $quantity,
@@ -339,8 +341,8 @@ class OrderController extends Controller
         ]);
 
         // ✅ التعديل الثالث: حذف سلة هذا المطعم فقط بعد نجاح الطلب
-        session()->forget($sessionKey);
-        session()->forget(['restaurant_table_id', 'restaurant_table_restaurant_id']);
+        $this->cartService->forget($restaurant);
+        $this->tableSession->forget();
 
         event(new OrderCreated($order));
 
@@ -349,11 +351,7 @@ class OrderController extends Controller
 
     protected function currentTable(Restaurant $restaurant): ?RestaurantTable
     {
-        if (session('restaurant_table_restaurant_id') !== $restaurant->id) {
-            return null;
-        }
-
-        return $restaurant->tables()->whereKey(session('restaurant_table_id'))->where('is_active', true)->first();
+        return $this->tableSession->resolve($restaurant);
     }
 
     /**

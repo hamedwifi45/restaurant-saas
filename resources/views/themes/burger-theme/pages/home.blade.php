@@ -8,7 +8,7 @@
             @if($restaurant->cover_image)
                 <img src="{{ media_url($restaurant->cover_image) }}" alt="{{ $restaurant->name }}"
                     class="absolute inset-0 w-full h-full object-cover">
-                <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+                <div class="absolute inset-0 bg-black opacity-50"></div>
             @else
                 <div class="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-600"></div>
             @endif
@@ -125,7 +125,7 @@
                     <div class="{{ theme_setting('card_style', 'elevated') === 'flat' ? 'bg-white rounded-2xl border border-gray-200 overflow-hidden group hover:border-primary transition duration-300' : 'bg-white rounded-2xl shadow-lg overflow-hidden group hover:-translate-y-2 transition duration-300' }}">
                         <div class="relative h-48 overflow-hidden">
                             @if($product->image)
-                                <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}"
+                                <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}" loading="lazy" decoding="async"
                                     class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
                             @else
                                 <div class="w-full h-full bg-gray-200 flex items-center justify-center text-4xl">🍔</div>

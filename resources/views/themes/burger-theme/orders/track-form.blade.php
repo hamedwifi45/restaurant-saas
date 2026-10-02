@@ -6,7 +6,7 @@
         
         <div class="bg-white rounded-3xl shadow-2xl p-10 text-center">
             
-            <div class="w-20 h-20 bg-primary bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div class="w-20 h-20 bg-primary opacity-10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span class="text-4xl">🔍</span>
             </div>
             

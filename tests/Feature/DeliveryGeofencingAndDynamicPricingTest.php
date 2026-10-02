@@ -53,7 +53,7 @@ it('blocks checkout when the delivery location is outside the restaurant radius'
     expect(Order::query()->where('restaurant_id', $restaurant->id)->exists())->toBeFalse();
 });
 
-it('stores the calculated customer distance and distance-based delivery fee', function () {
+it('calculates distance-based delivery pricing from manually submitted coordinates', function () {
     $restaurant = Restaurant::factory()->create([
         'latitude' => 0,
         'longitude' => 0,
@@ -61,7 +61,7 @@ it('stores the calculated customer distance and distance-based delivery fee', fu
         'base_delivery_fee' => 2,
         'base_delivery_km' => 2,
         'per_km_delivery_fee' => 0.5,
-        'tax_percentage' => 0,
+        'tax_percentage' => 10,
     ]);
     seedDeliveryCheckout($restaurant);
 
@@ -72,12 +72,12 @@ it('stores the calculated customer distance and distance-based delivery fee', fu
 
     expect((float) $order->distance_km)->toBe(11.12)
         ->and((float) $order->delivery_fee)->toBe(6.56)
-        ->and((float) $order->total_amount)->toBe(26.56)
+        ->and((float) $order->total_amount)->toBe(28.56)
         ->and((float) $order->customer_lat)->toBe(0.0)
         ->and((float) $order->customer_lng)->toBe(0.1);
 });
 
-it('renders the checkout map and rejection banner for each customer theme', function (string $themeFolder) {
+it('renders live checkout pricing and geofence controls for each customer theme', function (string $themeFolder) {
     $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
     $restaurant = Restaurant::factory()->create([
         'theme_id' => $theme->id,
@@ -91,7 +91,26 @@ it('renders the checkout map and rejection banner for each customer theme', func
         ->assertSuccessful()
         ->assertSee('checkoutPricing', false)
         ->assertSee('checkout-map', false)
-        ->assertSee('name="name"', false);
+        ->assertSee('name="name"', false)
+        ->assertSee('id="use-current-location"', false)
+        ->assertSee('x-text="formatDistance() ||', false)
+        ->assertSee('x-text="formatDistance() || \'جاري التحديد...\'"', false)
+        ->assertSee('>جاري التحديد...</span>', false)
+        ->assertSee('x-text="deliveryFeeDisplay"', false)
+        ->assertSee('x-text="deliveryFeeHelper"', false)
+        ->assertSee('x-show="extraKilometers > 0"', false)
+        ->assertDontSee('x-show="deliveryFee > 0"', false)
+        ->assertSee('x-text="totalDisplay"', false)
+        ->assertSee('<template x-if="warningMessage.length > 0">', false)
+        ->assertSee('x-cloak x-ref="geofenceAlert" x-text="warningMessage"', false)
+        ->assertSee(':disabled="processing || isOutOfRange"', false)
+        ->assertSee('x-model="lat" @input="persistCustomer(); recalculate()"', false)
+        ->assertSee('x-model="lng" @input="persistCustomer(); recalculate()"', false)
+        ->assertSee('يمكنك سحب الدبوس أو النقرات على الخريطة لتحديد موقعك مباشرة', false)
+        ->assertSee('navigator.geolocation.getCurrentPosition', false)
+        ->assertSee('catch {', false)
+        ->assertSee('maxZoom: 19', false)
+        ->assertSee('setView([latitude, longitude], 18)', false);
 
     $user = User::factory()->create([
         'role' => 'restaurant_admin',
@@ -121,6 +140,7 @@ it('renders the checkout map and rejection banner for each customer theme', func
         ->assertSee('تعذر قبول طلبك. السبب: العنوان غير واضح');
 })->with([
     'burger theme' => 'burger-theme',
+    'albasha theme' => 'albasha-burger',
     'classic theme' => 'classic-2-burger',
     'oriental theme' => 'oriental-theme',
 ]);

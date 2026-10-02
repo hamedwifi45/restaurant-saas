@@ -52,7 +52,7 @@ Tailwind v4 removed deprecated utilities. Use the replacements shown below. Opac
 
 | Deprecated | Replacement |
 |------------|-------------|
-| bg-opacity-* | bg-black/* |
+| opacity-* | bg-black/* |
 | text-opacity-* | text-black/* |
 | border-opacity-* | border-black/* |
 | divide-opacity-* | divide-black/* |
@@ -112,7 +112,7 @@ If existing pages and components support dark mode, new pages and components mus
 
 ## Common Pitfalls
 
-- Using deprecated v3 utilities (bg-opacity-*, flex-shrink-*, etc.)
+- Using deprecated v3 utilities (opacity-*, flex-shrink-*, etc.)
 - Using `@tailwind` directives instead of `@import "tailwindcss"`
 - Trying to use `tailwind.config.js` instead of CSS `@theme` directive
 - Using margins for spacing between siblings instead of gap utilities

@@ -18,7 +18,7 @@
                     @foreach($products as $item)
                         <article x-show="items[{{ $item['product']->id }}] && items[{{ $item['product']->id }}].quantity > 0" class="flex flex-wrap items-center gap-4 rounded-2xl border border-stone-200 bg-white p-4 sm:flex-nowrap">
                             @if($item['product']->image)
-                                <img src="{{ media_url($item['product']->image) }}" alt="{{ $item['product']->name }}" class="h-20 w-20 rounded-xl object-cover">
+                                <img src="{{ media_url($item['product']->image) }}" alt="{{ $item['product']->name }}" loading="lazy" decoding="async" class="h-20 w-20 rounded-xl object-cover">
                             @else
                                 <span class="flex h-20 w-20 items-center justify-center rounded-xl bg-amber-50 text-3xl">🍽️</span>
                             @endif
@@ -42,8 +42,9 @@
                 <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-5 lg:sticky lg:top-24">
                     <h2 class="text-xl font-black">ملخص الطلب</h2>
                     <div class="mt-5 flex justify-between text-sm"><span class="text-stone-600">المجموع الفرعي</span><span><span x-text="money(subtotal())">{{ number_format($total, 2) }}</span> {{ $currency }}</span></div>
+                    <div class="mt-3 flex justify-between text-sm"><span class="text-stone-600">رسوم التوصيل</span><span>{{ $deliveryFee > 0 ? number_format($deliveryFee, 2).' '.$currency : 'مجاني' }}</span></div>
                     <div class="mt-3 flex justify-between text-sm"><span class="text-stone-600">الضريبة ({{ $restaurant->tax_percentage ?? 0 }}%)</span><span><span x-text="money(subtotal() * taxRate / 100)">{{ number_format($total * (($restaurant->tax_percentage ?? 0) / 100), 2) }}</span> {{ $currency }}</span></div>
-                    <div class="mt-4 flex justify-between border-t border-stone-200 pt-4 text-lg font-black"><span>الإجمالي</span><span class="oriental-text"><span x-text="money(subtotal() * (1 + taxRate / 100))">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)), 2) }}</span> {{ $currency }}</span></div>
+                    <div class="mt-4 flex justify-between border-t border-stone-200 pt-4 text-lg font-black"><span>الإجمالي</span><span class="oriental-text"><span x-text="money(totalWithFees())">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)) + $deliveryFee, 2) }}</span> {{ $currency }}</span></div>
                     <a href="{{ route('checkout', $restaurant->slug) }}" class="oriental-button mt-5 block rounded-xl px-4 py-3 text-center font-black" :class="Object.keys(items).length === 0 ? 'pointer-events-none opacity-50' : ''">متابعة إلى الدفع</a>
                     <p x-cloak x-show="busyId !== null" class="mt-3 text-center text-xs text-stone-500" role="status">جارٍ تحديث السلة…</p>
                 </aside>
@@ -56,10 +57,14 @@
                 return {
                     items: @js(collect($products)->mapWithKeys(fn ($item) => [$item['product']->id => ['quantity' => (int) $item['qty'], 'price' => (float) $item['price']]])->all()),
                     taxRate: @js((float) ($restaurant->tax_percentage ?? 0)),
+                    deliveryFee: @js($deliveryFee),
                     busyId: null,
                     message: '',
                     subtotal() {
                         return Object.values(this.items).reduce((sum, item) => sum + item.price * item.quantity, 0);
+                    },
+                    totalWithFees() {
+                        return this.subtotal() * (1 + this.taxRate / 100) + this.deliveryFee;
                     },
                     money(amount) {
                         return Number(amount).toFixed(2);

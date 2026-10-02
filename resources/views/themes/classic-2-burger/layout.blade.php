@@ -26,9 +26,8 @@
     <link rel="apple-touch-icon" href="{{ media_url($restaurant->logo) ?? asset('/icons/default-icon.png') }}">
     
     <!-- ==================== Libraries & Fonts ==================== -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -250,7 +249,7 @@
                             <span class="text-xl">🛒</span>
                             <span class="font-bold hidden sm:inline">السلة</span>
                             <span id="cart-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                                {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'qty')) }}
+                                {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'quantity')) }}
                             </span>
                         </button>
 
@@ -259,15 +258,15 @@
                             <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                                 <h3 class="font-bold text-gray-800 text-sm">منتجاتك المختارة</h3>
                                 <span id="mini-cart-count" class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                                    {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'qty')) }} عناصر
+                                    {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'quantity')) }} عناصر
                                 </span>
                             </div>
                             
                             <div id="mini-cart-items" class="max-h-64 overflow-y-auto p-2 space-y-2">
                                 @forelse($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get() as $product)
-                                    @if(($cartQty = (session('cart_'.$restaurant->id)[$product->id]['qty'] ?? 0)) > 0)
+                                    @if(($cartQty = (session('cart_'.$restaurant->id)[$product->id]['quantity'] ?? 0)) > 0)
                                         <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
-                                            <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" class="w-12 h-12 rounded-md object-cover bg-gray-100">
+                                            <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover bg-gray-100">
                                             <div class="flex-1 min-w-0">
                                                 <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}</h4>
                                                 <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ر.س × {{ $cartQty }}</p>
@@ -287,7 +286,7 @@
                                 <div class="flex justify-between mb-3 text-sm font-bold text-gray-700">
                                     <span>المجموع:</span>
                                     <span id="mini-cart-total">
-                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['qty'] ?? 0); }), 2) }} ر.س
+                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['quantity'] ?? 0); }), 2) }} ر.س
                                     </span>
                                 </div>
                                 <a href="{{ route('cart.index', $restaurant->slug) }}" class="block w-full btn-primary text-center py-2.5 rounded-xl text-sm font-bold hover:shadow-md transition">
@@ -306,7 +305,7 @@
         </div>
 
         <!-- Mobile Menu (Off-canvas) -->
-        <div id="mobile-menu" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" onclick="toggleMobileMenu()">
+        <div id="mobile-menu" class="fixed inset-0 bg-black opacity-50 z-50 hidden" onclick="toggleMobileMenu()">
             <div class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
                 <div class="flex justify-between items-center mb-8 border-b pb-4">
                     <h2 class="text-xl font-black text-gray-800">القائمة</h2>

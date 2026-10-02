@@ -167,7 +167,7 @@
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b last:border-0 last:pb-0">
                             <div class="flex items-center gap-4">
                                 @if($item->product && $item->product->image)
-                                    <img src="{{ media_url($item->product->image) }}" alt="{{ $item->product->name }}"
+                                    <img src="{{ media_url($item->product->image) }}" alt="{{ $item->product->name }}" loading="lazy" decoding="async"
                                         class="w-16 h-16 rounded-2xl object-cover border border-orange-100">
                                 @else
                                     <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">

@@ -7,7 +7,7 @@
         <div class="grid gap-8 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-2 md:p-8">
             <div>
                 @if($product->image)
-                    <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}" class="aspect-square w-full rounded-2xl object-cover">
+                    <img src="{{ media_url($product->image) }}" alt="{{ $product->name }}" loading="lazy" decoding="async" class="aspect-square w-full rounded-2xl object-cover">
                 @else
                     <div class="flex aspect-square items-center justify-center rounded-2xl bg-amber-50 text-8xl">🍲</div>
                 @endif

@@ -53,12 +53,12 @@ class Category extends Model
                 (int) $category->getOriginal('restaurant_id'),
                 (int) $category->restaurant_id,
             ])) as $restaurantId) {
-                Cache::forget('restaurant-menu:'.$restaurantId);
+                Cache::forget("restaurant_menu_{$restaurantId}");
             }
         });
 
         static::deleted(function (Category $category): void {
-            Cache::forget('restaurant-menu:'.$category->restaurant_id);
+            Cache::forget("restaurant_menu_{$category->restaurant_id}");
         });
 
         if (auth()->check() && auth()->user()->role != 'super_admin') {

@@ -6,10 +6,19 @@ use App\Helpers\ThemeHelper;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\Review;
+use App\Services\CartService;
+use App\Services\RestaurantTableSession;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class RestaurantController extends Controller
 {
+    public function __construct(
+        private readonly RestaurantTableSession $tableSession,
+        private readonly CartService $cartService,
+    ) {}
+
     /**
      * عرض الصفحة الرئيسية للمطعم
      */
@@ -23,13 +32,25 @@ class RestaurantController extends Controller
         return view('restaurant.dashboard', compact('settings'));
     }
 
-    public function home(string $slug)
+    public function home(string $slug, Request $request)
     {
         // تحميل المطعم مع الثيم
         $restaurant = Restaurant::with(['theme', 'categories', 'activeOffers'])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
+
+        if ($request->query->has('table')) {
+            $table = $this->tableSession->findByIdentifier($restaurant, $request->query('table'));
+
+            if ($table) {
+                $this->tableSession->remember($restaurant, $table);
+            } else {
+                $this->tableSession->forget();
+            }
+
+            return redirect()->route('restaurant.menu', $restaurant->slug);
+        }
 
         $categories = $restaurant->categories()
             ->where('is_active', true)
@@ -73,32 +94,54 @@ class RestaurantController extends Controller
     /**
      * عرض قائمة الطعام (سنضيفها في المرحلة 4.2)
      */
-    public function menu($slug)
+    public function menu(string $slug, Request $request)
     {
         $restaurant = Restaurant::with('theme')
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
 
+        if ($request->query->has('table')) {
+            $table = $this->tableSession->findByIdentifier($restaurant, $request->query('table'));
+
+            if ($table) {
+                $this->tableSession->remember($restaurant, $table);
+            } else {
+                $this->tableSession->forget();
+            }
+        }
+
         // تحميل التصنيفات النشطة مع منتجاتها المتاحة
-        $categories = Cache::remember('restaurant-menu:'.$restaurant->id, now()->addMinutes(60), function () use ($restaurant) {
-            return $restaurant->categories()
+        $menuCacheKey = "restaurant_menu_{$restaurant->id}";
+        $loadMenu = fn (): array => [
+            'updated_at' => $restaurant->updated_at?->getTimestamp(),
+            'categories' => $restaurant->categories()
                 ->where('is_active', true)
                 ->with(['products' => function ($query) {
                     $query->where('is_available', true)
                         ->orderBy('sort_order');
                 }])
                 ->orderBy('sort_order')
-                ->get();
-        });
+                ->get(),
+        ];
+        $menu = Cache::remember($menuCacheKey, 3600, $loadMenu);
+
+        if (
+            ! is_array($menu)
+            || ($menu['updated_at'] ?? null) !== $restaurant->updated_at?->getTimestamp()
+            || ! (($menu['categories'] ?? null) instanceof Collection)
+        ) {
+            Cache::forget($menuCacheKey);
+            $menu = Cache::remember($menuCacheKey, 3600, $loadMenu);
+        }
+
+        $categories = $menu['categories'];
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
-        $table = session('restaurant_table_restaurant_id') === $restaurant->id
-            ? $restaurant->tables()->find(session('restaurant_table_id'))
-            : null;
+        $table = $this->tableSession->resolve($restaurant);
 
-        $cart = session('cart_'.$restaurant->id, []);
+        $cart = $this->cartService->get($restaurant);
         $cartProducts = Product::where('restaurant_id', $restaurant->id)
             ->whereIn('id', array_keys($cart))
             ->get()
@@ -109,7 +152,7 @@ class RestaurantController extends Controller
 
         foreach ($cart as $productId => $details) {
             $product = $cartProducts->get($productId);
-            $quantity = (int) ($details['qty'] ?? 0);
+            $quantity = (int) $details['quantity'];
 
             if ($product && $quantity > 0) {
                 $cartItems[] = [
@@ -123,7 +166,8 @@ class RestaurantController extends Controller
         }
 
         $taxRate = (float) ($restaurant->tax_percentage ?? 0);
-        $cartTotal = $cartSubtotal * (1 + ($taxRate / 100));
+        $deliveryFee = $table ? 0 : round((float) ($restaurant->delivery_fee ?? 0), 2);
+        $cartTotal = round($cartSubtotal * (1 + ($taxRate / 100)) + $deliveryFee, 2);
 
         return view("themes.{$themePath}.pages.menu", compact(
             'restaurant',

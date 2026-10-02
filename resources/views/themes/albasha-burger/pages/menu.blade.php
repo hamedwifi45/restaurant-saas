@@ -1,6 +1,7 @@
 @extends("themes.burger-theme.layout")
 
 @section('content')
+@php($categories = isset($categories) && $categories instanceof \Illuminate\Support\Collection ? $categories : collect())
 
 <!-- Hero Section -->
 <section class="relative py-20 overflow-hidden">
@@ -8,7 +9,7 @@
         <img src="{{ media_url($restaurant->cover_image) }}"
              alt="{{ $restaurant->name }}" 
              class="absolute inset-0 w-full h-full object-cover">
-        <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+        <div class="absolute inset-0 bg-black opacity-50"></div>
     @else
         <div class="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-600"></div>
     @endif
@@ -63,6 +64,7 @@
                                         @if($product->image)
                                             <img src="{{ media_url($product->image) }}"
                                                  alt="{{ $product->name }}" 
+                                                 loading="lazy" decoding="async"
                                                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                         @else
                                             <div class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
@@ -172,7 +174,7 @@
             </div>
 
             <div class="mt-3 flex items-center justify-between gap-3">
-                <p class="font-black text-gray-900">الإجمالي مع الضريبة: <span id="cart-total-detail">{{ number_format($cartTotal, 2) }}</span> ر.س</p>
+                <p class="font-black text-gray-900">الإجمالي مع الضريبة والتوصيل: <span id="cart-total-detail">{{ number_format($cartTotal, 2) }}</span> ر.س</p>
                 <a href="{{ route('checkout', $restaurant->slug) }}" class="btn-primary flex min-h-11 items-center justify-center rounded-xl px-5 text-center font-bold">
                     طلب الوجبات
                 </a>

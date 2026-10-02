@@ -26,7 +26,7 @@
                     <!-- رأس التقييم -->
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-full flex items-center justify-center text-xl font-bold text-primary">
+                            <div class="w-12 h-12 bg-primary opacity-10 rounded-full flex items-center justify-center text-xl font-bold text-primary">
                                 {{ substr($review->customer_name, 0, 1) }}
                             </div>
                             <div>
@@ -81,7 +81,7 @@
 </section>
 
 <!-- Modal لعرض الصور بالحجم الكامل -->
-<div id="image-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+<div id="image-modal" class="fixed inset-0 bg-black opacity-90 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
     <img id="modal-image" src="" class="max-w-full max-h-full rounded-lg">
 </div>
 

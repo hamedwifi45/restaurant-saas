@@ -49,12 +49,12 @@
                     <textarea id="customer-address" name="address" rows="3" x-model="customerAddress" @input="persistCustomer()" @if(!$table) required @endif class="w-full rounded-xl border border-stone-300 px-4 py-3 focus:border-amber-800 focus:outline-none">{{ old('address') }}</textarea>
                     @if(!$table)
                         <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                            <label class="text-sm font-bold">خط العرض<input id="latitude" name="latitude" type="number" step="any" value="{{ old('latitude') }}" x-model="customerLatitude" @input="persistCustomer(); recalculate()" required class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"></label>
-                            <label class="text-sm font-bold">خط الطول<input id="longitude" name="longitude" type="number" step="any" value="{{ old('longitude') }}" x-model="customerLongitude" @input="persistCustomer(); recalculate()" required class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"></label>
+                            <label class="text-sm font-bold">خط العرض<input id="latitude" name="latitude" type="number" step="any" value="{{ old('latitude') }}" x-model="lat" @input="persistCustomer(); recalculate()" required class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"></label>
+                            <label class="text-sm font-bold">خط الطول<input id="longitude" name="longitude" type="number" step="any" value="{{ old('longitude') }}" x-model="lng" @input="persistCustomer(); recalculate()" required class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"></label>
                         </div>
                         <div id="checkout-map" class="mt-3 h-64 rounded-xl border border-stone-200"></div>
                         <p id="map-status" class="mt-2 text-sm text-stone-500">اضغط على الخريطة لتحديد موقعك أو استخدم موقع الجهاز.</p>
-                        <p x-cloak x-show="geofenceError" x-ref="geofenceAlert" x-text="geofenceError" class="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert"></p>
+                        <button type="button" id="use-current-location" class="mt-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">تحديد موقعي الحالي</button>
                     @endif
                 </div>
                 <fieldset>
@@ -68,13 +68,14 @@
                 <div class="mt-5 space-y-3 text-sm">
                     <div class="flex justify-between"><span>المجموع الفرعي</span><span>{{ number_format($baseSubtotal, 2) }} {{ $currency }}</span></div>
                     <div class="flex justify-between"><span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}%)</span><span>{{ number_format($baseTax, 2) }} {{ $currency }}</span></div>
-                    <div class="flex justify-between" x-show="deliveryFee > 0"><span>رسوم التوصيل</span><span x-text="deliveryFeeDisplay">{{ number_format($deliveryFee, 2) }} {{ $currency }}</span></div>
-                    <div class="flex justify-between text-stone-600" x-cloak x-show="distanceKm !== null"><span>المسافة إلى المطعم</span><span x-text="formatDistance()"></span></div>
+                    <div class="flex justify-between text-stone-600"><span>المسافة إلى المطعم</span><span x-text="formatDistance() || 'جاري التحديد...'">جاري التحديد...</span></div>
+                    <div class="flex justify-between"><span>رسوم التوصيل</span><span class="text-right"><span x-text="deliveryFeeDisplay">{{ number_format($deliveryFee, 2) }} {{ $currency }}</span><small x-cloak x-show="extraKilometers > 0" x-text="deliveryFeeHelper" class="block text-xs font-normal text-stone-500"></small></span></div>
+                    <template x-if="warningMessage.length > 0"><div x-cloak x-ref="geofenceAlert" x-text="warningMessage" class="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert"></div></template>
                     @if($activeOffer)<div class="flex justify-between text-emerald-700"><span>خصم {{ $activeOffer->title }}</span><span>− {{ number_format($autoDiscount, 2) }} {{ $currency }}</span></div>@endif
                 </div>
                 <div class="mt-4 flex justify-between border-t border-stone-200 pt-4 font-black"><span>الإجمالي</span><span class="oriental-text" x-text="totalDisplay">{{ number_format($initialFinalTotal, 2) }} {{ $currency }}</span></div>
                 <input type="hidden" name="offer_id" value="{{ $activeOffer?->id }}">
-                <button type="submit" class="oriental-button mt-6 min-h-12 w-full rounded-xl px-4 py-3 font-black" :disabled="processing"><span x-show="!processing">تأكيد الطلب</span><span x-cloak x-show="processing">جارٍ تجهيز طلبك…</span></button>
+                <button type="submit" class="oriental-button mt-6 min-h-12 w-full rounded-xl px-4 py-3 font-black" :disabled="processing || isOutOfRange" :class="{ 'cursor-not-allowed opacity-50': isOutOfRange }"><span x-show="!processing">تأكيد الطلب</span><span x-cloak x-show="processing">جارٍ تجهيز طلبك…</span></button>
                 <div x-cloak x-show="processing" class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 p-4" role="status" aria-live="polite">
                     <div class="rounded-2xl bg-white p-7 text-center shadow-2xl"><span class="oriental-text text-4xl">◌</span><p class="mt-3 text-lg font-black">جارٍ معالجة طلبك</p><p class="mt-1 text-sm text-stone-500">يرجى الانتظار وعدم إغلاق الصفحة.</p></div>
                 </div>
@@ -84,26 +85,64 @@
     @if(!$table)
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script>
-            const checkoutMap = L.map('checkout-map').setView([
-                Number(@js($restaurant->latitude)) || 33.5138,
-                Number(@js($restaurant->longitude)) || 36.2765
-            ], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(checkoutMap);
+            const restaurantLatitude = @js($restaurant->latitude);
+            const restaurantLongitude = @js($restaurant->longitude);
+            const checkoutMap = L.map('checkout-map', { maxZoom: 19 }).setView([
+                restaurantLatitude === null ? 33.5138 : Number(restaurantLatitude),
+                restaurantLongitude === null ? 36.2765 : Number(restaurantLongitude)
+            ], 17);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(checkoutMap);
             let checkoutMarker;
-            let hasRestoredCheckoutLocation = document.cookie.includes('customer_lat=')
-                && document.cookie.includes('customer_lng=');
+            let hasRestoredCheckoutLocation = false;
 
             function setCheckoutLocation(latitude, longitude) {
+                hasRestoredCheckoutLocation = true;
+                checkoutMap.setView([latitude, longitude], 18);
                 document.getElementById('latitude').value = latitude;
                 document.getElementById('longitude').value = longitude;
                 document.getElementById('latitude').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('longitude').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('map-status').textContent = `تم تحديد الموقع: ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
-                checkoutMarker = checkoutMarker || L.marker([latitude, longitude]).addTo(checkoutMap);
-                checkoutMarker.setLatLng([latitude, longitude]);
+                if (!checkoutMarker) {
+                    checkoutMarker = L.marker([latitude, longitude], { draggable: true }).addTo(checkoutMap);
+                    checkoutMarker.on('dragend', (event) => {
+                        const location = event.target.getLatLng();
+                        setCheckoutLocation(location.lat, location.lng);
+                    });
+                } else {
+                    checkoutMarker.setLatLng([latitude, longitude]);
+                }
             }
 
             checkoutMap.on('click', (event) => setCheckoutLocation(event.latlng.lat, event.latlng.lng));
+            function showManualLocationHint() {
+                document.getElementById('map-status').textContent = 'يمكنك سحب الدبوس أو النقرات على الخريطة لتحديد موقعك مباشرة';
+            }
+
+            function requestCurrentLocation(force = false) {
+                if (!navigator.geolocation) {
+                    showManualLocationHint();
+                    return;
+                }
+
+                try {
+                    navigator.geolocation.getCurrentPosition((position) => {
+                        if (hasRestoredCheckoutLocation && !force) return;
+                        setCheckoutLocation(position.coords.latitude, position.coords.longitude);
+                    }, (error) => {
+                        if (error.code === 1) {
+                            showManualLocationHint();
+                            return;
+                        }
+
+                        showManualLocationHint();
+                    }, { enableHighAccuracy: true });
+                } catch {
+                    showManualLocationHint();
+                }
+            }
+
+            document.getElementById('use-current-location').addEventListener('click', () => requestCurrentLocation(true));
             window.addEventListener('checkout-customer-cookies-restored', (event) => {
                 const { latitude, longitude } = event.detail;
                 const restoredLatitude = Number(latitude);
@@ -112,16 +151,19 @@
                     && Number.isFinite(restoredLatitude) && Number.isFinite(restoredLongitude)
                     && Math.abs(restoredLatitude) <= 90 && Math.abs(restoredLongitude) <= 180) {
                     hasRestoredCheckoutLocation = true;
-                    checkoutMap.setView([restoredLatitude, restoredLongitude], 16);
                     setCheckoutLocation(restoredLatitude, restoredLongitude);
                 }
             });
-            if (!document.getElementById('latitude').value && navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    if (hasRestoredCheckoutLocation) return;
-                    checkoutMap.setView([position.coords.latitude, position.coords.longitude], 16);
-                    setCheckoutLocation(position.coords.latitude, position.coords.longitude);
-                });
+            const initialLatitude = Number(document.getElementById('latitude').value);
+            const initialLongitude = Number(document.getElementById('longitude').value);
+            if (document.getElementById('latitude').value !== '' && document.getElementById('longitude').value !== ''
+                && Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)
+                && Math.abs(initialLatitude) <= 90 && Math.abs(initialLongitude) <= 180) {
+                hasRestoredCheckoutLocation = true;
+                setCheckoutLocation(initialLatitude, initialLongitude);
+            }
+            if (!document.getElementById('latitude').value) {
+                requestCurrentLocation();
             }
         </script>
     @endif

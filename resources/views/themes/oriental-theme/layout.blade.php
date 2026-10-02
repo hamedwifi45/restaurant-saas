@@ -32,7 +32,7 @@
 <body class="min-h-screen bg-stone-50 text-stone-900 antialiased">
     @php
         $themeCart = session('cart_'.$restaurant->id, []);
-        $themeCartCount = collect($themeCart)->sum('qty');
+        $themeCartCount = collect($themeCart)->sum('quantity');
         $themeCurrency = $restaurant->currency_symbol ?? 'ل.س';
     @endphp
     <div x-data="{ menuOpen: false, cartOpen: false }" class="flex min-h-screen flex-col">

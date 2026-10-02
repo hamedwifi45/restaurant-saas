@@ -99,3 +99,51 @@ test('oriental checkout stores the configured restaurant tax rate', function () 
     expect((float) $order->tax_amount)->toBe(5.5)
         ->and((float) $order->total_amount)->toBe(105.5);
 });
+
+test('cart summary includes the restaurant delivery fee in the final total', function (string $themeFolder) {
+    $theme = Theme::factory()->create([
+        'folder_name' => $themeFolder,
+    ]);
+    $restaurant = Restaurant::factory()->create([
+        'theme_id' => $theme->id,
+        'delivery_fee' => 17.5,
+        'tax_percentage' => 10,
+    ]);
+    $product = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'price' => 100,
+    ]);
+
+    $this->withSession([
+        'cart_'.$restaurant->id => [
+            $product->id => ['qty' => 1],
+        ],
+    ])->get(route('cart.index', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('17.50')
+        ->assertSee('127.50');
+})->with([
+    'Albasha Burger' => 'albasha-burger',
+    'Burger Theme' => 'burger-theme',
+    'Classic Burger' => 'classic-2-burger',
+    'Oriental Theme' => 'oriental-theme',
+]);
+
+test('cart add response includes restaurant delivery fee in the grand total', function () {
+    $restaurant = Restaurant::factory()->create([
+        'delivery_fee' => 12.5,
+        'tax_percentage' => 10,
+    ]);
+    $product = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'price' => 100,
+    ]);
+
+    $this->postJson(route('cart.add', $restaurant->slug), [
+        'product_id' => $product->id,
+        'quantity' => 1,
+    ])->assertSuccessful()
+        ->assertJsonPath('subtotal', 100)
+        ->assertJsonPath('delivery_fee', 12.5)
+        ->assertJsonPath('grand_total', 122.5);
+});

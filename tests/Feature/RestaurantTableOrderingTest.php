@@ -23,9 +23,96 @@ it('opens a table QR link and keeps the table in the customer session', function
 
     $this->get(route('restaurant.menu', $restaurant->slug))
         ->assertOk()
-        ->assertSee('الطاولة '.$table->number);
+        ->assertSee('طلب داخلي - الطاولة رقم '.$table->number);
 
     expect(session('restaurant_table_id'))->toBe($table->id);
+});
+
+it('accepts a restaurant table ID as a table entry URL', function () {
+    $restaurant = Restaurant::factory()->create();
+    $table = RestaurantTable::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'number' => 'A12',
+    ]);
+
+    $this->get(route('restaurant.table.menu', [$restaurant->slug, $table->id]))
+        ->assertRedirect(route('restaurant.menu', $restaurant->slug));
+
+    $this->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('طلب داخلي - الطاولة رقم A12');
+});
+
+it('renders the full menu for a direct home-customer visit without table context', function () {
+    $restaurant = Restaurant::factory()->create();
+    $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
+    Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+        'name' => 'طبق التوصيل',
+    ]);
+
+    $this->get(route('restaurant.home', $restaurant->slug))
+        ->assertSuccessful();
+
+    $this->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee($category->name)
+        ->assertSee('طبق التوصيل')
+        ->assertDontSee('طلب داخلي - الطاولة رقم');
+
+    expect(session('restaurant_table_id'))->toBeNull()
+        ->and(session('table_id'))->toBeNull();
+});
+
+it('opens the menu with table context from a table-number query and keeps home visits working', function () {
+    $restaurant = Restaurant::factory()->create();
+    $table = RestaurantTable::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'number' => '5',
+    ]);
+
+    $this->get(route('restaurant.home', $restaurant->slug).'?table=5')
+        ->assertRedirect(route('restaurant.menu', $restaurant->slug));
+
+    $this->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('طلب داخلي - الطاولة رقم 5');
+
+    expect(session('restaurant_table_id'))->toBe($table->id);
+
+    $this->get(route('restaurant.home', $restaurant->slug))
+        ->assertSuccessful();
+
+    $this->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('طلب داخلي - الطاولة رقم 5');
+});
+
+it('clears legacy serialized table values and renders the menu for home customers', function () {
+    $restaurant = Restaurant::factory()->create();
+    $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
+    Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+        'name' => 'طبق بعد تنظيف الجلسة',
+    ]);
+    $table = RestaurantTable::factory()->create(['restaurant_id' => $restaurant->id]);
+
+    $this->withSession([
+        'table' => $table,
+        'table_id' => $table,
+        'restaurant_table_id' => $table,
+        'restaurant_table_restaurant_id' => $restaurant->id,
+    ])->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('طبق بعد تنظيف الجلسة')
+        ->assertDontSee('طلب داخلي - الطاولة رقم');
+
+    expect(session()->has('table'))->toBeFalse()
+        ->and(session()->has('table_id'))->toBeFalse()
+        ->and(session()->has('restaurant_table_id'))->toBeFalse()
+        ->and(session()->has('restaurant_table_restaurant_id'))->toBeFalse();
 });
 
 it('builds table QR links from the configured public application URL', function () {

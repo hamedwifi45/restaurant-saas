@@ -12,6 +12,7 @@
                 @if($product->image)
                     <img src="{{ media_url($product->image) }}"
                          alt="{{ $product->name }}"
+                         loading="lazy" decoding="async"
                          class="w-full h-96 object-cover rounded-3xl shadow-xl">
                 @else
                     <div class="w-full h-96 bg-gray-200 rounded-3xl flex items-center justify-center text-6xl">
@@ -104,7 +105,7 @@
                 <div class="bg-gray-50 rounded-2xl p-6">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-full flex items-center justify-center text-xl font-bold text-primary">
+                            <div class="w-12 h-12 bg-primary opacity-10 rounded-full flex items-center justify-center text-xl font-bold text-primary">
                                 {{ mb_substr($review->customer_name, 0, 1) }}
                             </div>
                             <div>
@@ -153,7 +154,7 @@
 </section>
 
 <!-- Modal التقييم -->
-<div id="review-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+<div id="review-modal" class="fixed inset-0 bg-black opacity-50 z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         
         <!-- الرأس -->
@@ -168,7 +169,7 @@
             <!-- الخطوة 1: التحقق من الرمز -->
             <div id="step-1" class="space-y-6">
                 <div class="text-center mb-6">
-                    <div class="w-16 h-16 bg-primary bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div class="w-16 h-16 bg-primary opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <span class="text-3xl">🔍</span>
                     </div>
                     <h4 class="text-xl font-bold text-gray-800 mb-2">أدخل رمز طلبك</h4>
@@ -279,7 +280,7 @@
 </div>
 
 <!-- Modal لعرض الصور -->
-<div id="image-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
+<div id="image-modal" class="fixed inset-0 bg-black opacity-90 z-50 hidden flex items-center justify-center p-4" onclick="closeImageModal()">
     <img id="modal-image" src="" class="max-w-full max-h-full rounded-lg">
 </div>
 
@@ -391,7 +392,7 @@
                 div.className = 'relative aspect-square rounded-lg overflow-hidden';
                 div.innerHTML = `
                     <img src="${e.target.result}" class="w-full h-full object-cover">
-                    <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                    <div class="absolute top-2 right-2 bg-black opacity-50 text-white text-xs px-2 py-1 rounded">
                         صورة ${index + 1}
                     </div>
                 `;

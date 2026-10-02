@@ -58,12 +58,12 @@ class Product extends Model
                 (int) $product->getOriginal('restaurant_id'),
                 (int) $product->restaurant_id,
             ])) as $restaurantId) {
-                Cache::forget('restaurant-menu:'.$restaurantId);
+                Cache::forget("restaurant_menu_{$restaurantId}");
             }
         });
 
         static::deleted(function (Product $product): void {
-            Cache::forget('restaurant-menu:'.$product->restaurant_id);
+            Cache::forget("restaurant_menu_{$product->restaurant_id}");
         });
 
         static::creating(function ($product) {
