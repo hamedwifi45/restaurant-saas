@@ -7,6 +7,7 @@ use BackedEnum;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
@@ -121,17 +122,26 @@ class RestaurantProfileSettings extends Page implements HasForms
                 Section::make('نطاق التوصيل والتسعير حسب المسافة')
                     ->schema([
                         TextInput::make('latitude')
-                            ->label('خط عرض المطعم')
+                            ->label('خط العرض (Latitude)')
                             ->numeric()
                             ->requiredWith('longitude')
                             ->minValue(-90)
-                            ->maxValue(90),
+                            ->maxValue(90)
+                            ->step('0.0000001')
+                            ->live(),
                         TextInput::make('longitude')
-                            ->label('خط طول المطعم')
+                            ->label('خط الطول (Longitude)')
                             ->numeric()
                             ->requiredWith('latitude')
                             ->minValue(-180)
-                            ->maxValue(180),
+                            ->maxValue(180)
+                            ->step('0.0000001')
+                            ->live(),
+                        ViewField::make('location_picker')
+                            ->label('موقع المطعم على الخريطة')
+                            ->view('filament.restaurant.fields.restaurant-location-picker')
+                            ->columnSpanFull()
+                            ->dehydrated(false),
                         TextInput::make('delivery_radius_km')
                             ->label('نطاق التوصيل')
                             ->numeric()
