@@ -22,6 +22,13 @@
                         class="font-mono font-bold text-primary text-lg">{{ $order->tracking_code }}</span></p>
             </div>
 
+            <div
+                data-order-cancellation
+                class="{{ $order->status === 'cancelled' ? '' : 'hidden' }} mb-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-right font-bold text-red-800"
+                role="alert"
+                aria-live="assertive"
+            >تعذر قبول طلبك. السبب: {{ $order->rejection_reason }}</div>
+
             @if($order->delivery_latitude && $order->delivery_longitude)
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-lg">
                     <div class="mb-4 flex items-center justify-between gap-3">

@@ -31,6 +31,15 @@ if (toastHost && window.Echo) {
 
         window.dispatchEvent(new CustomEvent('order-notification', { detail: notification }));
 
+        if (notification.status === 'cancelled') {
+            const cancellationBanner = document.querySelector('[data-order-cancellation]');
+
+            if (cancellationBanner) {
+                cancellationBanner.textContent = `تعذر قبول طلبك. السبب: ${notification.rejection_reason || 'غير محدد'}`;
+                cancellationBanner.classList.remove('hidden');
+            }
+        }
+
         try {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 

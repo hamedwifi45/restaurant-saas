@@ -49,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('kitchen')->name('kitchen.')->middleware('can:access-kds')->group(function () {
         Route::get('/{slug}/display', [KdsController::class, 'index'])->name('display');
         Route::post('/orders/{orderId}/status', [KdsController::class, 'updateStatus'])->name('orders.updateStatus');
+        Route::post('/orders/{orderId}/reject', [KdsController::class, 'rejectOrder'])->name('orders.reject');
     });
 
     // API لوحة تحكم المطعم والطاولات

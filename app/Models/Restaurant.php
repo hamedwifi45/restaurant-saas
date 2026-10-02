@@ -13,6 +13,13 @@ class Restaurant extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $attributes = [
+        'delivery_radius_km' => 10.00,
+        'base_delivery_fee' => 2.00,
+        'base_delivery_km' => 2.00,
+        'per_km_delivery_fee' => 0.50,
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -43,6 +50,12 @@ class Restaurant extends Model
         'subscription_fee',
         'is_active',
         'trial_ends_at',
+        'latitude',
+        'longitude',
+        'delivery_radius_km',
+        'base_delivery_fee',
+        'base_delivery_km',
+        'per_km_delivery_fee',
     ];
 
     public const PLAN_FEATURES = [
@@ -73,6 +86,12 @@ class Restaurant extends Model
         'commission_rate' => 'decimal:2',
         'subscription_fee' => 'decimal:2',
         'tax_percentage' => 'decimal:2',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
+        'delivery_radius_km' => 'decimal:2',
+        'base_delivery_fee' => 'decimal:2',
+        'base_delivery_km' => 'decimal:2',
+        'per_km_delivery_fee' => 'decimal:2',
         'trial_ends_at' => 'datetime',
         'theme_settings' => 'array',
     ];

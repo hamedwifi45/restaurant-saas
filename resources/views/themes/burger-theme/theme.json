@@ -1,8 +1,8 @@
 {
-  "name": "برجر 2 كلاسيك",
+  "name": "برجر الباشا",
   "author": "منصة المطاعم",
   "version": "2.0.0",
-  "slug": "classic-2-burger",
+  "slug": "AlBasha-Burger",
 
   "allowed_variables": {
     "primary_color": {

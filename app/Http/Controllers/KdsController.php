@@ -6,7 +6,9 @@ use App\Events\OrderReadyForDelivery;
 use App\Helpers\ThemeHelper;
 use App\Models\Order;
 use App\Models\Restaurant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class KdsController extends Controller
 {
@@ -24,7 +26,22 @@ class KdsController extends Controller
             ->whereIn('status', ['pending', 'preparing'])
             ->get();
 
-        return view("themes.{$themePath}.pages.kds-board", compact('restaurant', 'orderCollection'));
+        $kdsOrders = $orderCollection->map(static fn (Order $order): array => [
+            'id' => $order->tracking_code,
+            'tracking_code' => $order->tracking_code,
+            'status' => $order->status,
+            'customer_name' => $order->customer_name,
+            'customer_lat' => $order->customer_lat ?? $order->delivery_latitude,
+            'customer_lng' => $order->customer_lng ?? $order->delivery_longitude,
+            'distance_km' => $order->distance_km,
+            'table' => $order->restaurantTable?->number,
+            'items' => $order->items->map(static fn ($item): array => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+            ])->values(),
+        ])->values();
+
+        return view("themes.{$themePath}.pages.kds-board", compact('restaurant', 'orderCollection', 'kdsOrders'));
     }
 
     /**
@@ -57,6 +74,36 @@ class KdsController extends Controller
             'success' => true,
             'message' => 'تم تحديث حالة الطلب بنجاح',
             'status' => $validated['status'],
+        ]);
+    }
+
+    public function rejectOrder(Request $request, string $orderId): JsonResponse
+    {
+        $validated = $request->validate([
+            'rejection_reason' => [
+                'required',
+                Rule::in([
+                    'خارج نطاق التوصيل',
+                    'العنوان غير واضح',
+                    'نفاد وجبات المطبخ',
+                    'أخرى',
+                ]),
+            ],
+        ]);
+
+        $order = Order::where('tracking_code', $orderId)->firstOrFail();
+        abort_unless((int) auth()->user()->restaurant_id === (int) $order->restaurant_id, 403);
+        abort_if($order->status === 'cancelled', 409, 'تم رفض الطلب مسبقاً.');
+
+        $order->update([
+            'status' => 'cancelled',
+            'rejection_reason' => $validated['rejection_reason'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'status' => $order->status,
+            'rejection_reason' => $order->rejection_reason,
         ]);
     }
 }

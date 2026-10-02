@@ -20,6 +20,9 @@ class KdsOrderResource extends JsonResource
             'type' => $this->delivery_type === 'dine_in' ? 'dine-in' : $this->delivery_type,
             'table_number' => $this->restaurantTable?->number,
             'customer_name' => $this->customer_name,
+            'customer_lat' => $this->customer_lat ?? $this->delivery_latitude,
+            'customer_lng' => $this->customer_lng ?? $this->delivery_longitude,
+            'distance_km' => $this->distance_km,
             'driver_name' => $this->driver?->name,
             // تحويل حالة pending في لارافيل إلى new للسكربت
             'status' => $this->status === 'pending' ? 'new' : $this->status,

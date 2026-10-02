@@ -14,6 +14,7 @@
     @endphp
     <section class="mx-auto max-w-4xl px-4 py-10 sm:px-6" x-data="orderTracking">
         <div class="text-center"><p class="oriental-text font-bold">تحديث مباشر لحالة طلبك</p><h1 class="mt-2 text-3xl font-black">طلب <span class="font-mono">{{ $order->tracking_code }}</span></h1></div>
+        <div data-order-cancellation class="{{ $order->status === 'cancelled' ? '' : 'hidden' }} mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-right font-bold text-red-800" role="alert" aria-live="assertive">تعذر قبول طلبك. السبب: {{ $order->rejection_reason }}</div>
         <div class="mt-8 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-8">
             <ol class="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
                 @foreach($steps as $status => $step)

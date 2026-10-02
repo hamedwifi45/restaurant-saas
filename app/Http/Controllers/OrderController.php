@@ -12,13 +12,17 @@ use App\Models\Order_item;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Services\DeliveryPricingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
+    public function __construct(private readonly DeliveryPricingService $deliveryPricing) {}
+
     public function track($slug, $code)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
@@ -42,6 +46,7 @@ class OrderController extends Controller
 
         return response()->json([
             'status' => $order->status,
+            'rejection_reason' => $order->rejection_reason,
             'driver_arrived_at' => $order->driver_arrived_at?->toIso8601String(),
             'customer' => [
                 'latitude' => $order->delivery_latitude,
@@ -140,7 +145,7 @@ class OrderController extends Controller
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $table = $this->currentTable($restaurant);
 
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => ['required', 'string', 'max:20', 'regex:/^(09|\+?9639)\d{8}$/'],
             'address' => 'nullable|string|max:1000',
@@ -152,6 +157,41 @@ class OrderController extends Controller
             'coupon_id' => 'nullable|exists:coupons,id',
             'coupon_code' => 'nullable|string',
         ]);
+
+        $customerLatitude = $validated['latitude'] ?? null;
+        $customerLongitude = $validated['longitude'] ?? null;
+        $distanceKm = null;
+        $deliveryFee = 0.0;
+
+        if (! $table) {
+            if (filled($restaurant->latitude) && filled($restaurant->longitude)) {
+                $distance = $this->deliveryPricing->distanceInKilometers(
+                    (float) $restaurant->latitude,
+                    (float) $restaurant->longitude,
+                    (float) $customerLatitude,
+                    (float) $customerLongitude,
+                );
+
+                if ($distance > (float) $restaurant->delivery_radius_km) {
+                    $distanceLabel = number_format($distance, 2);
+                    $radiusLabel = number_format((float) $restaurant->delivery_radius_km, 2);
+
+                    throw ValidationException::withMessages([
+                        'latitude' => "نعتذر، موقعك يبعد {$distanceLabel} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى {$radiusLabel} كم)",
+                    ]);
+                }
+
+                $distanceKm = round($distance, 2);
+                $deliveryFee = $this->deliveryPricing->feeForDistance(
+                    $distance,
+                    (float) $restaurant->base_delivery_fee,
+                    (float) $restaurant->base_delivery_km,
+                    (float) $restaurant->per_km_delivery_fee,
+                );
+            } else {
+                $deliveryFee = round((float) ($restaurant->delivery_fee ?? 0), 2);
+            }
+        }
 
         $sessionKey = 'cart_'.$restaurant->id;
         $cart = session($sessionKey, []);
@@ -233,7 +273,6 @@ class OrderController extends Controller
         $couponDiscount = round($couponDiscount, 2);
         $taxRate = (float) ($restaurant->tax_percentage ?? 0);
         $tax = round($subtotal * $taxRate / 100, 2);
-        $deliveryFee = $table ? 0 : round((float) ($restaurant->delivery_fee ?? 0), 2);
         $finalAmount = round($subtotal + $tax + $deliveryFee - ($offerDiscount + $couponDiscount), 2);
         $deviceToken = Str::random(40);
         // إنشاء سجل الطلب
@@ -245,6 +284,9 @@ class OrderController extends Controller
             'delivery_address' => $table ? 'طاولة '.$table->number : ($request->address ?: 'موقع محدد على الخريطة'),
             'delivery_latitude' => $request->latitude,
             'delivery_longitude' => $request->longitude,
+            'customer_lat' => $customerLatitude,
+            'customer_lng' => $customerLongitude,
+            'distance_km' => $distanceKm,
             'delivery_type' => $table ? 'dine_in' : 'delivery',
             'delivery_city' => $restaurant->city,
             'delivery_fee' => $deliveryFee,

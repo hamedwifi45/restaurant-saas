@@ -5,3 +5,4 @@
  */
 import './echo';
 import './order-notifications';
+import './checkout-pricing';

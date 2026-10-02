@@ -48,6 +48,12 @@ class RestaurantProfileSettings extends Page implements HasForms
         'currency_symbol',
         'tax_percentage',
         'delivery_fee',
+        'latitude',
+        'longitude',
+        'delivery_radius_km',
+        'base_delivery_fee',
+        'base_delivery_km',
+        'per_km_delivery_fee',
         'whatsapp_number',
         'instagram_url',
         'facebook_url',
@@ -110,6 +116,44 @@ class RestaurantProfileSettings extends Page implements HasForms
                         TextInput::make('currency_symbol')->label('رمز العملة')->required()->maxLength(12),
                         TextInput::make('tax_percentage')->label('نسبة الضريبة')->numeric()->minValue(0)->maxValue(100)->suffix('%'),
                         TextInput::make('delivery_fee')->label('رسوم التوصيل')->numeric()->minValue(0),
+                    ])
+                    ->columns(2),
+                Section::make('نطاق التوصيل والتسعير حسب المسافة')
+                    ->schema([
+                        TextInput::make('latitude')
+                            ->label('خط عرض المطعم')
+                            ->numeric()
+                            ->requiredWith('longitude')
+                            ->minValue(-90)
+                            ->maxValue(90),
+                        TextInput::make('longitude')
+                            ->label('خط طول المطعم')
+                            ->numeric()
+                            ->requiredWith('latitude')
+                            ->minValue(-180)
+                            ->maxValue(180),
+                        TextInput::make('delivery_radius_km')
+                            ->label('نطاق التوصيل')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0.01)
+                            ->suffix('كم'),
+                        TextInput::make('base_delivery_fee')
+                            ->label('رسوم التوصيل الأساسية')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0),
+                        TextInput::make('base_delivery_km')
+                            ->label('المسافة المشمولة بالرسوم الأساسية')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->suffix('كم'),
+                        TextInput::make('per_km_delivery_fee')
+                            ->label('رسوم كل كيلومتر إضافي')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0),
                     ])
                     ->columns(2),
                 Section::make('روابط التواصل')

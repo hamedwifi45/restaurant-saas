@@ -44,7 +44,7 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     public function toDatabase(object $notifiable): array
     {
@@ -52,7 +52,7 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     private function payload(): array
     {
@@ -62,7 +62,11 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
             'on_way', 'out_for_delivery' => ['الطلب في الطريق', 'الطلب رقم '.$this->order->tracking_code.' في الطريق إليك مع المندوب.', 'out_for_delivery'],
             'driver_arrived' => ['وصول المندوب', 'وصل المندوب إلى موقعك للطلب رقم '.$this->order->tracking_code.'.', 'driver_arrived'],
             'delivered' => ['تم تسليم الطلب', 'تم تسليم الطلب رقم '.$this->order->tracking_code.' بنجاح. شكراً لتعاملك معنا.', 'delivered'],
-            'cancelled' => ['إلغاء الطلب', 'تم إلغاء الطلب رقم '.$this->order->tracking_code.'.', 'cancelled'],
+            'cancelled' => [
+                'إلغاء الطلب',
+                'تم إلغاء الطلب رقم '.$this->order->tracking_code.'.',
+                'cancelled',
+            ],
             default => throw new InvalidArgumentException('Unsupported order notification status: '.$this->status),
         };
 
@@ -73,6 +77,7 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
             'tracking_code' => $this->order->tracking_code,
             'status' => $notificationStatus,
             'restaurant_id' => $this->order->restaurant_id,
+            'rejection_reason' => $notificationStatus === 'cancelled' ? $this->order->rejection_reason : null,
         ];
     }
 }

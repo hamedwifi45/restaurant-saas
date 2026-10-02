@@ -788,6 +788,11 @@
             box-shadow: var(--shadow-md);
         }
 
+        .action-btn.danger {
+            background: var(--danger-color);
+            color: var(--text-white);
+        }
+
         .action-btn.ghost {
             background: var(--bg-secondary);
             color: var(--text-secondary);
@@ -797,6 +802,63 @@
         .action-btn.ghost:hover {
             background: var(--bg-tertiary);
             color: var(--text-primary);
+        }
+
+        .delivery-distance,
+        .delivery-location {
+            display: inline-flex;
+            margin-top: var(--spacing-sm);
+            margin-left: var(--spacing-sm);
+            padding: 2px var(--spacing-sm);
+            border-radius: var(--border-radius-full);
+            background: #EFF6FF;
+            color: #1D4ED8;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-bold);
+        }
+
+        .reject-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-md);
+            background: var(--bg-overlay);
+        }
+
+        .reject-modal[hidden] {
+            display: none;
+        }
+
+        .reject-modal-card {
+            display: grid;
+            width: min(100%, 28rem);
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            border-radius: var(--border-radius-xl);
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .reject-modal-card h2 {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+        }
+
+        .reject-modal-card select {
+            width: 100%;
+            min-height: var(--kds-touch-target);
+            padding: 0 var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            background: var(--bg-primary);
+        }
+
+        .reject-modal-actions {
+            display: flex;
+            gap: var(--spacing-sm);
         }
 
         /* ============================================
@@ -1119,6 +1181,24 @@
 
     <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
+    <div class="reject-modal" id="reject-modal" hidden>
+        <form class="reject-modal-card" id="reject-form">
+            <h2>رفض الطلب</h2>
+            <label for="reject-reason">سبب الرفض</label>
+            <select id="reject-reason" required>
+                <option value="">اختر سبب الرفض</option>
+                <option value="خارج نطاق التوصيل">خارج نطاق التوصيل</option>
+                <option value="العنوان غير واضح">العنوان غير واضح</option>
+                <option value="نفاد وجبات المطبخ">نفاد وجبات المطبخ</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+            <div class="reject-modal-actions">
+                <button type="button" id="reject-cancel" class="action-btn ghost">إلغاء</button>
+                <button type="submit" class="action-btn danger">تأكيد الرفض</button>
+            </div>
+        </form>
+    </div>
+
     <div class="connection-bar" id="connectionBar" role="alert">
         <div class="spinner"></div>
         <span>جاري إعادة الاتصال بالخادم...</span>
@@ -1132,6 +1212,7 @@
             urgentThreshold: 15,
             restaurantId: {{ $orderCollection->first()->restaurant_id ?? $restaurant->id }},
             csrfToken: "{{ csrf_token() }}",
+            rejectEndpoint: @js(route('kitchen.orders.reject', ['orderId' => '__ORDER__'])),
             demoMode: false
         };
 
@@ -1146,6 +1227,7 @@
                 this.tickTimer = null;
                 this.websocket = null;
                 this.seenOrderIds = new Set();
+                this.rejectingOrderId = null;
 
                 this.columns = {
                     new: document.getElementById('columnNew'),
@@ -1263,6 +1345,12 @@
 
                 document.getElementById('btnAddDemo').addEventListener('click', () => {
                     this.addDemoOrder();
+                });
+
+                document.getElementById('reject-cancel').addEventListener('click', () => this.closeRejectDialog());
+                document.getElementById('reject-form').addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    this.submitRejection();
                 });
 
                 document.addEventListener('keydown', (e) => {
@@ -1555,6 +1643,20 @@
                 `;
                 }
 
+                actionsHtml += `
+                    <button class="action-btn danger" data-action="reject" data-order-id="${order.id}">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>رفض الطلب</span>
+                    </button>
+                `;
+
+                const locationHtml = order.customer_lat && order.customer_lng ? `
+                    <a class="delivery-location" href="https://www.google.com/maps?q=${encodeURIComponent(order.customer_lat)},${encodeURIComponent(order.customer_lng)}" target="_blank" rel="noopener noreferrer">عرض الموقع</a>
+                ` : '';
+                const distanceHtml = order.distance_km !== null && order.distance_km !== undefined ? `
+                    <span class="delivery-distance">${Number(order.distance_km).toFixed(2)} كم</span>
+                ` : '';
+
                 card.innerHTML = `
                 ${newBadge}
                 <header class="card-header">
@@ -1579,6 +1681,8 @@
                                 <span>${this.escapeHtml(order.customer_name)}</span>
                             </div>
                         ` : ''}
+                    ${distanceHtml}
+                    ${locationHtml}
                 </div>
 
                 <ul class="items-list">
@@ -1605,6 +1709,11 @@
             }
 
             async handleAction(action, orderId) {
+                if (action === 'reject') {
+                    this.openRejectDialog(orderId);
+                    return;
+                }
+
                 const order = this.orders.get(orderId);
                 if (!order || this.pendingStatusUpdates.has(orderId)) return;
 
@@ -1655,7 +1764,6 @@
                         };
                         this.showToast('success', 'تم التحديث', `الطلب #${orderId} ← ${statusLabels[newStatus]}`);
                     }
-
                 } catch (error) {
                     order.status = previousStatus;
                     this.orders.set(orderId, order);
@@ -1663,6 +1771,52 @@
                     this.showToast('error', 'خطأ', 'تعذر تحديث حالة الطلب في السيرفر');
                 } finally {
                     this.pendingStatusUpdates.delete(orderId);
+                }
+            }
+
+            openRejectDialog(orderId) {
+                this.rejectingOrderId = orderId;
+                document.getElementById('reject-form').reset();
+                document.getElementById('reject-modal').hidden = false;
+                document.getElementById('reject-reason').focus();
+            }
+
+            closeRejectDialog() {
+                this.rejectingOrderId = null;
+                document.getElementById('reject-modal').hidden = true;
+            }
+
+            async submitRejection() {
+                const orderId = this.rejectingOrderId;
+                const order = this.orders.get(orderId);
+                const reason = document.getElementById('reject-reason').value;
+                if (!order || !reason) return;
+
+                const targetId = encodeURIComponent(String(orderId).replace('#', '').trim());
+                const submitButton = document.querySelector('#reject-form [type="submit"]');
+                submitButton.disabled = true;
+
+                try {
+                    const response = await fetch(this.config.rejectEndpoint.replace('__ORDER__', targetId), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': this.config.csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ rejection_reason: reason })
+                    });
+
+                    if (!response.ok) throw new Error('تعذر رفض الطلب في الخادم.');
+
+                    this.orders.delete(orderId);
+                    this.closeRejectDialog();
+                    this.renderAllOrders();
+                    this.showToast('success', 'تم رفض الطلب', `تم رفض الطلب #${orderId}`);
+                } catch (error) {
+                    this.showToast('error', 'خطأ', error.message);
+                } finally {
+                    submitButton.disabled = false;
                 }
             }
 

@@ -49,6 +49,9 @@ class Order extends Model
         'status',
         'notes',
         'rejection_reason',
+        'customer_lat',
+        'customer_lng',
+        'distance_km',
         'tracking_code',
         'rating',
         'review',
@@ -73,6 +76,9 @@ class Order extends Model
             'driver_longitude' => 'decimal:7',
             'driver_location_updated_at' => 'datetime',
             'driver_arrived_at' => 'datetime',
+            'customer_lat' => 'decimal:7',
+            'customer_lng' => 'decimal:7',
+            'distance_km' => 'decimal:2',
         ];
     }
 

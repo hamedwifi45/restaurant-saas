@@ -5,11 +5,24 @@
 @endpush
 
 @section('content')
-<section class="py-16 bg-gray-50 min-h-screen">
+<section class="py-16 bg-gray-50 min-h-screen" x-data="checkoutPricing({
+    subtotal: @js($baseSubtotal),
+    tax: @js($baseTax),
+    legacyFee: @js($deliveryFee),
+    offerDiscount: @js($autoDiscount),
+    restaurantLatitude: @js($restaurant->latitude),
+    restaurantLongitude: @js($restaurant->longitude),
+    deliveryRadius: @js($restaurant->delivery_radius_km),
+    baseDeliveryFee: @js($restaurant->base_delivery_fee),
+    baseDeliveryKilometers: @js($restaurant->base_delivery_km),
+    feePerAdditionalKilometer: @js($restaurant->per_km_delivery_fee),
+    currency: @js($restaurant->currency_symbol ?? 'ر.س'),
+    isDineIn: @js((bool) $table)
+})">
     <div class="container mx-auto px-4 max-w-4xl">
         <h1 class="text-4xl font-black text-center mb-12 text-gray-800">إتمام الطلب 📝</h1>
 
-        <form action="{{ route('checkout.store', $restaurant->slug) }}" method="POST" id="checkout-form" class="bg-white p-8 rounded-2xl shadow-lg">
+        <form action="{{ route('checkout.store', $restaurant->slug) }}" method="POST" id="checkout-form" class="bg-white p-8 rounded-2xl shadow-lg" @submit="validateSubmission($event)">
             @csrf
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -21,19 +34,20 @@
                     @endif
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
-                        <input type="text" name="name" required class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <input type="text" name="name" id="customer-name" value="{{ old('name') }}" x-model="customerName" @input="persistCustomer()" required autocomplete="name" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
-                        <input type="tel" name="phone" id="customer-phone" required pattern="(09|\+?9639)\d{8}" title="أدخل رقم هاتف سوري يبدأ بـ 09 أو 9639" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <input type="tel" name="phone" id="customer-phone" value="{{ old('phone') }}" x-model="customerPhone" @input="persistCustomer()" required pattern="(09|\+?9639)\d{8}" title="أدخل رقم هاتف سوري يبدأ بـ 09 أو 9639" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     @if(!$table)<div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل</label>
-                        <textarea name="address" id="address" rows="3" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary" placeholder="وصف اختياري: الطابق، رقم الشقة، علامة مميزة..."></textarea>
+                        <textarea name="address" id="address" rows="3" x-model="customerAddress" @input="persistCustomer()" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary" placeholder="وصف اختياري: الطابق، رقم الشقة، علامة مميزة...">{{ old('address') }}</textarea>
                         <div id="checkout-map" class="mt-3 h-64 rounded-xl border border-gray-200"></div>
                         <p id="map-status" class="mt-2 text-sm text-gray-500">اضغط على الخريطة لتحديد موقع المنزل.</p>
-                        <input type="hidden" name="latitude" id="latitude" required>
-                        <input type="hidden" name="longitude" id="longitude" required>
+                        <p x-cloak x-show="geofenceError" x-ref="geofenceAlert" x-text="geofenceError" class="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert"></p>
+                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}" x-model="customerLatitude" @input="persistCustomer(); recalculate()" required>
+                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}" x-model="customerLongitude" @input="persistCustomer(); recalculate()" required>
                     </div>@endif
                 </div>
 
@@ -50,12 +64,14 @@
                             <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
                             <span id="tax-display">{{ number_format($baseTax, 2) }} ر.س</span>
                         </div>
-                        @if($deliveryFee > 0)
-                        <div class="flex justify-between">
+                        <div class="flex justify-between" x-show="deliveryFee > 0">
                             <span>رسوم التوصيل:</span>
-                            <span id="delivery-display">{{ number_format($deliveryFee, 2) }} ر.س</span>
+                            <span id="delivery-display" x-text="deliveryFeeDisplay">{{ number_format($deliveryFee, 2) }} ر.س</span>
                         </div>
-                        @endif
+                        <div class="flex justify-between text-sm text-gray-600" x-cloak x-show="distanceKm !== null">
+                            <span>المسافة إلى المطعم:</span>
+                            <span x-text="formatDistance()"></span>
+                        </div>
                         
                         <!-- قسم العروض التلقائية -->
                         @if($activeOffer)
@@ -80,7 +96,7 @@
                         
                         <div class="flex justify-between text-xl font-black text-primary mt-4 pt-4 border-t">
                             <span>الإجمالي:</span>
-                            <span id="final-total">{{ number_format($initialFinalTotal, 2) }} ر.س</span>
+                            <span id="final-total" x-text="totalDisplay">{{ number_format($initialFinalTotal, 2) }} ر.س</span>
                         </div>
                     </div>
 
@@ -149,6 +165,10 @@
 
 <script>
     document.getElementById('checkout-form').addEventListener('submit', function () {
+        if (this.dataset.outOfRange === 'true') {
+            return;
+        }
+
         const overlay = document.getElementById('checkout-processing');
         const submitButton = this.querySelector('[type="submit"]');
 
@@ -160,22 +180,42 @@
     });
 
     @if(!$table)
-    const defaultLocation = [33.5138, 36.2765];
+    const defaultLocation = [
+        Number(@js($restaurant->latitude)) || 33.5138,
+        Number(@js($restaurant->longitude)) || 36.2765
+    ];
     const checkoutMap = L.map('checkout-map').setView(defaultLocation, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(checkoutMap);
     let checkoutMarker;
+    let hasRestoredCheckoutLocation = document.cookie.includes('customer_lat=')
+        && document.cookie.includes('customer_lng=');
 
     function setCheckoutLocation(latitude, longitude) {
         document.getElementById('latitude').value = latitude;
         document.getElementById('longitude').value = longitude;
+        document.getElementById('latitude').dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById('longitude').dispatchEvent(new Event('input', { bubbles: true }));
         document.getElementById('map-status').textContent = `تم تحديد الموقع: ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
         checkoutMarker = checkoutMarker || L.marker([latitude, longitude]).addTo(checkoutMap);
         checkoutMarker.setLatLng([latitude, longitude]);
     }
 
     checkoutMap.on('click', (event) => setCheckoutLocation(event.latlng.lat, event.latlng.lng));
-    if (navigator.geolocation) {
+    window.addEventListener('checkout-customer-cookies-restored', (event) => {
+        const { latitude, longitude } = event.detail;
+        const restoredLatitude = Number(latitude);
+        const restoredLongitude = Number(longitude);
+        if (latitude !== '' && longitude !== ''
+            && Number.isFinite(restoredLatitude) && Number.isFinite(restoredLongitude)
+            && Math.abs(restoredLatitude) <= 90 && Math.abs(restoredLongitude) <= 180) {
+            hasRestoredCheckoutLocation = true;
+            checkoutMap.setView([restoredLatitude, restoredLongitude], 16);
+            setCheckoutLocation(restoredLatitude, restoredLongitude);
+        }
+    });
+    if (!document.getElementById('latitude').value && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
+            if (hasRestoredCheckoutLocation) return;
             checkoutMap.setView([position.coords.latitude, position.coords.longitude], 16);
             setCheckoutLocation(position.coords.latitude, position.coords.longitude);
         });
@@ -186,9 +226,6 @@
     let couponDiscount = 0;
     
     const subtotal = {{ $baseSubtotal }};
-    const tax = {{ $baseTax }};
-    const deliveryFee = {{ $deliveryFee }};
-    const offerDiscount = {{ $autoDiscount }};
 
     async function applyCouponCode() {
         const code = document.getElementById('coupon-code-input').value.trim();
@@ -250,8 +287,7 @@
     }
 
     function updateFinalTotal() {
-        const finalTotal = subtotal + tax + deliveryFee - offerDiscount - couponDiscount;
-        document.getElementById('final-total').textContent = finalTotal.toFixed(2) + ' ر.س';
+        window.checkoutPricingState?.setCouponDiscount(couponDiscount);
     }
 
     function showCouponMessage(message, type) {

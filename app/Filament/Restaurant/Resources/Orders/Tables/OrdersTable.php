@@ -2,9 +2,12 @@
 
 namespace App\Filament\Restaurant\Resources\Orders\Tables;
 
+use App\Models\Order;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -44,6 +47,24 @@ class OrdersTable
                     ->label('رسوم التوصيل')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('distance_km')
+                    ->label('المسافة')
+                    ->suffix(' كم')
+                    ->badge()
+                    ->placeholder('—')
+                    ->sortable(),
+                TextColumn::make('customer_lat')
+                    ->label('موقع العميل')
+                    ->state(fn (Order $record): ?string => filled($record->customer_lat ?? $record->delivery_latitude)
+                        && filled($record->customer_lng ?? $record->delivery_longitude)
+                        ? 'عرض الموقع'
+                        : null)
+                    ->url(fn (Order $record): ?string => filled($record->customer_lat ?? $record->delivery_latitude)
+                        && filled($record->customer_lng ?? $record->delivery_longitude)
+                        ? 'https://www.google.com/maps?q='.($record->customer_lat ?? $record->delivery_latitude).','.($record->customer_lng ?? $record->delivery_longitude)
+                        : null)
+                    ->openUrlInNewTab()
+                    ->placeholder('—'),
                 TextColumn::make('subtotal')
                     ->label('الإجمالي الفرعي')
                     ->numeric()
@@ -65,6 +86,10 @@ class OrdersTable
                 TextColumn::make('status')
                     ->label('الحالة')
                     ->searchable(),
+                TextColumn::make('rejection_reason')
+                    ->label('سبب الرفض')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('tracking_code')
                     ->label('رمز التتبع')
                     ->searchable(),
@@ -88,6 +113,31 @@ class OrdersTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('reject')
+                    ->label('رفض الطلب')
+                    ->color('danger')
+                    ->icon('heroicon-o-x-circle')
+                    ->visible(fn (Order $record): bool => $record->status !== 'cancelled'
+                        && (auth()->user()?->can('update', $record) ?? false))
+                    ->schema([
+                        Select::make('rejection_reason')
+                            ->label('سبب الرفض')
+                            ->options([
+                                'خارج نطاق التوصيل' => 'خارج نطاق التوصيل',
+                                'العنوان غير واضح' => 'العنوان غير واضح',
+                                'نفاد وجبات المطبخ' => 'نفاد وجبات المطبخ',
+                                'أخرى' => 'أخرى',
+                            ])
+                            ->required(),
+                    ])
+                    ->action(function (Order $record, array $data): void {
+                        abort_unless(auth()->user()?->can('update', $record), 403);
+
+                        $record->update([
+                            'status' => 'cancelled',
+                            'rejection_reason' => $data['rejection_reason'],
+                        ]);
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
