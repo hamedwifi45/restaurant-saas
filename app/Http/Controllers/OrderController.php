@@ -42,6 +42,7 @@ class OrderController extends Controller
 
         return response()->json([
             'status' => $order->status,
+            'driver_arrived_at' => $order->driver_arrived_at?->toIso8601String(),
             'customer' => [
                 'latitude' => $order->delivery_latitude,
                 'longitude' => $order->delivery_longitude,
@@ -265,6 +266,7 @@ class OrderController extends Controller
             'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
         ]);
         Cookie::queue('order_device_token_'.$order->id, $deviceToken, 60 * 24 * 7);
+        $request->session()->put('order_device_tokens.'.$order->tracking_code, $deviceToken);
         // حفظ عناصر الطلب
         foreach ($itemsData as $item) {
             $product = $products->get($item['product_id']);

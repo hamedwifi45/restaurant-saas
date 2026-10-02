@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\CustomerBroadcastAuthController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KdsController;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::view('/', 'welcome')->name('home');
+Route::post('/broadcasting/customer-auth', [CustomerBroadcastAuthController::class, 'authorizeCustomerChannel'])
+    ->middleware('throttle:60,1')
+    ->name('broadcasting.customer-auth');
 
 /*
 |--------------------------------------------------------------------------
@@ -67,6 +71,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
         Route::post('/orders/{order}/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
         Route::post('/orders/{order}/status', [DriverController::class, 'updateStatus'])->name('driver.status.update');
+        Route::post('/orders/{order}/arrived', [DriverController::class, 'markArrived'])->name('driver.order.arrived');
     });
 });
 Route::get('{slug}/driver/orders/{order:tracking_code}/tracking', [DriverController::class, 'tracking'])->name('driver.order.tracking');

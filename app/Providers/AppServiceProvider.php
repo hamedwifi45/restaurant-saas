@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantThemeSetting;
 use App\Models\User;
+use App\Observers\OrderObserver;
 use App\Observers\RestaurantObserver;
 use App\Observers\RestaurantThemeSettingObserver;
 use App\Policies\CategoryPolicy;
@@ -51,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->registerPolicies();
         Restaurant::observe(RestaurantObserver::class);
+        Order::observe(OrderObserver::class);
         RestaurantThemeSetting::observe(RestaurantThemeSettingObserver::class);
         Gate::define('access-kds', fn (User $user): bool => in_array($user->role, ['restaurant_admin', 'kitchen_staff'], true)
             && ($user->restaurant?->hasFeature('kds') ?? false)

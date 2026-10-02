@@ -143,6 +143,7 @@ it('creates a dine-in order linked to the scanned table', function () {
     ]);
 
     Event::assertDispatched(OrderCreated::class);
+    expect(session('order_device_tokens.'.$order->tracking_code))->toBe($order->device_token);
 });
 
 it('requires a valid Syrian phone number for a table order', function () {

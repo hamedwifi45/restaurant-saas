@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\ThemeHelper;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Notifications\OrderStatusUpdatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -230,6 +231,29 @@ class DriverController extends Controller
         return response()->json([
             'success' => true,
             'status' => $order->status,
+        ]);
+    }
+
+    public function markArrived(Request $request, string $slug, Order $order): JsonResponse
+    {
+        $this->authorizeDriverOrder($request, $slug, $order);
+
+        abort_unless($order->status === 'on_way', 422, 'يمكن تسجيل الوصول بعد بدء التوصيل فقط.');
+
+        $arrivedAt = now();
+        $updated = Order::query()
+            ->whereKey($order->getKey())
+            ->whereNull('driver_arrived_at')
+            ->update(['driver_arrived_at' => $arrivedAt]);
+
+        if ($updated === 1) {
+            $order->forceFill(['driver_arrived_at' => $arrivedAt]);
+            $order->notify((new OrderStatusUpdatedNotification($order, 'driver_arrived'))->afterCommit());
+        }
+
+        return response()->json([
+            'success' => true,
+            'already_notified' => $updated === 0,
         ]);
     }
 

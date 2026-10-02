@@ -1177,21 +1177,21 @@
             <div id="map"></div>
             <div class="map-overlay-info">
                 <div class="map-info-item">
-                    <div class="icon distance">📏</div>
+                    <div class="icon distance">كم</div>
                     <div>
                         <div class="map-info-label">المسافة المتبقية</div>
                         <div class="map-info-value" id="distanceValue">2.4 كم</div>
                     </div>
                 </div>
                 <div class="map-info-item">
-                    <div class="icon time">⏱️</div>
+                    <div class="icon time">د</div>
                     <div>
                         <div class="map-info-label">وقت الوصول</div>
                         <div class="map-info-value" id="timeValue">8 دقائق</div>
                     </div>
                 </div>
                 <div class="map-info-item">
-                    <div class="icon speed">🚗</div>
+                    <div class="icon speed">كم/س</div>
                     <div>
                         <div class="map-info-label">السرعة</div>
                         <div class="map-info-value" id="speedValue">35 كم/س</div>
@@ -1234,7 +1234,7 @@
                     </div>
                     <div class="timeline-step {{ $order->status === 'on_way' ? 'active' : ($order->status === 'delivered' ? 'completed' : 'pending') }}"
                         role="listitem">
-                        <div class="step-indicator">⚡</div>
+                        <div class="step-indicator">٣</div>
                         <div class="step-content">
                             <div class="step-title">في الطريق إليك</div>
                             <div class="step-time" id="step3Time">
@@ -1271,7 +1271,7 @@
                         <!-- PHP: اسم المندوب -->
                         <div class="driver-name" id="driverName">{{ $order->driverUser?->name ?? 'المندوب' }}</div>
                         <div class="driver-rating">
-                            <span class="stars" aria-label="التقييم 4.8 من 5">★★★★★</span>
+                            <span class="stars" aria-label="التقييم 4.8 من 5">٤٫٨ من ٥</span>
                             <!-- PHP: التقييم -->
                             <span class="rating-value" id="driverRating">{{ $order->driver?->rating ?? '—' }}</span>
                         </div>
@@ -1282,32 +1282,32 @@
                     <!-- PHP: رقم الهاتف -->
                     <a href="tel:{{ $order->driver?->phone }}" class="driver-detail-item"
                         aria-label="اتصال بالمندوب">
-                        <span class="detail-icon">📱</span>
+                        <span class="detail-icon">هاتف</span>
                         <span id="driverPhone">{{ $order->driver?->phone ?? '—' }}</span>
                     </a>
                     <!-- PHP: نوع المركبة -->
                     <div class="driver-detail-item">
-                        <span class="detail-icon">🏍️</span>
+                        <span class="detail-icon">مركبة</span>
                         <span id="driverVehicle">{{ $order->driver?->vehicle_type ?? 'غير محدد' }}</span>
                     </div>
                     <!-- PHP: رقم اللوحة -->
                     <div class="driver-detail-item">
-                        <span class="detail-icon">🔢</span>
+                        <span class="detail-icon">لوحة</span>
                         <span id="driverPlate">{{ $order->driver?->plate_number ?? 'بدون لوحة' }}</span>
                     </div>
                     <div class="driver-detail-item">
-                        <span class="detail-icon">📦</span>
+                        <span class="detail-icon">طلب</span>
                         <span>طلبات نشطة: 1</span>
                     </div>
                 </div>
 
                 <div class="driver-actions">
                     <a href="tel:{{ $order->driver?->phone }}" class="btn btn-call" aria-label="اتصال بالمندوب">
-                        📞 اتصال
+                        اتصال
                     </a>
                     <button class="btn btn-secondary" aria-label="محادثة المندوب"
                         onclick="showToast('info', 'المحادثة', 'سيتم فتح المحادثة قريباً')">
-                        💬 محادثة
+                        محادثة
                     </button>
                 </div>
 
@@ -1316,11 +1316,11 @@
                     style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
                     <button class="btn btn-success btn-full" id="btnStartDelivery" onclick="handleStartDelivery()"
                         {{ $order->status === 'delivered' ? 'disabled' : '' }}>
-                        🚀 بدء التوصيل
+                        بدء التوصيل
                     </button>
                     <button class="btn btn-primary btn-full customer-view-only"
                         onclick="showToast('success', 'تم', 'تم تحديث الموقع')">
-                        📍 تحديث موقعي
+                        تحديث موقعي
                     </button>
                 </div>
             </div>
@@ -1366,8 +1366,13 @@
                 <div class="driver-view-only"
                     style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
                     <a href="tel:{{ $order->customer_phone }}" class="btn btn-call btn-full">
-                        📞 اتصال بالعميل
+                        اتصال بالعميل
                     </a>
+                    @if($order->status === 'on_way' && ! $order->driver_arrived_at)
+                        <button class="btn btn-full" id="btnArrived" onclick="handleArrived()">
+                            وصلت إلى الموقع
+                        </button>
+                    @endif
                     <button class="btn btn-success btn-full" id="btnDelivered" onclick="handleDelivered()"
                         {{ $order->status !== 'on_way' ? 'disabled' : '' }}>
                         ✓ تم التسليم
@@ -1392,6 +1397,7 @@
             apiEndpoint: @json(route('driver.order.show', [$order->restaurant->slug, $order])),
             locationEndpoint: @json(route('driver.location.update', [$order->restaurant->slug, $order])),
             statusEndpoint: @json(route('driver.status.update', [$order->restaurant->slug, $order])),
+            arrivalEndpoint: @json(route('driver.order.arrived', [$order->restaurant->slug, $order])),
             initialData: {
                 restaurant: {
                     name: @json($order->restaurant?->name)
@@ -1479,7 +1485,7 @@
 
                 // استخدام OpenStreetMap
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors',
+                    attribution: 'OpenStreetMap contributors',
                     maxZoom: 19
                 }).addTo(this.map);
 
@@ -1499,7 +1505,7 @@
                 // Marker المطعم
                 const restaurantIcon = L.divIcon({
                     className: 'custom-marker',
-                    html: '<div class="marker-restaurant"><span>🍔</span></div>',
+                    html: '<div class="marker-restaurant"><span>مطعم</span></div>',
                     iconSize: [40, 40],
                     iconAnchor: [20, 40],
                     popupAnchor: [0, -40]
@@ -1519,7 +1525,7 @@
                 // Marker العميل
                 const customerIcon = L.divIcon({
                     className: 'custom-marker',
-                    html: '<div class="marker-customer"><span>📍</span></div>',
+                    html: '<div class="marker-customer"><span>عميل</span></div>',
                     iconSize: [40, 40],
                     iconAnchor: [20, 40],
                     popupAnchor: [0, -40]
@@ -1539,7 +1545,7 @@
                 // Marker المندوب
                 const driverIcon = L.divIcon({
                     className: 'custom-marker',
-                    html: '<div class="marker-driver"><span>🚗</span></div>',
+                    html: '<div class="marker-driver"><span>مندوب</span></div>',
                     iconSize: [44, 44],
                     iconAnchor: [22, 22],
                     popupAnchor: [0, -44]
@@ -1851,7 +1857,7 @@
                 const banner = document.getElementById('connectionBanner');
                 if (banner) {
                     banner.innerHTML = `
-                        <span>⚠️</span>
+                        <span>تنبيه</span>
                         <span>انقطع الاتصال - <button onclick="tracker.retryConnection()" style="background:white;color:var(--danger-color);border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-weight:bold;">إعادة المحاولة</button></span>
                     `;
                     banner.classList.add('visible');
@@ -1937,10 +1943,10 @@
             const container = document.getElementById('toastContainer');
             if (!container) return;
             const icons = {
-                success: '✅',
-                error: '❌',
-                warning: '⚠️',
-                info: 'ℹ️'
+                success: 'تم',
+                error: 'خطأ',
+                warning: 'تنبيه',
+                info: 'معلومة'
             };
 
             const toast = document.createElement('div');
@@ -2094,6 +2100,20 @@
                 if (btnDelivered) {
                     btnDelivered.disabled = true;
                     btnDelivered.textContent = '✓ تم التسليم';
+                }
+
+                async function handleArrived() {
+                    const button = document.getElementById('btnArrived');
+                    if (button) button.disabled = true;
+
+                    try {
+                        await postTracking(trackingConfig.arrivalEndpoint, {});
+                        if (button) button.textContent = 'تم تسجيل الوصول';
+                        showToast('success', 'تم تسجيل الوصول', 'تم إبلاغ العميل بوصولك إلى الموقع.');
+                    } catch (error) {
+                        if (button) button.disabled = false;
+                        showToast('error', 'تعذر تسجيل الوصول', 'تعذر إرسال إشعار الوصول إلى العميل.');
+                    }
                 }
 
                 tracker.stopAutoUpdate();

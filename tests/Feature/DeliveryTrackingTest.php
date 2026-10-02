@@ -60,7 +60,8 @@ it('shows only the driver orders and completes delivery transitions', function (
         ->get(route('driver.order.tracking', [$restaurant->slug, $order->tracking_code]))
         ->assertSuccessful()
         ->assertSee('نظام تتبع الطلبات والتوصيل')
-        ->assertSee($order->tracking_code);
+        ->assertSee($order->tracking_code)
+        ->assertSee('وصلت إلى الموقع');
 
     $this->actingAs($driver)
         ->getJson(route('driver.order.show', [$restaurant->slug, $order]))

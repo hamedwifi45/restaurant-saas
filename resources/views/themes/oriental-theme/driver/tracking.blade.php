@@ -16,6 +16,9 @@
                 <div class="mt-6 flex flex-col gap-3 sm:flex-row">
                     <button type="button" @click="shareLocation()" :disabled="sharing" class="oriental-button min-h-12 flex-1 rounded-xl px-5 py-3 font-black"><span x-text="sharing ? 'جارٍ تحديث الموقع…' : 'مشاركة موقعي الآن'"></span></button>
                     @if($order->status === 'on_way')
+                        <button type="button" @click="markArrived()" x-show="!arrived" :disabled="arrivalSubmitting" class="rounded-xl border border-amber-700 px-5 py-3 font-bold text-amber-800">وصلت إلى الموقع</button>
+                    @endif
+                    @if($order->status === 'on_way')
                         <button type="button" @click="updateStatus()" class="rounded-xl border border-emerald-700 px-5 py-3 font-bold text-emerald-800">تم التسليم</button>
                     @endif
                 </div>
@@ -30,6 +33,8 @@
                 return {
                     status: @js($order->status),
                     sharing: false,
+                    arrived: @js((bool) $order->driver_arrived_at),
+                    arrivalSubmitting: false,
                     locationMessage: 'يتم تحديث حالة الطلب تلقائياً.',
                     get statusLabel() {
                         return ({ pending: 'تم استلام الطلب', preparing: 'قيد التحضير', ready: 'جاهز للاستلام', on_way: 'في الطريق إليك', delivered: 'تم التسليم' })[this.status] || this.status;
@@ -41,6 +46,7 @@
                                 if (!response.ok) throw new Error('تعذر جلب تحديث الحالة.');
                                 const data = await response.json();
                                 this.status = data.status;
+                                this.arrived = Boolean(data.driver_arrived_at);
                                 if (data.driver.updated_at) this.locationMessage = 'آخر تحديث للموقع: ' + new Date(data.driver.updated_at).toLocaleTimeString('ar');
                             } catch (error) {
                                 this.locationMessage = error.message;
@@ -86,6 +92,28 @@
                             return;
                         }
                         this.status = data.status;
+                    },
+                    async markArrived() {
+                        this.arrivalSubmitting = true;
+
+                        try {
+                            const response = await fetch(@js(route('driver.order.arrived', [$slug, $order->id])), {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                            });
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                throw new Error(data.message || 'تعذر تسجيل الوصول إلى الموقع.');
+                            }
+
+                            this.arrived = true;
+                            this.locationMessage = 'تم إبلاغ العميل بوصولك إلى الموقع.';
+                        } catch (error) {
+                            this.locationMessage = error.message;
+                        } finally {
+                            this.arrivalSubmitting = false;
+                        }
                     }
                 };
             }

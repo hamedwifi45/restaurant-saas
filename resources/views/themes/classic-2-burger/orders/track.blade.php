@@ -1,5 +1,10 @@
 @extends("themes.burger-theme.layout")
 
+@pushOnce('head')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+@endPushOnce
+
 @push('head')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 @endpush
@@ -12,7 +17,7 @@
             <div class="text-center mb-12">
                 <span class="bg-primary text-white px-4 py-1 rounded-full text-sm font-bold mb-4 inline-block">حالة
                     الطلب</span>
-                <h1 class="text-4xl font-black text-gray-800 mb-2">تتبع طلبك المباشر 🚚</h1>
+                <h1 class="text-4xl font-black text-gray-800 mb-2">تتبع طلبك المباشر</h1>
                 <p class="text-gray-600">رقم التتبع: <span
                         class="font-mono font-bold text-primary text-lg">{{ $order->tracking_code }}</span></p>
             </div>
@@ -49,7 +54,7 @@
                         <!-- الخطوة 2 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
-                                🍳
+                                ٢
                             </div>
                             <span class="text-sm font-bold {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">جاري التحضير</span>
                         </div>
@@ -57,7 +62,7 @@
                         <!-- الخطوة 3 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
-                                🛵
+                                ٣
                             </div>
                             <span class="text-sm font-bold {{ in_array($order->status, ['on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">في الطريق إليك</span>
                         </div>
@@ -65,7 +70,7 @@
                         <!-- الخطوة 4 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ $order->status === 'delivered' ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
-                                🏠
+                                ٤
                             </div>
                             <span class="text-sm font-bold {{ $order->status === 'delivered' ? 'text-gray-800' : 'text-gray-400' }}">تم التوصيل</span>
                         </div>
@@ -78,25 +83,22 @@
                     <!-- معلومات العميل -->
                     <div class="p-8 border-b md:border-b-0 md:border-l border-gray-100">
                         <h3 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                            <span class="text-primary">📍</span> معلومات التوصيل
+                            معلومات التوصيل
                         </h3>
                         <ul class="space-y-4 text-gray-600">
                             <li class="flex items-start gap-3">
-                                <span class="mt-1 text-primary">👤</span>
                                 <div>
                                     <span class="block text-xs text-gray-400">الاسم</span>
                                     <span class="font-bold text-gray-800">{{ $order->customer_name }}</span>
                                 </div>
                             </li>
                             <li class="flex items-start gap-3">
-                                <span class="mt-1 text-primary">📞</span>
                                 <div>
                                     <span class="block text-xs text-gray-400">رقم الهاتف</span>
                                     <span class="font-bold text-gray-800">{{ $order->customer_phone }}</span>
                                 </div>
                             </li>
                             <li class="flex items-start gap-3">
-                                <span class="mt-1 text-primary">🏠</span>
                                 <div>
                                     <span class="block text-xs text-gray-400">العنوان</span>
                                     <span class="font-bold text-gray-800">{{ $order->delivery_address }}</span>
@@ -108,7 +110,7 @@
                     <!-- ملخص الدفع -->
                     <div class="p-8 bg-gray-50">
                         <h3 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                            <span class="text-primary">💳</span> ملخص الفاتورة
+                            ملخص الفاتورة
                         </h3>
 
                         <div class="space-y-3">
@@ -162,7 +164,7 @@
                                         class="w-16 h-16 rounded-2xl object-cover border border-orange-100">
                                 @else
                                     <div class="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-3xl border border-orange-100">
-                                        🍔
+                                        {{ mb_substr($restaurant->name, 0, 1) }}
                                     </div>
                                 @endif
 
@@ -196,7 +198,6 @@
             <!-- QR Code للتتبع السريع -->
             <div class="bg-white rounded-3xl shadow-lg p-8 mb-8 text-center">
                 <h3 class="font-bold text-xl mb-4 text-gray-800 flex items-center justify-center gap-2">
-                    <span>📱</span>
                     <span>شارك رمز التتبع</span>
                 </h3>
                 <p class="text-gray-500 text-sm mb-6">امسح هذا الرمز بكاميرا الهاتف للوصول السريع لصفحة التتبع</p>
@@ -206,13 +207,11 @@
                 <div class="flex gap-3 justify-center flex-wrap">
                     <button onclick="downloadTrackQR()"
                         class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
-                        <span>💾</span>
                         <span>تحميل الصورة</span>
                     </button>
 
                     <button onclick="shareTrackQR()"
                         class="btn-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
-                        <span>📤</span>
                         <span>مشاركة الرابط</span>
                     </button>
                 </div>
@@ -220,7 +219,6 @@
 
             @if($order->status === 'delivered' && !$order->is_reviewed && $order->delivered_at && $order->delivered_at->diffInMinutes(now()) >= 10)
                 <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-3xl shadow-lg p-8 mb-8 text-center border-2 border-yellow-200">
-                    <div class="text-5xl mb-4">⭐</div>
                     <h3 class="text-2xl font-black text-gray-800 mb-2">كيف كانت تجربتك؟</h3>
                     <p class="text-gray-600 mb-6">شاركنا رأيك لنساعدنا على التحسين</p>
                     <a href="{{ route('review.create', [$restaurant->slug, $order->tracking_code]) }}"
@@ -236,7 +234,7 @@
                 <div class="flex justify-center gap-4 flex-wrap">
                     <a href="tel:{{ $restaurant->phone }}"
                         class="bg-white border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-50 transition flex items-center gap-2">
-                        📞 اتصل بالمطعم
+                        اتصل بالمطعم
                     </a>
                     <a href="{{ route('restaurant.home', $restaurant->slug) }}"
                         class="btn-primary px-6 py-3 rounded-xl font-bold hover:shadow-lg transition">
@@ -245,6 +243,24 @@
                 </div>
             </div>
     </section>
+    <div
+        class="fixed bottom-5 left-5 z-[100] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-3"
+        data-order-notifications
+        data-auth-url="{{ route('broadcasting.customer-auth') }}"
+        data-restaurant-id="{{ $restaurant->id }}"
+        data-tracking-code="{{ $order->tracking_code }}"
+        x-data="orderNotificationToasts"
+        @order-notification.window="show($event.detail)"
+        aria-live="polite"
+        aria-atomic="false"
+    >
+        <template x-for="notification in notifications" :key="notification.id">
+            <article class="rounded-2xl border border-gray-200 bg-white p-4 text-right shadow-xl" role="status">
+                <h2 class="font-black text-gray-900" x-text="notification.title"></h2>
+                <p class="mt-1 text-sm leading-6 text-gray-600" x-text="notification.message"></p>
+            </article>
+        </template>
+    </div>
 
     @if($order->delivery_latitude && $order->delivery_longitude)
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>

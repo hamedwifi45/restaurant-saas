@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property Carbon|null $driver_arrived_at
+ */
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, Notifiable;
 
     protected $fillable = [
         'restaurant_id',
@@ -67,6 +72,7 @@ class Order extends Model
             'driver_latitude' => 'decimal:7',
             'driver_longitude' => 'decimal:7',
             'driver_location_updated_at' => 'datetime',
+            'driver_arrived_at' => 'datetime',
         ];
     }
 
@@ -104,7 +110,10 @@ class Order extends Model
         return $this->belongsTo(Restaurant::class);
     }
 
-    public function driverUser()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function driverUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'driver_id');
     }

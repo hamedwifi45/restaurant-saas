@@ -6,7 +6,7 @@
     @php
         $steps = [
             'pending' => ['label' => 'تم استلام الطلب', 'icon' => '✓'],
-            'preparing' => ['label' => 'قيد التحضير', 'icon' => '♨'],
+            'preparing' => ['label' => 'قيد التحضير', 'icon' => '٢'],
             'ready' => ['label' => 'جاهز للاستلام', 'icon' => '✦'],
             'on_way' => ['label' => 'في الطريق إليك', 'icon' => '➜'],
             'delivered' => ['label' => 'تم التسليم', 'icon' => '⌂'],
@@ -35,6 +35,24 @@
             @if($order->status === 'delivered')<a href="{{ route('review.create', [$restaurant->slug, $order->tracking_code]) }}" class="oriental-button rounded-xl px-5 py-3 text-sm font-bold">قيّم تجربتك</a>@endif
         </div>
     </section>
+    <div
+        class="fixed bottom-5 left-5 z-[100] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-3"
+        data-order-notifications
+        data-auth-url="{{ route('broadcasting.customer-auth') }}"
+        data-restaurant-id="{{ $restaurant->id }}"
+        data-tracking-code="{{ $order->tracking_code }}"
+        x-data="orderNotificationToasts"
+        @order-notification.window="show($event.detail)"
+        aria-live="polite"
+        aria-atomic="false"
+    >
+        <template x-for="notification in notifications" :key="notification.id">
+            <article class="rounded-2xl border border-stone-200 bg-white p-4 text-right shadow-xl" role="status">
+                <h2 class="font-black text-stone-900" x-text="notification.title"></h2>
+                <p class="mt-1 text-sm leading-6 text-stone-600" x-text="notification.message"></p>
+            </article>
+        </template>
+    </div>
     @push('scripts')
         <script>
             document.addEventListener('alpine:init', () => {
