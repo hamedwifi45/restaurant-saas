@@ -88,7 +88,7 @@ class Coupon extends Model
         if ($subtotal < $this->min_order_amount) {
             return [
                 'valid' => false,
-                'message' => 'الحد الأدنى للطلب هو '.number_format($this->min_order_amount, 2).' ر.س',
+                'message' => 'الحد الأدنى للطلب هو '.number_format($this->min_order_amount, 2).' ل.س',
             ];
         }
 
@@ -140,7 +140,7 @@ class Coupon extends Model
     {
         return match ($this->type) {
             'percentage' => "خصم {$this->value}%",
-            'fixed_amount' => "خصم {$this->value} ر.س",
+            'fixed_amount' => "خصم {$this->value} ل.س",
         };
     }
 

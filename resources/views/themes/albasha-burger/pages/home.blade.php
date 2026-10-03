@@ -139,7 +139,7 @@
                             <h3 class="text-xl font-bold text-gray-800 mb-2">{{ $product->name }}</h3>
                             <p class="text-gray-500 text-sm mb-4 line-clamp-2">{{ $product->description }}</p>
                             <div class="flex items-center justify-between">
-                                <span class="text-2xl font-black text-primary">{{ number_format($product->price, 2) }} ر.س</span>
+                                <span class="text-2xl font-black text-primary">{{ number_format($product->price, 2) }} ل.س</span>
                                 <form action="{{ route('cart.add', $restaurant->slug) }}" method="POST">
                                     @csrf
                                     <input type="hidden" name="product_id" value="{{ $product->id }}">

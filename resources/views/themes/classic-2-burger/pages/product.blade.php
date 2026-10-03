@@ -35,9 +35,9 @@
 
                 <!-- السعر -->
                 <div class="flex items-baseline gap-3 mb-6">
-                    <span class="text-4xl font-black text-primary">{{ number_format($product->price, 2) }} ر.س</span>
+                    <span class="text-4xl font-black text-primary">{{ number_format($product->price, 2) }} ل.س</span>
                     @if($product->old_price && $product->old_price >$product->price)
-                        <span class="text-xl text-gray-400 line-through">{{ number_format($product->old_price, 2) }} ر.س</span>
+                        <span class="text-xl text-gray-400 line-through">{{ number_format($product->old_price, 2) }} ل.س</span>
                         <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">خصم {{ round((($product->old_price - $product->price) /$product->old_price) * 100) }}%</span>
                     @endif
                 </div>
@@ -61,7 +61,7 @@
                     </div>
                     <div class="flex items-center gap-2 text-gray-600">
                         <span class="text-2xl">🚚</span>
-                        <span>{{ number_format($restaurant->delivery_fee, 2) }} ر.س</span>
+                        <span>{{ number_format($restaurant->delivery_fee, 2) }} ل.س</span>
                     </div>
                 </div>
             </div>

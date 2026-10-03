@@ -454,7 +454,7 @@
               </div>
             </div>
             <p class="text-xs text-[var(--muted)] mb-1">مبيعات اليوم</p>
-            <p class="font-display text-3xl font-bold text-[var(--primary)]">٩,٢٤٠ <span class="text-sm">ر.س</span></p>
+            <p class="font-display text-3xl font-bold text-[var(--primary)]">٩,٢٤٠ <span class="text-sm">ل.س</span></p>
             <p class="text-xs text-[var(--muted)] mt-2">مقابل ٧,٨٢٠ أمس</p>
           </div>
 
@@ -496,8 +496,8 @@
               </div>
             </div>
             <p class="text-xs text-[var(--muted)] mb-1">متوسط الطلب</p>
-            <p class="font-display text-3xl font-bold text-[var(--primary)]">١٨٥ <span class="text-sm">ر.س</span></p>
-            <p class="text-xs text-[var(--muted)] mt-2">هدف الشهر: ٢٠٠ ر.س</p>
+            <p class="font-display text-3xl font-bold text-[var(--primary)]">١٨٥ <span class="text-sm">ل.س</span></p>
+            <p class="text-xs text-[var(--muted)] mt-2">هدف الشهر: ٢٠٠ ل.س</p>
           </div>
         </div>
 
@@ -829,7 +829,7 @@ function renderOrders(filter = 'all') {
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <p class="font-display text-xl font-bold text-[var(--secondary)]">${o.total} <span class="text-xs">ر.س</span></p>
+        <p class="font-display text-xl font-bold text-[var(--secondary)]">${o.total} <span class="text-xs">ل.س</span></p>
         <div class="flex items-center gap-2">
           <button onclick="showToast('تم فتح تفاصيل الطلب ${o.id}')" class="p-2 rounded-lg bg-[var(--cream)] hover:bg-[var(--cream-dark)] transition"><i class="fas fa-eye text-sm"></i></button>
           <button onclick="showToast('تم تحديث حالة الطلب ${o.id}')" class="p-2 rounded-lg bg-[var(--primary)] text-[var(--secondary)] hover:opacity-90 transition"><i class="fas fa-check text-sm"></i></button>
@@ -864,7 +864,7 @@ function renderMenu(filter = 'all') {
       <div class="p-4">
         <div class="flex items-start justify-between mb-2">
           <h4 class="font-serif-ar text-lg font-bold text-[var(--primary)]">${item.name}</h4>
-          <span class="font-bold text-[var(--secondary)]">${item.price} ر.س</span>
+          <span class="font-bold text-[var(--secondary)]">${item.price} ل.س</span>
         </div>
         <p class="text-xs text-[var(--muted)] mb-3">${item.category}</p>
         <div class="flex items-center gap-2">

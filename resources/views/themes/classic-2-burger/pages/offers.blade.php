@@ -75,7 +75,7 @@
                                 @if($offer->min_order_amount > 0)
                                     <div class="flex items-center gap-2 text-sm text-gray-600">
                                         <span>💰</span>
-                                        <span>الحد الأدنى للطلب: {{ number_format($offer->min_order_amount, 2) }} ر.س</span>
+                                        <span>الحد الأدنى للطلب: {{ number_format($offer->min_order_amount, 2) }} ل.س</span>
                                     </div>
                                 @endif
 

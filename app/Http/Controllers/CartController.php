@@ -112,7 +112,7 @@ class CartController extends Controller
                         <img src="'.$imageUrl.'" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover">
                         <div class="flex-1">
                             <h4 class="text-sm font-bold text-gray-800 truncate">'.$cartProduct->name.'</h4>
-                            <p class="text-xs text-primary font-bold">'.$cartProduct->price.' ر.س × '.$details['quantity'].'</p>
+                            <p class="text-xs text-primary font-bold">'.$cartProduct->price.' ل.س × '.$details['quantity'].'</p>
                         </div>
                     </div>
                 ';

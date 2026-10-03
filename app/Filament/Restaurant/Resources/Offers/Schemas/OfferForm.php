@@ -74,7 +74,7 @@ class OfferForm
                             ->label('نوع العرض')
                             ->options([
                                 'percentage' => 'نسبة مئوية (%)',
-                                'fixed_amount' => 'مبلغ ثابت (ر.س)',
+                                'fixed_amount' => 'مبلغ ثابت (ل.س)',
                                 'free_product' => 'منتج مجاني',
                                 'free_shipping' => 'شحن مجاني',
                             ])

@@ -1,17 +1,17 @@
-document.addEventListener('alpine:init', () => {
+function registerCheckoutPricingComponent() {
     Alpine.data('checkoutPricing', (configuration) => ({
         ...configuration,
         customerName: '',
         customerPhone: '',
         customerAddress: '',
-        lat: '',
-        lng: '',
+        customerLat: '',
+        customerLng: '',
         deliveryType: configuration.isDineIn ? 'dine_in' : 'delivery',
         processing: false,
         distance: null,
         extraKilometers: 0,
         deliveryFeeHelper: '',
-        deliveryFee: Number(configuration.legacyFee),
+        deliveryFee: Number(configuration.legacyFee || 0),
         total: 0,
         deliveryFeeDisplay: '',
         totalDisplay: '',
@@ -22,27 +22,39 @@ document.addEventListener('alpine:init', () => {
         init() {
             const form = this.$root.matches('form') ? this.$root : this.$root.querySelector('form');
             window.checkoutPricingState = this;
+
+            // الاستماع لحدث تحديث موقع الخريطة الجغرافي
+            window.addEventListener('customer-location-updated', (event) => {
+                const { latitude, longitude } = event.detail || {};
+
+                if (latitude !== null && latitude !== undefined && latitude !== ''
+                    && longitude !== null && longitude !== undefined && longitude !== ''
+                    && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))) {
+                    this.setCustomerLocation(latitude, longitude);
+                }
+            });
+
             const fields = {
-                customerName: form.querySelector('[name="name"]'),
-                customerPhone: form.querySelector('[name="phone"]'),
-                customerAddress: form.querySelector('[name="address"]'),
-                lat: form.querySelector('[name="latitude"]'),
-                lng: form.querySelector('[name="longitude"]'),
+                customerName: form?.querySelector('[name="name"]'),
+                customerPhone: form?.querySelector('[name="phone"]'),
+                customerAddress: form?.querySelector('[name="address"]'),
+                customerLat: form?.querySelector('[name="latitude"]'),
+                customerLng: form?.querySelector('[name="longitude"]'),
             };
             const cookieNames = {
                 customerName: 'customer_name',
                 customerPhone: 'customer_phone',
                 customerAddress: 'customer_address',
-                lat: 'customer_lat',
-                lng: 'customer_lng',
+                customerLat: 'customer_lat',
+                customerLng: 'customer_lng',
             };
 
             Object.entries(fields).forEach(([stateName, input]) => {
                 let value = input?.value || this.readCookie(cookieNames[stateName]);
 
-                if (['lat', 'lng'].includes(stateName) && value) {
+                if (['customerLat', 'customerLng'].includes(stateName) && value) {
                     const coordinate = Number(value);
-                    const limit = stateName === 'lat' ? 90 : 180;
+                    const limit = stateName === 'customerLat' ? 90 : 180;
 
                     if (!Number.isFinite(coordinate) || Math.abs(coordinate) > limit) {
                         value = '';
@@ -62,8 +74,8 @@ document.addEventListener('alpine:init', () => {
 
             window.dispatchEvent(new CustomEvent('checkout-customer-cookies-restored', {
                 detail: {
-                    latitude: this.lat,
-                    longitude: this.lng,
+                    latitude: this.customerLat,
+                    longitude: this.customerLng,
                 },
             }));
 
@@ -76,12 +88,13 @@ document.addEventListener('alpine:init', () => {
 
         syncCustomerFields() {
             const form = this.formElement();
+            if (!form) return;
             const fields = {
                 customerName: 'name',
                 customerPhone: 'phone',
                 customerAddress: 'address',
-                lat: 'latitude',
-                lng: 'longitude',
+                customerLat: 'latitude',
+                customerLng: 'longitude',
             };
 
             Object.entries(fields).forEach(([stateName, fieldName]) => {
@@ -107,8 +120,8 @@ document.addEventListener('alpine:init', () => {
                 customer_name: this.customerName,
                 customer_phone: this.customerPhone,
                 customer_address: this.customerAddress,
-                customer_lat: this.lat,
-                customer_lng: this.lng,
+                customer_lat: this.customerLat,
+                customer_lng: this.customerLng,
             };
 
             Object.entries(values).forEach(([name, value]) => {
@@ -117,13 +130,28 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
+        setCustomerLocation(latitude, longitude) {
+            this.customerLat = String(latitude);
+            this.customerLng = String(longitude);
+
+            const form = this.formElement();
+            if (form) {
+                const latInput = form.querySelector('[name="latitude"]');
+                const lngInput = form.querySelector('[name="longitude"]');
+                if (latInput) latInput.value = this.customerLat;
+                if (lngInput) lngInput.value = this.customerLng;
+            }
+            this.persistCustomer();
+            this.recalculate();
+        },
+
         recalculate() {
             this.syncCustomerFields();
-            const latitude = Number(this.lat);
-            const longitude = Number(this.lng);
+            const latitude = Number(this.customerLat);
+            const longitude = Number(this.customerLng);
             const restaurantLatitude = Number(configuration.restaurantLatitude);
             const restaurantLongitude = Number(configuration.restaurantLongitude);
-            const hasCustomerLocation = this.lat !== '' && this.lng !== ''
+            const hasCustomerLocation = this.customerLat !== '' && this.customerLng !== ''
                 && Number.isFinite(latitude) && Number.isFinite(longitude);
             const hasRestaurantLocation = configuration.restaurantLatitude !== null
                 && configuration.restaurantLongitude !== null
@@ -150,31 +178,36 @@ document.addEventListener('alpine:init', () => {
                     Math.sqrt(boundedHaversine),
                     Math.sqrt(1 - boundedHaversine),
                 );
-                this.extraKilometers = Math.max(0, this.distance - Number(configuration.baseDeliveryKilometers));
+
+                const baseKm = Number(configuration.baseDeliveryKilometers ?? 2);
+                const baseFee = Number(configuration.baseDeliveryFee ?? 2);
+                const perKmFee = Number(configuration.feePerAdditionalKilometer ?? 0.5);
+                const radius = Number(configuration.deliveryRadius ?? 10);
+
+                this.extraKilometers = Math.max(0, this.distance - baseKm);
 
                 this.deliveryFee = Math.round((
-                    Number(configuration.baseDeliveryFee)
-                    + (this.extraKilometers * Number(configuration.feePerAdditionalKilometer))
+                    baseFee + (this.extraKilometers * perKmFee)
                 ) * 100) / 100;
 
-                if (this.distance > Number(configuration.deliveryRadius)) {
+                if (this.distance > radius) {
                     this.isOutOfRange = true;
-                    this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${Number(configuration.deliveryRadius).toFixed(2)} كم)`;
+                    this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${radius.toFixed(2)} كم)`;
                 }
             } else {
                 this.deliveryFee = hasRestaurantLocation
-                    ? Number(configuration.baseDeliveryFee)
-                    : Number(configuration.legacyFee);
+                    ? Number(configuration.baseDeliveryFee ?? 2)
+                    : Number(configuration.legacyFee ?? 0);
             }
 
             this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
-            this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${configuration.currency}`;
-            this.total = Number(configuration.subtotal)
-                + Number(configuration.tax)
+            this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${configuration.currency || 'ر.س'}`;
+            this.total = Number(configuration.subtotal || 0)
+                + Number(configuration.tax || 0)
                 + this.deliveryFee
-                - Number(configuration.offerDiscount)
+                - Number(configuration.offerDiscount || 0)
                 - this.couponDiscount;
-            this.totalDisplay = `${this.total.toFixed(2)} ${configuration.currency}`;
+            this.totalDisplay = `${this.total.toFixed(2)} ${configuration.currency || 'ر.س'}`;
 
             const form = this.formElement();
             if (form) {
@@ -211,4 +244,11 @@ document.addEventListener('alpine:init', () => {
             this.recalculate();
         },
     }));
-});
+}
+
+// التسجيل الآمن الفوري للـ Component
+if (window.Alpine) {
+    registerCheckoutPricingComponent();
+} else {
+    document.addEventListener('alpine:init', registerCheckoutPricingComponent);
+}

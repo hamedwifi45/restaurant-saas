@@ -104,12 +104,12 @@
                                                 <span class="text-3xl font-black text-primary">
                                                     {{ number_format($product->price, 2) }}
                                                 </span>
-                                                <span class="text-gray-600 text-sm">ر.س</span>
+                                                <span class="text-gray-600 text-sm">ل.س</span>
                                             </div>
                                             
                                             @if($product->old_price && $product->old_price > $product->price)
                                                 <span class="text-gray-400 line-through text-lg">
-                                                    {{ number_format($product->old_price, 2) }} ر.س
+                                                    {{ number_format($product->old_price, 2) }} ل.س
                                                 </span>
                                             @endif
                                         </div>
@@ -153,7 +153,7 @@
         <button type="button" id="toggle-order-summary" class="flex w-full items-center justify-between gap-3 text-right">
             <div>
                 <p id="cart-count" class="text-xs text-gray-500">{{ $cartCount }} وجبة في الطلب</p>
-                <p id="cart-total" class="text-lg font-black text-gray-900">{{ number_format($cartTotal, 2) }} ر.س</p>
+                <p id="cart-total" class="text-lg font-black text-gray-900">{{ number_format($cartTotal, 2) }} ل.س</p>
             </div>
             <span id="order-summary-toggle-label" class="text-sm font-bold text-primary">عرض الطلب</span>
         </button>
@@ -164,9 +164,9 @@
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0">
                     <div class="min-w-0">
                         <p class="truncate font-bold text-gray-800">{{ $item['product']->name }}</p>
-                        <p class="text-xs text-gray-500">{{ $item['quantity'] }} × {{ number_format($item['product']->price, 2) }} ر.س</p>
+                        <p class="text-xs text-gray-500">{{ $item['quantity'] }} × {{ number_format($item['product']->price, 2) }} ل.س</p>
                     </div>
-                    <p class="font-bold text-primary">{{ number_format($item['subtotal'], 2) }} ر.س</p>
+                    <p class="font-bold text-primary">{{ number_format($item['subtotal'], 2) }} ل.س</p>
                 </div>
             @empty
                 <p class="py-2 text-center text-sm text-gray-500">لم تتم إضافة وجبات بعد</p>
@@ -174,7 +174,7 @@
             </div>
 
             <div class="mt-3 flex items-center justify-between gap-3">
-                <p class="font-black text-gray-900">الإجمالي مع الضريبة والتوصيل: <span id="cart-total-detail">{{ number_format($cartTotal, 2) }}</span> ر.س</p>
+                <p class="font-black text-gray-900">الإجمالي مع الضريبة والتوصيل: <span id="cart-total-detail">{{ number_format($cartTotal, 2) }}</span> ل.س</p>
                 <a href="{{ route('checkout', $restaurant->slug) }}" class="btn-primary flex min-h-11 items-center justify-center rounded-xl px-5 text-center font-bold">
                     طلب الوجبات
                 </a>

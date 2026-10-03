@@ -110,6 +110,8 @@ class OrderController extends Controller
         $baseSubtotal = $subtotal;
         $baseTax = $tax;
         $deliveryFee = $restaurant->delivery_fee ?? 0;
+        $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
+        $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
 
         // حساب خصم العرض التلقائي
         /** @var Offer|null $activeOffer */
@@ -128,6 +130,8 @@ class OrderController extends Controller
 
         return view("themes.{$themePath}.cart.checkout", compact(
             'restaurant',
+            'restaurantLatitude',
+            'restaurantLongitude',
             'total',
             'slug',
             'table',
@@ -167,33 +171,31 @@ class OrderController extends Controller
         $deliveryFee = 0.0;
 
         if (! $table) {
-            if (filled($restaurant->latitude) && filled($restaurant->longitude)) {
-                $distance = $this->deliveryPricing->distanceInKilometers(
-                    (float) $restaurant->latitude,
-                    (float) $restaurant->longitude,
-                    (float) $customerLatitude,
-                    (float) $customerLongitude,
-                );
+            $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
+            $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
+            $distance = $this->deliveryPricing->distanceInKilometers(
+                $restaurantLatitude,
+                $restaurantLongitude,
+                (float) $customerLatitude,
+                (float) $customerLongitude,
+            );
 
-                if ($distance > (float) $restaurant->delivery_radius_km) {
-                    $distanceLabel = number_format($distance, 2);
-                    $radiusLabel = number_format((float) $restaurant->delivery_radius_km, 2);
+            if ($distance > (float) $restaurant->delivery_radius_km) {
+                $distanceLabel = number_format($distance, 2);
+                $radiusLabel = number_format((float) $restaurant->delivery_radius_km, 2);
 
-                    throw ValidationException::withMessages([
-                        'latitude' => "نعتذر، موقعك يبعد {$distanceLabel} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى {$radiusLabel} كم)",
-                    ]);
-                }
-
-                $distanceKm = round($distance, 2);
-                $deliveryFee = $this->deliveryPricing->feeForDistance(
-                    $distance,
-                    (float) $restaurant->base_delivery_fee,
-                    (float) $restaurant->base_delivery_km,
-                    (float) $restaurant->per_km_delivery_fee,
-                );
-            } else {
-                $deliveryFee = round((float) ($restaurant->delivery_fee ?? 0), 2);
+                throw ValidationException::withMessages([
+                    'latitude' => "نعتذر، موقعك يبعد {$distanceLabel} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى {$radiusLabel} كم)",
+                ]);
             }
+
+            $distanceKm = round($distance, 2);
+            $deliveryFee = $this->deliveryPricing->feeForDistance(
+                $distance,
+                (float) $restaurant->base_delivery_fee,
+                (float) $restaurant->base_delivery_km,
+                (float) $restaurant->per_km_delivery_fee,
+            );
         }
 
         $cart = $this->cartService->get($restaurant);
@@ -439,7 +441,7 @@ class OrderController extends Controller
         if ($request->subtotal < $offer->min_order_amount) {
             return response()->json([
                 'success' => false,
-                'message' => 'الحد الأدنى للطلب لتطبيق هذا العرض هو '.number_format($offer->min_order_amount, 2).' ر.س',
+                'message' => 'الحد الأدنى للطلب لتطبيق هذا العرض هو '.number_format($offer->min_order_amount, 2).' ل.س',
             ]);
         }
 

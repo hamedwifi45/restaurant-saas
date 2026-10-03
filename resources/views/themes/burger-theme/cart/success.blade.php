@@ -101,7 +101,7 @@
                             <span class="text-2xl">🎉</span>
                             <div>
                                 <p class="font-bold">تم تطبيق خصم خاص!</p>
-                                <p class="text-sm">وفرت {{ number_format($order->discount_amount, 2) }} ر.س</p>
+                                <p class="text-sm">وفرت {{ number_format($order->discount_amount, 2) }} ل.س</p>
                             </div>
                         </div>
                     </div>
@@ -111,7 +111,7 @@
                     <div class="bg-blue-50 p-4 rounded-xl text-center">
                         <div class="text-2xl mb-1">💰</div>
                         <p class="text-xs text-gray-500">المبلغ</p>
-                        <p class="font-bold text-gray-800">{{ number_format($order->final_amount, 2) }} ر.س</p>
+                        <p class="font-bold text-gray-800">{{ number_format($order->final_amount, 2) }} ل.س</p>
                     </div>
                     <div class="bg-orange-50 p-4 rounded-xl text-center">
                         <div class="text-2xl mb-1">⏱️</div>

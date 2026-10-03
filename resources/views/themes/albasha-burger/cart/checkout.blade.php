@@ -2,6 +2,166 @@
 
 @push('head')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <script>
+        // تعريف مكون Alpine في النطاق العام قبل بدء تشغيل Alpine/Vite
+        window.checkoutPricing = function(config) {
+            return {
+                subtotal: Number(config.subtotal || 0),
+                tax: Number(config.tax || 0),
+                legacyFee: Number(config.legacyFee || 0),
+                offerDiscount: Number(config.offerDiscount || 0),
+                restaurantLatitude: Number(config.restaurantLatitude),
+                restaurantLongitude: Number(config.restaurantLongitude),
+                deliveryRadius: Number(config.deliveryRadius || 10),
+                baseDeliveryFee: Number(config.baseDeliveryFee || 2.0),
+                baseDeliveryKilometers: Number(config.baseDeliveryKilometers || 2.0),
+                feePerAdditionalKilometer: Number(config.feePerAdditionalKilometer || 0.5),
+                currency: config.currency || 'ل.س',
+                isDineIn: Boolean(config.isDineIn),
+
+                customerName: '',
+                customerPhone: '',
+                customerAddress: '',
+                customerLat: '',
+                customerLng: '',
+
+                distance: null,
+                extraKilometers: 0,
+                deliveryFeeHelper: '',
+                deliveryFee: Number(config.legacyFee || 0),
+                total: 0,
+                deliveryFeeDisplay: '',
+                totalDisplay: '',
+                isOutOfRange: false,
+                warningMessage: '',
+                couponDiscount: 0,
+                processing: false,
+
+                init() {
+                    window.checkoutPricingState = this;
+
+                    // الاستماع لأحداث الخريطة
+                    window.addEventListener('customer-location-updated', (event) => {
+                        const { latitude, longitude } = event.detail || {};
+                        if (latitude && longitude) {
+                            this.setCustomerLocation(latitude, longitude);
+                        }
+                    });
+
+                    this.syncFromForm();
+                    this.recalculate();
+                },
+
+                syncFromForm() {
+                    const form = document.getElementById('checkout-form');
+                    if (!form) return;
+                    
+                    const latInput = form.querySelector('[name="latitude"]');
+                    const lngInput = form.querySelector('[name="longitude"]');
+                    const nameInput = form.querySelector('[name="name"]');
+                    const phoneInput = form.querySelector('[name="phone"]');
+                    const addrInput = form.querySelector('[name="address"]');
+
+                    if (latInput?.value) this.customerLat = latInput.value;
+                    if (lngInput?.value) this.customerLng = lngInput.value;
+                    if (nameInput?.value) this.customerName = nameInput.value;
+                    if (phoneInput?.value) this.customerPhone = phoneInput.value;
+                    if (addrInput?.value) this.customerAddress = addrInput.value;
+                },
+
+                persistCustomer() {
+                    this.syncFromForm();
+                    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                    document.cookie = `customer_lat=${encodeURIComponent(this.customerLat || '')}; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
+                    document.cookie = `customer_lng=${encodeURIComponent(this.customerLng || '')}; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
+                },
+
+                setCustomerLocation(latitude, longitude) {
+                    this.customerLat = String(latitude);
+                    this.customerLng = String(longitude);
+
+                    const latInput = document.getElementById('latitude');
+                    const lngInput = document.getElementById('longitude');
+                    if (latInput) latInput.value = this.customerLat;
+                    if (lngInput) lngInput.value = this.customerLng;
+
+                    this.persistCustomer();
+                    this.recalculate();
+                },
+
+                recalculate() {
+                    const lat = Number(this.customerLat);
+                    const lng = Number(this.customerLng);
+                    const restLat = this.restaurantLatitude;
+                    const restLng = this.restaurantLongitude;
+
+                    const hasCustomer = this.customerLat !== '' && this.customerLng !== '' && Number.isFinite(lat) && Number.isFinite(lng);
+                    const hasRestaurant = Number.isFinite(restLat) && Number.isFinite(restLng);
+
+                    this.isOutOfRange = false;
+                    this.warningMessage = '';
+                    this.distance = null;
+                    this.extraKilometers = 0;
+
+                    if (this.isDineIn) {
+                        this.deliveryFee = 0;
+                    } else if (hasCustomer && hasRestaurant) {
+                        // حساب المسافة بدقة عبر معادلة Haversine
+                        const dLat = (lat - restLat) * Math.PI / 180;
+                        const dLng = (lng - restLng) * Math.PI / 180;
+                        const a = Math.sin(dLat / 2) ** 2 + Math.cos(restLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+                        const c = 2 * Math.atan2(Math.sqrt(Math.min(1, Math.max(0, a))), Math.sqrt(1 - Math.min(1, Math.max(0, a))));
+
+                        this.distance = 6371 * c;
+                        this.extraKilometers = Math.max(0, this.distance - this.baseDeliveryKilometers);
+                        this.deliveryFee = Math.round((this.baseDeliveryFee + (this.extraKilometers * this.feePerAdditionalKilometer)) * 100) / 100;
+
+                        if (this.distance > this.deliveryRadius) {
+                            this.isOutOfRange = true;
+                            this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${this.deliveryRadius.toFixed(2)} كم)`;
+                        }
+                    } else {
+                        this.deliveryFee = this.baseDeliveryFee;
+                    }
+
+                    this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
+                    this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${this.currency}`;
+                    this.total = this.subtotal + this.tax + this.deliveryFee - this.offerDiscount - this.couponDiscount;
+                    this.totalDisplay = `${this.total.toFixed(2)} ${this.currency}`;
+
+                    const form = document.getElementById('checkout-form');
+                    if (form) {
+                        form.dataset.outOfRange = this.isOutOfRange ? 'true' : 'false';
+                    }
+                },
+
+                formatDistance() {
+                    return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
+                },
+
+                validateSubmission(event) {
+                    this.persistCustomer();
+                    this.recalculate();
+
+                    if (this.isOutOfRange) {
+                        event.preventDefault();
+                        this.$nextTick(() => {
+                            this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        });
+                        return;
+                    }
+
+                    this.processing = true;
+                },
+
+                setCouponDiscount(discount) {
+                    this.couponDiscount = Number(discount) || 0;
+                    this.recalculate();
+                }
+            };
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endpush
 
 @section('content')
@@ -10,15 +170,15 @@
     tax: @js($baseTax),
     legacyFee: @js($deliveryFee),
     offerDiscount: @js($autoDiscount),
-    restaurantLatitude: @js($restaurant->latitude),
-    restaurantLongitude: @js($restaurant->longitude),
-    deliveryRadius: @js($restaurant->delivery_radius_km),
-    baseDeliveryFee: @js($restaurant->base_delivery_fee),
-    baseDeliveryKilometers: @js($restaurant->base_delivery_km),
-    feePerAdditionalKilometer: @js($restaurant->per_km_delivery_fee),
-    currency: @js($restaurant->currency_symbol ?? 'ر.س'),
+    restaurantLatitude: @js($restaurantLatitude),
+    restaurantLongitude: @js($restaurantLongitude),
+    deliveryRadius: @js($restaurant->delivery_radius_km ?? 10),
+    baseDeliveryFee: @js($restaurant->base_delivery_fee ?? 2.0),
+    baseDeliveryKilometers: @js($restaurant->base_delivery_km ?? 2.0),
+    feePerAdditionalKilometer: @js($restaurant->per_km_delivery_fee ?? 0.5),
+    currency: @js($restaurant->currency_symbol ?? 'ل.س'),
     isDineIn: @js((bool) $table)
-})">
+})" data-restaurant-latitude="{{ $restaurantLatitude }}" data-restaurant-longitude="{{ $restaurantLongitude }}">
     <div class="container mx-auto px-4 max-w-4xl">
         <h1 class="text-4xl font-black text-center mb-12 text-gray-800">إتمام الطلب 📝</h1>
 
@@ -46,8 +206,8 @@
                         <div id="checkout-map" class="mt-3 h-64 rounded-xl border border-gray-200"></div>
                         <p id="map-status" class="mt-2 text-sm text-gray-500">اضغط على الخريطة لتحديد موقع المنزل.</p>
                         <button type="button" id="use-current-location" class="mt-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">تحديد موقعي الحالي</button>
-                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}" x-model="lat" @input="persistCustomer(); recalculate()" required>
-                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}" x-model="lng" @input="persistCustomer(); recalculate()" required>
+                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}" x-model="customerLat" @input="persistCustomer(); recalculate()" required>
+                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}" x-model="customerLng" @input="persistCustomer(); recalculate()" required>
                     </div>@endif
                 </div>
 
@@ -58,22 +218,22 @@
                     <div class="space-y-2 mb-4">
                         <div class="flex justify-between">
                             <span>المجموع الفرعي:</span>
-                            <span id="subtotal-display">{{ number_format($baseSubtotal, 2) }} ر.س</span>
+                            <span id="subtotal-display">{{ number_format($baseSubtotal, 2) }} ل.س</span>
                         </div>
                         <div class="flex justify-between">
                             <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
-                            <span id="tax-display">{{ number_format($baseTax, 2) }} ر.س</span>
+                            <span id="tax-display">{{ number_format($baseTax, 2) }} ل.س</span>
                         </div>
                         <div class="flex justify-between text-sm text-gray-600">
                             <span>المسافة إلى المطعم:</span>
-                            <span x-text="formatDistance() || 'جاري التحديد...'">جاري التحديد...</span>
+                            <span x-text="formatDistance() || 'حدد موقع التوصيل'">حدد موقع التوصيل</span>
                         </div>
                         <div class="flex justify-between">
                             <span>رسوم التوصيل:</span>
-                            <span class="text-right"><span id="delivery-display" x-text="deliveryFeeDisplay">{{ number_format($deliveryFee, 2) }} ر.س</span><small x-cloak x-show="extraKilometers > 0" x-text="deliveryFeeHelper" class="block text-xs font-normal text-gray-500"></small></span>
+                            <span class="text-right"><span id="delivery-display" x-text="deliveryFeeDisplay">{{ number_format($deliveryFee, 2) }} ل.س</span><small x-cloak x-show="extraKilometers > 0" x-text="deliveryFeeHelper" class="block text-xs font-normal text-gray-500"></small></span>
                         </div>
                         <template x-if="warningMessage.length > 0">
-                            <div x-cloak x-ref="geofenceAlert" x-text="warningMessage" class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert"></div>
+                            <div x-cloak x-show="isOutOfRange" x-ref="geofenceAlert" x-text="warningMessage" class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert"></div>
                         </template>
                         
                         <!-- قسم العروض التلقائية -->
@@ -81,7 +241,7 @@
                             <div class="border-t pt-2 mt-2">
                                 <div class="flex justify-between text-green-600 font-bold">
                                     <span>🎉 عرض خاص ({{ $activeOffer->title }}):</span>
-                                    <span id="offer-discount-display">- {{ number_format($autoDiscount, 2) }} ر.س</span>
+                                    <span id="offer-discount-display">- {{ number_format($autoDiscount, 2) }} ل.س</span>
                                 </div>
                             </div>
                         @endif
@@ -90,7 +250,7 @@
                         <div id="coupon-section" class="hidden border-t pt-2 mt-2">
                             <div class="flex justify-between text-blue-600 font-bold">
                                 <span id="coupon-label">🎫 كوبون الخصم:</span>
-                                <span id="coupon-amount">- 0.00 ر.س</span>
+                                <span id="coupon-amount">- 0.00 ل.س</span>
                             </div>
                             <button type="button" onclick="removeCoupon()" class="text-xs text-red-500 hover:underline mt-1">
                                 إزالة الكوبون
@@ -99,7 +259,7 @@
                         
                         <div class="flex justify-between text-xl font-black text-primary mt-4 pt-4 border-t">
                             <span>الإجمالي:</span>
-                            <span id="final-total" x-text="totalDisplay">{{ number_format($initialFinalTotal, 2) }} ر.س</span>
+                            <span id="final-total" x-text="totalDisplay">{{ number_format($initialFinalTotal, 2) }} ل.س</span>
                         </div>
                     </div>
 
@@ -153,7 +313,7 @@
             <input type="hidden" name="coupon_id" id="selected-coupon-id" value="">
             <input type="hidden" name="coupon_code" id="selected-coupon-code" value="">
 
-            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition" :disabled="processing || isOutOfRange" :class="{ 'cursor-not-allowed opacity-50': isOutOfRange }">تأكيد الطلب ✅</button>
+            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition" :disabled="processing || isOutOfRange" :class="{'cursor-not-allowed opacity-50': isOutOfRange}">تأكيد الطلب ✅</button>
         </form>
         <div id="checkout-processing" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50" role="status" aria-live="assertive" aria-hidden="true">
             <div class="flex items-center gap-4 rounded-xl bg-white px-6 py-5 text-gray-800 shadow-xl">
@@ -167,55 +327,137 @@
 @if(!$table)<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>@endif
 
 <script>
-    document.getElementById('checkout-form').addEventListener('submit', function () {
+    document.getElementById('checkout-form')?.addEventListener('submit', function (e) {
         if (this.dataset.outOfRange === 'true') {
-            return;
+            e.preventDefault();
+            return false;
         }
 
         const overlay = document.getElementById('checkout-processing');
         const submitButton = this.querySelector('[type="submit"]');
 
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        overlay.setAttribute('aria-hidden', 'false');
-        submitButton.disabled = true;
-        submitButton.textContent = 'جارٍ معالجة الطلب...';
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'جارٍ معالجة الطلب...';
+        }
     });
 
     @if(!$table)
-    const restaurantLatitude = @js($restaurant->latitude);
-    const restaurantLongitude = @js($restaurant->longitude);
-    const defaultLocation = [
-        restaurantLatitude === null ? 33.5138 : Number(restaurantLatitude),
-        restaurantLongitude === null ? 36.2765 : Number(restaurantLongitude)
-    ];
-    const checkoutMap = L.map('checkout-map', { maxZoom: 19 }).setView(defaultLocation, 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(checkoutMap);
+    const restaurantLatitude = Number(@js($restaurantLatitude));
+    const restaurantLongitude = Number(@js($restaurantLongitude));
+    const defaultLocation = [restaurantLatitude, restaurantLongitude];
+
+    const checkoutMap = L.map('checkout-map', { maxZoom: 19 }).setView(defaultLocation, 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19, 
+        attribution: '&copy; OpenStreetMap' 
+    }).addTo(checkoutMap);
+
+    const restaurantMarkerIcon = L.divIcon({
+        className: 'restaurant-map-marker',
+        html: '<svg viewBox="0 0 32 42" width="32" height="42" aria-hidden="true"><path d="M16 1C7.7 1 1 7.7 1 16c0 10 15 25 15 25s15-15 15-25C31 7.7 24.3 1 16 1z" fill="#dc2626"/><circle cx="16" cy="16" r="5" fill="white"/></svg>',
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
+        popupAnchor: [0, -38]
+    });
+
+    const customerMarkerIcon = L.divIcon({
+        className: 'customer-map-marker',
+        html: '<svg viewBox="0 0 32 42" width="32" height="42" aria-hidden="true"><path d="M16 1C7.7 1 1 7.7 1 16c0 10 15 25 15 25s15-15 15-25C31 7.7 24.3 1 16 1z" fill="#2563eb"/><circle cx="16" cy="16" r="5" fill="white"/></svg>',
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
+        popupAnchor: [0, -38]
+    });
+
+    L.marker(defaultLocation, { icon: restaurantMarkerIcon, keyboard: false })
+        .addTo(checkoutMap)
+        .bindPopup('موقع المطعم');
+
+    const radiusKm = Number(@js($restaurant->delivery_radius_km ?? 10));
+    L.circle(defaultLocation, {
+        color: '#dc2626',
+        fillColor: '#ef4444',
+        fillOpacity: 0.1,
+        radius: radiusKm * 1000
+    }).addTo(checkoutMap);
+
     let checkoutMarker;
     let hasRestoredCheckoutLocation = false;
 
-    function setCheckoutLocation(latitude, longitude) {
+    function setCheckoutLocation(latitude, longitude, recenterMap = true) {
         hasRestoredCheckoutLocation = true;
-        checkoutMap.setView([latitude, longitude], 18);
-        document.getElementById('latitude').value = latitude;
-        document.getElementById('longitude').value = longitude;
-        document.getElementById('latitude').dispatchEvent(new Event('input', { bubbles: true }));
-        document.getElementById('longitude').dispatchEvent(new Event('input', { bubbles: true }));
-        document.getElementById('map-status').textContent = `تم تحديد الموقع: ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        // التقريب وإعادة تركيز الكاميرا بمرونة على الموقع المحدد
+        if (recenterMap) {
+            checkoutMap.flyTo([lat, lng], 16, {
+                animate: true,
+                duration: 0.8
+            });
+        }
+
         if (!checkoutMarker) {
-            checkoutMarker = L.marker([latitude, longitude], { draggable: true }).addTo(checkoutMap);
-            checkoutMarker.on('dragend', (event) => {
-                const location = event.target.getLatLng();
-                setCheckoutLocation(location.lat, location.lng);
+            checkoutMarker = L.marker([lat, lng], { draggable: true, icon: customerMarkerIcon })
+                .addTo(checkoutMap)
+                .bindPopup('موقع التوصيل الخاص بك');
+
+            checkoutMarker.on('drag', (e) => {
+                const pos = e.target.getLatLng();
+                updateLocationAndPricing(pos.lat, pos.lng);
+            });
+
+            checkoutMarker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                updateLocationAndPricing(pos.lat, pos.lng);
             });
         } else {
-            checkoutMarker.setLatLng([latitude, longitude]);
+            checkoutMarker.setLatLng([lat, lng]);
+        }
+
+        updateLocationAndPricing(lat, lng);
+    }
+
+    function updateLocationAndPricing(latitude, longitude) {
+        const latStr = String(latitude);
+        const lngStr = String(longitude);
+        
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+        const statusText = document.getElementById('map-status');
+
+        if (latInput) latInput.value = latStr;
+        if (lngInput) lngInput.value = lngStr;
+
+        if (statusText) {
+            statusText.textContent = `تم تحديد الموقع: ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+        }
+
+        if (window.checkoutPricingState) {
+            window.checkoutPricingState.setCustomerLocation(latitude, longitude);
+        } else {
+            window.dispatchEvent(new CustomEvent('customer-location-updated', {
+                detail: { latitude: Number(latitude), longitude: Number(longitude) }
+            }));
         }
     }
 
-    checkoutMap.on('click', (event) => setCheckoutLocation(event.latlng.lat, event.latlng.lng));
+    checkoutMap.on('click', (event) => {
+        setCheckoutLocation(event.latlng.lat, event.latlng.lng, true);
+    });
+
     function showManualLocationHint() {
-        document.getElementById('map-status').textContent = 'يمكنك سحب الدبوس أو النقرات على الخريطة لتحديد موقعك مباشرة';
+        const statusText = document.getElementById('map-status');
+        if (statusText) {
+            statusText.textContent = 'يمكنك سحب الدبوس أو النقر على الخريطة لتحديد موقعك مباشرة';
+        }
     }
 
     function requestCurrentLocation(force = false) {
@@ -227,63 +469,53 @@
         try {
             navigator.geolocation.getCurrentPosition((position) => {
                 if (hasRestoredCheckoutLocation && !force) return;
-                setCheckoutLocation(position.coords.latitude, position.coords.longitude);
-            }, (error) => {
-                if (error.code === 1) {
-                    showManualLocationHint();
-                    return;
-                }
-
+                setCheckoutLocation(position.coords.latitude, position.coords.longitude, true);
+            }, () => {
                 showManualLocationHint();
-            }, { enableHighAccuracy: true });
+            }, { enableHighAccuracy: true, timeout: 5000 });
         } catch {
             showManualLocationHint();
         }
     }
 
-    document.getElementById('use-current-location').addEventListener('click', () => requestCurrentLocation(true));
-    window.addEventListener('checkout-customer-cookies-restored', (event) => {
-        const { latitude, longitude } = event.detail;
-        const restoredLatitude = Number(latitude);
-        const restoredLongitude = Number(longitude);
-        if (latitude !== '' && longitude !== ''
-            && Number.isFinite(restoredLatitude) && Number.isFinite(restoredLongitude)
-            && Math.abs(restoredLatitude) <= 90 && Math.abs(restoredLongitude) <= 180) {
-            hasRestoredCheckoutLocation = true;
-            setCheckoutLocation(restoredLatitude, restoredLongitude);
-        }
-    });
-    const initialLatitude = Number(document.getElementById('latitude').value);
-    const initialLongitude = Number(document.getElementById('longitude').value);
-    if (document.getElementById('latitude').value !== '' && document.getElementById('longitude').value !== ''
+    document.getElementById('use-current-location')?.addEventListener('click', () => requestCurrentLocation(true));
+
+    const initialLatInput = document.getElementById('latitude');
+    const initialLngInput = document.getElementById('longitude');
+    const initialLatitude = Number(initialLatInput?.value);
+    const initialLongitude = Number(initialLngInput?.value);
+
+    if (initialLatInput?.value && initialLngInput?.value
         && Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)
         && Math.abs(initialLatitude) <= 90 && Math.abs(initialLongitude) <= 180) {
         hasRestoredCheckoutLocation = true;
-        setCheckoutLocation(initialLatitude, initialLongitude);
+        setCheckoutLocation(initialLatitude, initialLongitude, true);
     }
-    if (!document.getElementById('latitude').value) {
+
+    if (!initialLatInput?.value) {
         requestCurrentLocation();
     }
     @endif
 
+    // معالجة العروض والكوبونات
     let appliedCouponId = null;
     let couponDiscount = 0;
-    
     const subtotal = {{ $baseSubtotal }};
 
     async function applyCouponCode() {
-        const code = document.getElementById('coupon-code-input').value.trim();
-        const messageDiv = document.getElementById('coupon-message');
+        const code = document.getElementById('coupon-code-input')?.value.trim();
         const applyBtn = document.getElementById('apply-coupon-btn');
-        const customerPhone = document.getElementById('customer-phone').value;
+        const customerPhone = document.getElementById('customer-phone')?.value;
 
         if (!code) {
             showCouponMessage('الرجاء إدخال كود الخصم', 'error');
             return;
         }
 
-        applyBtn.disabled = true;
-        applyBtn.innerHTML = '<span class="animate-spin">⏳</span>';
+        if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<span class="animate-spin">⏳</span>';
+        }
 
         try {
             const response = await axios.post('{{ route("coupon.apply", $restaurant->slug) }}', {
@@ -296,15 +528,20 @@
                 appliedCouponId = response.data.coupon_id;
                 couponDiscount = response.data.discount_amount;
 
-                document.getElementById('selected-coupon-id').value = response.data.coupon_id;
-                document.getElementById('selected-coupon-code').value = response.data.coupon_code;
+                const selectedCouponId = document.getElementById('selected-coupon-id');
+                const selectedCouponCode = document.getElementById('selected-coupon-code');
+                if (selectedCouponId) selectedCouponId.value = response.data.coupon_id;
+                if (selectedCouponCode) selectedCouponCode.value = response.data.coupon_code;
                 
-                document.getElementById('coupon-section').classList.remove('hidden');
-                document.getElementById('coupon-label').textContent = '🎫 كوبون الخصم (' + response.data.coupon_code + '):';
-                document.getElementById('coupon-amount').textContent = '- ' + couponDiscount.toFixed(2) + ' ر.س';
+                const couponSection = document.getElementById('coupon-section');
+                const couponLabel = document.getElementById('coupon-label');
+                const couponAmount = document.getElementById('coupon-amount');
+
+                if (couponSection) couponSection.classList.remove('hidden');
+                if (couponLabel) couponLabel.textContent = '🎫 كوبون الخصم (' + response.data.coupon_code + '):';
+                if (couponAmount) couponAmount.textContent = '- ' + couponDiscount.toFixed(2) + ' ل.س';
                 
                 updateFinalTotal();
-
                 showCouponMessage(response.data.message, 'success');
             } else {
                 showCouponMessage(response.data.message, 'error');
@@ -312,8 +549,10 @@
         } catch (error) {
             showCouponMessage(error.response?.data?.message || 'حدث خطأ، حاول مرة أخرى', 'error');
         } finally {
-            applyBtn.disabled = false;
-            applyBtn.innerHTML = 'تطبيق';
+            if (applyBtn) {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = 'تطبيق';
+            }
         }
     }
 
@@ -321,11 +560,17 @@
         appliedCouponId = null;
         couponDiscount = 0;
         
-        document.getElementById('selected-coupon-id').value = '';
-        document.getElementById('selected-coupon-code').value = '';
-        document.getElementById('coupon-section').classList.add('hidden');
-        document.getElementById('coupon-code-input').value = '';
-        document.getElementById('coupon-message').classList.add('hidden');
+        const selectedCouponId = document.getElementById('selected-coupon-id');
+        const selectedCouponCode = document.getElementById('selected-coupon-code');
+        const couponSection = document.getElementById('coupon-section');
+        const couponCodeInput = document.getElementById('coupon-code-input');
+        const couponMessage = document.getElementById('coupon-message');
+
+        if (selectedCouponId) selectedCouponId.value = '';
+        if (selectedCouponCode) selectedCouponCode.value = '';
+        if (couponSection) couponSection.classList.add('hidden');
+        if (couponCodeInput) couponCodeInput.value = '';
+        if (couponMessage) couponMessage.classList.add('hidden');
         
         updateFinalTotal();
     }
@@ -336,9 +581,11 @@
 
     function showCouponMessage(message, type) {
         const messageDiv = document.getElementById('coupon-message');
-        messageDiv.textContent = message;
-        messageDiv.className = 'text-sm mt-2 ' + (type === 'success' ? 'text-green-600' : 'text-red-600');
-        messageDiv.classList.remove('hidden');
+        if (messageDiv) {
+            messageDiv.textContent = message;
+            messageDiv.className = 'text-sm mt-2 ' + (type === 'success' ? 'text-green-600' : 'text-red-600');
+            messageDiv.classList.remove('hidden');
+        }
     }
 </script>
 @endsection

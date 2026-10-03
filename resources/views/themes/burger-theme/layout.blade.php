@@ -269,7 +269,7 @@
                                             <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover bg-gray-100">
                                             <div class="flex-1 min-w-0">
                                                 <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}</h4>
-                                                <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ر.س × {{ $cartQty }}</p>
+                                                <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ل.س × {{ $cartQty }}</p>
                                             </div>
                                         </div>
                                     @endif
@@ -286,7 +286,7 @@
                                 <div class="flex justify-between mb-3 text-sm font-bold text-gray-700">
                                     <span>المجموع:</span>
                                     <span id="mini-cart-total">
-                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['quantity'] ?? 0); }), 2) }} ر.س
+                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['quantity'] ?? 0); }), 2) }} ل.س
                                     </span>
                                 </div>
                                 <a href="{{ route('cart.index', $restaurant->slug) }}" class="block w-full btn-primary text-center py-2.5 rounded-xl text-sm font-bold hover:shadow-md transition">
@@ -575,13 +575,13 @@
                 setTimeout(() => badge.classList.remove('scale-125'), 200);
             }
             if (miniCount) miniCount.innerText = `${data.count} عناصر`;
-            if (miniCartTotal) miniCartTotal.innerText = `${data.total} ر.س`;
+            if (miniCartTotal) miniCartTotal.innerText = `${data.total} ل.س`;
 
             if (miniCartItems && data.items) {
                 miniCartItems.style.opacity = '0';
                 setTimeout(() => {
                     miniCartItems.innerHTML = data.items.length
-                        ? data.items.map(item => `<div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition"><div class="flex-1 min-w-0"><h4 class="text-sm font-bold text-gray-800 truncate">${escapeCartHtml(item.name)}</h4><p class="text-xs text-primary font-bold">${Number(item.price).toFixed(2)} ر.س × ${item.quantity}</p></div><p class="text-xs font-bold text-gray-700">${Number(item.subtotal).toFixed(2)} ر.س</p></div>`).join('')
+                        ? data.items.map(item => `<div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition"><div class="flex-1 min-w-0"><h4 class="text-sm font-bold text-gray-800 truncate">${escapeCartHtml(item.name)}</h4><p class="text-xs text-primary font-bold">${Number(item.price).toFixed(2)} ل.س × ${item.quantity}</p></div><p class="text-xs font-bold text-gray-700">${Number(item.subtotal).toFixed(2)} ل.س</p></div>`).join('')
                         : '<div class="text-center py-8 px-4"><div class="text-4xl mb-2">🍽️</div><p class="text-gray-500 text-sm font-medium">السلة فارغة حالياً</p><p class="text-gray-400 text-xs mt-1">ابدأ بإضافة منتجات لذيذة</p></div>';
                     miniCartItems.style.opacity = '1';
                     miniCartItems.style.transition = 'opacity 0.3s ease-in-out';
@@ -594,11 +594,11 @@
             const menuItems = document.getElementById('cart-items-list');
 
             if (menuCount) menuCount.innerText = `${data.count} وجبة في الطلب`;
-            if (menuTotal) menuTotal.innerText = `${Number(data.grand_total ?? data.total).toFixed(2)} ر.س`;
+            if (menuTotal) menuTotal.innerText = `${Number(data.grand_total ?? data.total).toFixed(2)} ل.س`;
             if (menuTotalDetail) menuTotalDetail.innerText = Number(data.grand_total ?? data.total).toFixed(2);
             if (menuItems && data.items) {
                 menuItems.innerHTML = data.items.length
-                    ? data.items.map(item => `<div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0"><div class="min-w-0"><p class="truncate font-bold text-gray-800">${escapeCartHtml(item.name)}</p><p class="text-xs text-gray-500">${item.quantity} × ${Number(item.price).toFixed(2)} ر.س</p></div><p class="font-bold text-primary">${Number(item.subtotal).toFixed(2)} ر.س</p></div>`).join('')
+                    ? data.items.map(item => `<div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0"><div class="min-w-0"><p class="truncate font-bold text-gray-800">${escapeCartHtml(item.name)}</p><p class="text-xs text-gray-500">${item.quantity} × ${Number(item.price).toFixed(2)} ل.س</p></div><p class="font-bold text-primary">${Number(item.subtotal).toFixed(2)} ل.س</p></div>`).join('')
                     : '<p class="py-2 text-center text-sm text-gray-500">لم تتم إضافة وجبات بعد</p>';
             }
         }

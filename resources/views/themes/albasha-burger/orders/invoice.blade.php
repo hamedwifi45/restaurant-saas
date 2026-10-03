@@ -89,8 +89,8 @@
                                     @endif
                                 </td>
                                 <td class="text-center py-4 px-4 font-bold text-gray-800">{{ $item->quantity }}</td>
-                                <td class="text-center py-4 px-4 text-gray-600">{{ number_format($item->price, 2) }} ر.س</td>
-                                <td class="text-left py-4 px-4 font-bold text-gray-800">{{ number_format($item->total, 2) }} ر.س</td>
+                                <td class="text-center py-4 px-4 text-gray-600">{{ number_format($item->price, 2) }} ل.س</td>
+                                <td class="text-left py-4 px-4 font-bold text-gray-800">{{ number_format($item->total, 2) }} ل.س</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -103,7 +103,7 @@
             <div class="space-y-3">
                 <div class="flex justify-between text-gray-700">
                     <span>المجموع الفرعي:</span>
-                    <span class="font-bold">{{ number_format($order->subtotal, 2) }} ر.س</span>
+                    <span class="font-bold">{{ number_format($order->subtotal, 2) }} ل.س</span>
                 </div>
                 
                 @if($order->discount > 0)
@@ -115,7 +115,7 @@
                                 🎉 خصم العرض:
                             @endif
                         </span>
-                        <span class="font-bold">- {{ number_format($order->discount, 2) }} ر.س</span>
+                        <span class="font-bold">- {{ number_format($order->discount, 2) }} ل.س</span>
                     </div>
                 @endif
 
@@ -128,23 +128,23 @@
                             @endif
                             :
                         </span>
-                        <span class="font-bold">- {{ number_format($order->coupon_discount, 2) }} ر.س</span>
+                        <span class="font-bold">- {{ number_format($order->coupon_discount, 2) }} ل.س</span>
                     </div>
                 @endif
 
                 <div class="flex justify-between text-gray-700">
                     <span>رسوم التوصيل:</span>
-                    <span class="font-bold">{{ number_format($order->delivery_fee, 2) }} ر.س</span>
+                    <span class="font-bold">{{ number_format($order->delivery_fee, 2) }} ل.س</span>
                 </div>
 
                 <div class="flex justify-between text-gray-700">
                     <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
-                    <span class="font-bold">{{ number_format($order->final_amount - $order->subtotal - $order->delivery_fee + $order->discount + $order->coupon_discount, 2) }} ر.س</span>
+                    <span class="font-bold">{{ number_format($order->final_amount - $order->subtotal - $order->delivery_fee + $order->discount + $order->coupon_discount, 2) }} ل.س</span>
                 </div>
 
                 <div class="border-t-2 border-gray-300 pt-3 mt-3 flex justify-between text-2xl font-black text-primary">
                     <span>الإجمالي النهائي:</span>
-                    <span>{{ number_format($order->final_amount, 2) }} ر.س</span>
+                    <span>{{ number_format($order->final_amount, 2) }} ل.س</span>
                 </div>
             </div>
         </div>

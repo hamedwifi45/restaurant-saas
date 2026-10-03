@@ -5,12 +5,11 @@ namespace App\Filament\Sham\Resources\Coupons\Schemas;
 use App\Models\Product;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-
 
 class CouponForm
 {
@@ -29,21 +28,21 @@ class CouponForm
                             ->placeholder('مثال: SAVE20')
                             ->helperText('الكود الذي سيدخله الزبون (بالأحرف الكبيرة)')
                             ->columnSpan(2),
-                        
+
                         TextInput::make('name')
                             ->label('اسم الكوبون (داخلي)')
                             ->maxLength(255)
                             ->placeholder('مثال: كوبون رمضان')
                             ->helperText('اسم وصفي لك فقط، لا يظهر للزبون')
                             ->columnSpan(2),
-                        
+
                         Textarea::make('description')
                             ->label('وصف الكوبون')
                             ->rows(2)
                             ->maxLength(500)
                             ->placeholder('وصف اختياري للكوبون')
                             ->columnSpanFull(),
-                        
+
                         Toggle::make('is_active')
                             ->label('نشط')
                             ->default(true)
@@ -57,13 +56,13 @@ class CouponForm
                             ->label('نوع الخصم')
                             ->options([
                                 'percentage' => 'نسبة مئوية (%)',
-                                'fixed_amount' => 'مبلغ ثابت (ر.س)',
+                                'fixed_amount' => 'مبلغ ثابت (ل.س)',
                             ])
                             ->required()
                             ->reactive()
                             ->default('percentage')
                             ->columnSpan(2),
-                        
+
                         TextInput::make('value')
                             ->label('قيمة الخصم')
                             ->numeric()
@@ -73,15 +72,15 @@ class CouponForm
                             ->default(0)
                             ->placeholder('0')
                             ->helperText(function ($get) {
-                                return match($get('type')) {
+                                return match ($get('type')) {
                                     'percentage' => 'النسبة المئوية (مثال: 20)',
                                     'fixed_amount' => 'المبلغ بالريال (مثال: 10)',
                                 };
                             })
                             ->columnSpan(2),
-                        
+
                         TextInput::make('min_order_amount')
-                            ->label('الحد الأدنى للطلب (ر.س)')
+                            ->label('الحد الأدنى للطلب (ل.س)')
                             ->numeric()
                             ->default(0)
                             ->minValue(0)
@@ -100,7 +99,7 @@ class CouponForm
                             ->placeholder('غير محدود')
                             ->helperText('كم مرة يمكن استخدام هذا الكوبون إجمالاً؟')
                             ->columnSpan(2),
-                        
+
                         TextInput::make('max_uses_per_user')
                             ->label('الحد الأقصى لكل زبون')
                             ->numeric()
@@ -119,7 +118,7 @@ class CouponForm
                             ->minDate(now())
                             ->helperText('اتركه فارغاً للبدء فوراً')
                             ->columnSpan(2),
-                        
+
                         DateTimePicker::make('ends_at')
                             ->label('تاريخ النهاية')
                             ->native(false)
@@ -138,11 +137,12 @@ class CouponForm
                             ->reactive()
                             ->helperText('إذا تم تعطيله، يمكنك اختيار منتجات محددة')
                             ->columnSpanFull(),
-                        
+
                         Select::make('product_ids')
                             ->label('اختر المنتجات')
                             ->options(function () {
                                 $restaurantId = auth()->user()->restaurant_id;
+
                                 return Product::where('restaurant_id', $restaurantId)
                                     ->pluck('name', 'id')
                                     ->toArray();
@@ -150,16 +150,16 @@ class CouponForm
                             ->multiple()
                             ->preload()
                             ->searchable()
-                            ->visible(fn($get) => !$get('apply_to_all'))
+                            ->visible(fn ($get) => ! $get('apply_to_all'))
                             ->helperText('اختر المنتجات التي ينطبق عليها الكوبون')
                             ->columnSpanFull(),
                     ]),
 
                 // حقول مخفية
                 TextInput::make('restaurant_id')
-                    ->default(fn() => auth()->user()->restaurant_id)
+                    ->default(fn () => auth()->user()->restaurant_id)
                     ->hidden(),
-                
+
                 TextInput::make('used_count')
                     ->default(0)
                     ->hidden(),

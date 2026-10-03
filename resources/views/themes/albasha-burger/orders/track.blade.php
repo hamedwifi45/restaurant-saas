@@ -123,25 +123,25 @@
                         <div class="space-y-3">
                             <div class="flex justify-between text-gray-600">
                                 <span>المجموع الفرعي:</span>
-                                <span>{{ number_format($order->total_amount, 2) }} ر.س</span>
+                                <span>{{ number_format($order->total_amount, 2) }} ل.س</span>
                             </div>
 
                             <div class="flex justify-between text-gray-600">
                                 <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪):</span>
-                                <span>{{ number_format($order->tax_amount ?? 0, 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
+                                <span>{{ number_format($order->tax_amount ?? 0, 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</span>
                             </div>
 
                             @if(($order->delivery_fee ?? 0) > 0)
                                 <div class="flex justify-between text-gray-600">
                                     <span>رسوم التوصيل:</span>
-                                    <span>{{ number_format($order->delivery_fee, 2) }} ر.س</span>
+                                    <span>{{ number_format($order->delivery_fee, 2) }} ل.س</span>
                                 </div>
                             @endif
 
                             @if(($order->discount ?? 0) > 0)
                                 <div class="flex justify-between text-green-600 font-bold">
                                     <span>الخصم:</span>
-                                    <span>- {{ number_format($order->discount, 2) }} ر.س</span>
+                                    <span>- {{ number_format($order->discount, 2) }} ل.س</span>
                                 </div>
                             @endif
 
@@ -179,7 +179,7 @@
                                     @if($item->product)
                                         <h4 class="font-bold text-lg text-gray-800">{{ $item->product->name }}</h4>
                                         <p class="text-sm text-gray-500">
-                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س
+                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ل.س
                                         </p>
 
                                         <a href="{{ route('product.show', [$restaurant->slug, $item->product->id]) }}"
@@ -189,14 +189,14 @@
                                     @else
                                         <h4 class="font-bold text-lg text-gray-800">منتج محذوف</h4>
                                         <p class="text-sm text-gray-500">
-                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ر.س
+                                            الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ل.س
                                         </p>
                                         <p class="text-xs text-red-500 mt-1">هذا المنتج لم يعد متاحاً</p>
                                     @endif
                                 </div>
                             </div>
 
-                            <span class="font-black text-xl text-gray-800">{{ number_format($item->total, 2) }} ر.س</span>
+                            <span class="font-black text-xl text-gray-800">{{ number_format($item->total, 2) }} ل.س</span>
                         </div>
                     @endforeach
                 </div>

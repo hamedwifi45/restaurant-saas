@@ -44,7 +44,7 @@
                             <!-- تفاصيل المنتج -->
                             <div class="flex-1">
                                 <h3 class="text-xl font-bold text-gray-800">{{ $item['product']->name }}</h3>
-                                <p class="text-primary font-bold mt-1">{{ number_format($item['price'], 2) }} ر.س</p>
+                                <p class="text-primary font-bold mt-1">{{ number_format($item['price'], 2) }} ل.س</p>
                             </div>
 
                             <!-- التحكم بالكمية -->
@@ -81,21 +81,21 @@
                         <div class="space-y-4 mb-6">
                             <div class="flex justify-between text-gray-600">
                                 <span>المجموع الفرعي</span>
-                                <span>{{ number_format($total, 2) }} ر.س</span>
+                                <span>{{ number_format($total, 2) }} ل.س</span>
                             </div>
                             <div class="flex justify-between text-gray-600">
                                 <span>التوصيل</span>
                                 <span class="{{ $deliveryFee > 0 ? 'font-bold' : 'text-green-600 font-bold' }}">
-                                    {{ $deliveryFee > 0 ? number_format($deliveryFee, 2).' '.($restaurant->currency_symbol ?? 'ر.س') : 'مجاني' }}
+                                    {{ $deliveryFee > 0 ? number_format($deliveryFee, 2).' '.($restaurant->currency_symbol ?? 'ل.س') : 'مجاني' }}
                                 </span>
                             </div>
                             <div class="flex justify-between text-gray-600">
                                 <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪)</span>
-                                <span>{{ number_format($total * (($restaurant->tax_percentage ?? 0) / 100), 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
+                                <span>{{ number_format($total * (($restaurant->tax_percentage ?? 0) / 100), 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</span>
                             </div>
                             <div class="border-t pt-4 flex justify-between text-xl font-black text-gray-800">
                                 <span>الإجمالي</span>
-                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)) + $deliveryFee, 2) }} {{ $restaurant->currency_symbol ?? 'ر.س' }}</span>
+                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)) + $deliveryFee, 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</span>
                             </div>
                         </div>
 

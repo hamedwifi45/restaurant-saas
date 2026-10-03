@@ -84,7 +84,7 @@ class Offer extends Model
     {
         return match ($this->type) {
             'percentage' => "خصم {$this->value}%",
-            'fixed_amount' => "خصم {$this->value} ر.س",
+            'fixed_amount' => "خصم {$this->value} ل.س",
             'free_product' => 'منتج مجاني',
             'free_shipping' => 'شحن مجاني',
         };
