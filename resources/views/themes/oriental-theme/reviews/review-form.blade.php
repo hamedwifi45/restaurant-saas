@@ -20,7 +20,7 @@
                     @error('rating')<p class="mt-2 text-center text-sm text-red-700">{{ $message }}</p>@enderror
                 </fieldset>
                 <div><label for="review-comment" class="mb-2 block font-bold">تعليقك (اختياري)</label><textarea id="review-comment" name="comment" rows="4" maxlength="2000" class="w-full rounded-xl border border-stone-300 px-4 py-3 focus:border-amber-800 focus:outline-none" placeholder="أخبرنا عن تجربتك...">{{ old('comment') }}</textarea></div>
-                <div class="flex flex-col gap-3 sm:flex-row"><button type="submit" class="oriental-button min-h-12 flex-1 rounded-xl px-5 py-3 font-black">إرسال التقييم</button><a href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}" class="rounded-xl border border-stone-300 px-5 py-3 text-center font-bold">عودة إلى الطلب</a></div>
+                <div class="flex flex-col gap-3 sm:flex-row"><button type="submit" class="oriental-button min-h-12 flex-1 rounded-xl px-5 py-3 font-black">إرسال التقييم</button><a href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}" class="rounded-xl border border-stone-300 px-5 py-3 text-center font-bold">عودة إلى الطلب</a></div>
             </form>
         </div>
     </section>

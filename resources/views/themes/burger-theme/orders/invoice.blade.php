@@ -5,7 +5,7 @@
 <!-- أزرار التحكم (تظهر فقط على الشاشة) -->
 <div class="bg-gray-100 py-4 print:hidden">
     <div class="container mx-auto px-4 flex justify-between items-center">
-        <a href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}" 
+        <a href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
            class="text-primary hover:underline font-bold">
             ← العودة لتتبع الطلب
         </a>

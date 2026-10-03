@@ -85,7 +85,7 @@
                             إرسال التقييم ✅
                         </button>
                         <a 
-                            href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}"
+                            href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
                             class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-bold text-center transition"
                         >
                             إلغاء

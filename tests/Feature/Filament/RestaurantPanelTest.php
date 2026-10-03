@@ -25,8 +25,10 @@ it('loads the custom restaurant dashboard page for authenticated users', functio
 
     $response = $this->actingAs($user)->get('/restaurant');
 
-    $response->assertOk();
-    $response->assertSee('لوحة التحكم');
+    $response->assertOk()
+        ->assertSee('لوحة التحكم')
+        ->assertSee('لوحة التوصيل والمندوبين')
+        ->assertSee(route('driver.dashboard', ['slug' => $user->restaurant->slug]), false);
 });
 
 it('renders dashboard figures from the authenticated restaurant orders', function () {

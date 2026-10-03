@@ -123,7 +123,7 @@
                 <!-- أزرار التنقل -->
                 <div class="flex gap-3">
                     <a 
-                        href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}"
+                        href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
                         class="flex-1 btn-primary py-3 rounded-xl font-bold text-center hover:shadow-lg transition"
                     >
                         تتبع الطلب 🚚
@@ -153,7 +153,7 @@
 <script>
     // 1. توليد QR Code عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', function() {
-        const trackUrl = "{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}";
+        const trackUrl = "{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}";
         
         new QRCode(document.getElementById("qrcode"), {
             text: trackUrl,
@@ -194,7 +194,7 @@
 
     // 4. مشاركة QR Code (عبر Web Share API)
     async function shareQRCode() {
-        const trackUrl = "{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}";
+        const trackUrl = "{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}";
         const shareData = {
             title: 'تتبع طلبي من {{ $restaurant->name }}',
             text: `تتبع طلبك برمز: {{ $order->tracking_code }}`,

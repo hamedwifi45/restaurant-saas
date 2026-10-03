@@ -57,7 +57,27 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('access-kds', fn (User $user): bool => in_array($user->role, ['restaurant_admin', 'kitchen_staff'], true)
             && ($user->restaurant?->hasFeature('kds') ?? false)
         );
-        Gate::define('access-driver-panel', fn (User $user): bool => $user->role === 'driver');
+        Gate::define('access-driver-panel', function (User $user, ?string $slug = null): bool {
+            $restaurant = $slug
+                ? Restaurant::query()->where('slug', $slug)->first()
+                : $user->restaurant;
+
+            return $restaurant && $user->canAccessDriverPanelFor($restaurant);
+        });
+        Gate::define('access-driver-dashboard', function (User $user, ?string $slug = null): bool {
+            $restaurant = $slug
+                ? Restaurant::query()->where('slug', $slug)->first()
+                : $user->restaurant;
+
+            return $restaurant && $user->canManageDriverDashboardFor($restaurant);
+        });
+        Gate::define('access-driver-orders', function (User $user, ?string $slug = null): bool {
+            $restaurant = $slug
+                ? Restaurant::query()->where('slug', $slug)->first()
+                : $user->restaurant;
+
+            return $restaurant && $user->canViewDriverOrdersFor($restaurant);
+        });
         Gate::define('access-theme-editor', fn (User $user): bool => $user->role === 'restaurant_admin'
             && ($user->restaurant?->hasFeature('theme_editor') ?? false)
         );

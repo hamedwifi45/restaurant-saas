@@ -47,10 +47,13 @@
                     <article class="overflow-hidden rounded-3xl border-2 border-amber-500/80 bg-gradient-to-br from-slate-900 via-amber-950/20 to-slate-900 shadow-[0_0_25px_rgba(245,158,11,0.15)]" data-order="{{ $order->id }}" data-status="{{ $order->status }}">
                         <div class="grid lg:grid-cols-[minmax(0,1fr)_390px]">
                             <!-- خريطة موقع المشتري -->
-                            <div class="min-h-[360px] bg-slate-800" 
-                                 id="map-{{ $order->id }}"
-                                 data-customer-lat="{{ $order->latitude ?? $order->customer_latitude ?? $order->lat ?? $order->delivery_latitude }}"
-                                 data-customer-lng="{{ $order->longitude ?? $order->customer_longitude ?? $order->lng ?? $order->delivery_longitude }}">
+                            <div class="h-64 w-full min-h-[360px] rounded-xl bg-slate-800" id="map-{{ $order->id }}"
+                                 style="min-height: 250px; height: 100%; width: 100%;"
+                                 data-customer-lat="{{ $order->latitude ?? $order->delivery_latitude ?? $order->customer_lat ?? $order->customer_latitude ?? $order->lat }}"
+                                 data-customer-lng="{{ $order->longitude ?? $order->delivery_longitude ?? $order->customer_lng ?? $order->customer_longitude ?? $order->lng }}"
+                                 data-customer-name="{{ $order->customer_name }}"
+                                 data-restaurant-lat="{{ $restaurant->latitude }}"
+                                 data-restaurant-lng="{{ $restaurant->longitude }}">
                             </div>
 
                             <div class="flex flex-col gap-5 p-5 text-white sm:p-7">
@@ -94,10 +97,12 @@
                                         🗺️ فتح الخريطة المباشرة للتتبع
                                     </a>
 
-                                    <!-- زر تأكيد التسليم -->
-                                    <button type="button" data-deliver-order="{{ $order->id }}" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 font-black text-white transition hover:bg-emerald-500 active:scale-[0.99] shadow-lg shadow-emerald-900/40">
-                                        ✅ تأكيد تسليم الطلب للعميل
-                                    </button>
+                                    @unless(auth()->user()->isRestaurantAdmin())
+                                        <!-- زر تأكيد التسليم -->
+                                        <button type="button" data-deliver-order="{{ $order->id }}" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 font-black text-white transition hover:bg-emerald-500 active:scale-[0.99] shadow-lg shadow-emerald-900/40">
+                                            ✅ تأكيد تسليم الطلب للعميل
+                                        </button>
+                                    @endunless
                                 </div>
                             </div>
                         </div>
@@ -116,10 +121,12 @@
                 <article class="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/60 shadow-xl transition hover:border-slate-700" data-order="{{ $order->id }}" data-status="{{ $order->status }}">
                     <div class="grid lg:grid-cols-[minmax(0,1fr)_390px]">
                         <!-- خريطة موقع المشتري -->
-                        <div class="min-h-[360px] bg-slate-800" 
-                             id="map-{{ $order->id }}"
-                             data-customer-lat="{{ $order->latitude ?? $order->customer_latitude ?? $order->lat ?? $order->delivery_latitude }}"
-                             data-customer-lng="{{ $order->longitude ?? $order->customer_longitude ?? $order->lng ?? $order->delivery_longitude }}">
+                        <div class="h-64 w-full min-h-[360px] rounded-xl bg-slate-800" id="map-{{ $order->id }}"
+                             data-customer-lat="{{ $order->latitude ?? $order->delivery_latitude ?? $order->customer_lat ?? $order->customer_latitude ?? $order->lat }}"
+                             data-customer-lng="{{ $order->longitude ?? $order->delivery_longitude ?? $order->customer_lng ?? $order->customer_longitude ?? $order->lng }}"
+                             data-customer-name="{{ $order->customer_name }}"
+                             data-restaurant-lat="{{ $restaurant->latitude }}"
+                             data-restaurant-lng="{{ $restaurant->longitude }}">
                         </div>
 
                         <div class="flex flex-col gap-5 p-5 text-white sm:p-7">
@@ -157,11 +164,16 @@
                                 </div>
                             </div>
 
-                            <div class="mt-auto space-y-2">
-                                <button type="button" data-accept-order="{{ $order->id }}" class="w-full rounded-xl bg-orange-600 px-4 py-3.5 font-black text-white transition hover:bg-orange-500 active:scale-[0.99]">
-                                    قبول وتوصيل الطلب
-                                </button>
-                            </div>
+                            @unless(auth()->user()->isRestaurantAdmin())
+                                <div class="mt-auto space-y-2">
+                                    <form action="{{ route('orders.accept', ['slug' => $restaurant->slug, 'order' => $order->id]) }}" method="POST" data-accept-order="{{ $order->id }}">
+                                        @csrf
+                                        <button type="submit" class="w-full rounded-xl bg-orange-600 px-4 py-3.5 font-black text-white transition hover:bg-orange-500 active:scale-[0.99]">
+                                            قبول وتوصيل الطلب
+                                        </button>
+                                    </form>
+                                </div>
+                            @endunless
                         </div>
                     </div>
                 </article>
@@ -175,28 +187,36 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
-        // الاستماع لقناة مندوبي هذا المطعم
-        Echo.private(`restaurant.{{ $restaurant->id }}.drivers`)
-            .listen('.order.ready', (e) => {
-                console.log("طلب جديد جاهز للتوصيل:", e.orderData);
+        const bindDriverOrderEcho = () => {
+            if (typeof window.Echo !== 'undefined' && window.Echo) {
+                window.Echo.private(`restaurant.{{ $restaurant->id }}.drivers`)
+                    .listen('.order.ready', (e) => {
+                        const audio = new Audio('/assets/sounds/new-order.mp3');
+                        audio.play().catch(() => {});
 
-                // 1. تشغيل صوت تنبيه للمندوب (اختياري)
-                const audio = new Audio('/assets/sounds/new-order.mp3');
-                audio.play().catch(() => {});
+                        const alertBox = document.createElement('div');
+                        alertBox.className = "fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-2xl animate-bounce";
+                        alertBox.innerText = `🔥 طلب جديد جاهز للتوصيل: #${e.orderData.tracking_code}`;
+                        document.body.appendChild(alertBox);
 
-                // 2. إظهار إشعار تنبيهي سريع أعلى الشاشة
-                const alertBox = document.createElement('div');
-                alertBox.className = "fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-2xl animate-bounce";
-                alertBox.innerText = `🔥 طلب جديد جاهز للتوصيل: #${e.orderData.tracking_code}`;
-                document.body.appendChild(alertBox);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    });
+            } else {
+                console.warn('Echo instance not found on window. Skipping WebSocket binding.');
+            }
+        };
 
-                // 3. إعادة تحميل الصفحة تلقائياً بعد ثانية واحدة لإظهار بطاقة الطلب الجديدة بالكامل مع الخريطة
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            });
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const restaurantSlug = "{{ $restaurant->slug }}";
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bindDriverOrderEcho, { once: true });
+        } else {
+            bindDriverOrderEcho();
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const restaurantSlug = @js($restaurant->slug);
+        const restaurantName = @js($restaurant->name);
 
         const request = (url, options = {}) => fetch(url, {
             ...options,
@@ -208,43 +228,72 @@
             },
         });
 
-        // تشغيل خرائط جميع البطاقات (سواء النشطة أو المتاحة)
-        document.querySelectorAll('[data-order]').forEach((card) => {
-            const orderId = card.dataset.order;
-            const mapElement = document.getElementById(`map-${orderId}`);
-            if (!mapElement) return;
-            
-            const custLat = parseFloat(mapElement.dataset.customerLat);
-            const custLng = parseFloat(mapElement.dataset.customerLng);
-            const hasCustomerCoords = !isNaN(custLat) && !isNaN(custLng);
+        if (typeof window.L !== 'undefined') {
+            const customerMarkerIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41],
+            });
 
-            const initialCenter = hasCustomerCoords ? [custLat, custLng] : [24.7136, 46.6753];
+            const readCoordinate = (value) => {
+                if (value === undefined || value.trim() === '') return null;
+                const coordinate = Number(value);
+                return Number.isFinite(coordinate) ? coordinate : null;
+            };
 
-            const map = L.map(`map-${orderId}`, { zoomControl: false }).setView(initialCenter, hasCustomerCoords ? 15 : 13);
-            
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                attribution: '&copy; OpenStreetMap contributors', 
-                maxZoom: 19 
-            }).addTo(map);
+            document.querySelectorAll('[id^="map-"]').forEach((mapElement) => {
+                const customerLat = readCoordinate(mapElement.dataset.customerLat);
+                const customerLng = readCoordinate(mapElement.dataset.customerLng);
+                const restaurantLat = readCoordinate(mapElement.dataset.restaurantLat);
+                const restaurantLng = readCoordinate(mapElement.dataset.restaurantLng);
+                const hasCustomerCoords = customerLat !== null && customerLng !== null
+                    && Math.abs(customerLat) <= 90 && Math.abs(customerLng) <= 180;
+                const hasRestaurantCoords = restaurantLat !== null && restaurantLng !== null
+                    && Math.abs(restaurantLat) <= 90 && Math.abs(restaurantLng) <= 180;
+                const initialCenter = hasCustomerCoords
+                    ? [customerLat, customerLng]
+                    : hasRestaurantCoords ? [restaurantLat, restaurantLng] : [24.7136, 46.6753];
+                const map = L.map(mapElement, { zoomControl: false }).setView(initialCenter, hasCustomerCoords ? 15 : 13);
 
-            if (hasCustomerCoords) {
-                L.marker([custLat, custLng])
-                    .addTo(map)
-                    .bindPopup('<b>موقع التسليم (الزبون)</b>')
-                    .openPopup();
-            }
-        });
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors',
+                    maxZoom: 19,
+                }).addTo(map);
 
-        // قبول الطلب
-        document.querySelectorAll('[data-accept-order]').forEach((button) => {
-            button.addEventListener('click', async () => {
-                const orderId = button.dataset.acceptOrder;
+                if (hasCustomerCoords) {
+                    const popup = document.createElement('span');
+                    popup.textContent = `موقع توصيل الزبون: ${mapElement.dataset.customerName}`;
+                    L.marker([customerLat, customerLng], { icon: customerMarkerIcon })
+                        .addTo(map)
+                        .bindPopup(popup);
+                }
+
+                if (hasRestaurantCoords) {
+                    L.marker([restaurantLat, restaurantLng])
+                        .addTo(map)
+                        .bindPopup(restaurantName);
+                }
+
+                window.setTimeout(() => map.invalidateSize(), 300);
+            });
+        } else {
+            console.error('Leaflet is not available; driver order maps could not be initialized.');
+        }
+
+        document.querySelectorAll('form[data-accept-order]').forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const button = form.querySelector('button[type="submit"]');
                 button.disabled = true;
                 button.textContent = 'جاري قبول الطلب...';
 
                 try {
-                    const response = await request(`/${restaurantSlug}/driver/orders/${orderId}/accept`, {
+                    const response = await request(form.action, {
                         method: 'POST'
                     });
 

@@ -29,7 +29,7 @@ class OrderController extends Controller
         private readonly CartService $cartService,
     ) {}
 
-    public function track($slug, $code)
+    public function track(Request $request, string $slug, string $code)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
@@ -37,18 +37,22 @@ class OrderController extends Controller
             ->with(['invoice', 'items.product'])
             ->firstOrFail();
 
+        $this->authorizeOrderTracking($request, $order);
+
         $themePath = ThemeHelper::getThemePath($restaurant);
 
         return view("themes.{$themePath}.orders.track", compact('restaurant', 'order'));
     }
 
-    public function trackingLocation($slug, $code): JsonResponse
+    public function trackingLocation(Request $request, string $slug, string $code): JsonResponse
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
             ->with(['invoice', 'restaurantTable'])
             ->firstOrFail();
+
+        $this->authorizeOrderTracking($request, $order);
 
         return response()->json([
             'status' => $order->status,
@@ -64,6 +68,33 @@ class OrderController extends Controller
                 'updated_at' => $order->driver_location_updated_at?->toIso8601String(),
             ],
         ]);
+    }
+
+    private function authorizeOrderTracking(Request $request, Order $order): void
+    {
+        $requestToken = $request->query('token');
+        $cookieToken = $request->cookie('order_device_token_'.$order->id);
+        $sessionToken = $request->session()->get('order_device_tokens.'.$order->tracking_code);
+        $hasTrackingToken = filled($order->device_token)
+            && is_string($requestToken)
+            && hash_equals($order->device_token, $requestToken);
+        $hasDeviceCookie = filled($order->device_token)
+            && is_string($cookieToken)
+            && hash_equals($order->device_token, $cookieToken);
+        $hasSessionToken = filled($order->device_token)
+            && is_string($sessionToken)
+            && hash_equals($order->device_token, $sessionToken);
+        $user = $request->user();
+        $isAssignedDriver = $user?->canAccessDriverPanelFor($order->restaurant)
+            && $order->driver_id === $user->id;
+        $isRestaurantAdmin = $user?->role === 'super_admin'
+            || ($user?->isRestaurantAdmin() && (int) $user->restaurant_id === (int) $order->restaurant_id);
+
+        abort_unless(
+            $hasTrackingToken || $hasDeviceCookie || $hasSessionToken || $isAssignedDriver || $isRestaurantAdmin,
+            403,
+            'لا تملك صلاحية تتبع هذا الطلب.'
+        );
     }
 
     public function checkout($slug)
@@ -494,12 +525,15 @@ class OrderController extends Controller
     /**
      * صفحة نجاح الطلب وعرض رمز التتبع
      */
-    public function success($slug, $code)
+    public function success(Request $request, string $slug, string $code)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
             ->firstOrFail();
+
+        $this->authorizeOrderTracking($request, $order);
+
         $themePath = ThemeHelper::getThemePath($restaurant);
 
         return view("themes.{$themePath}.cart.success", compact('restaurant', 'order'));

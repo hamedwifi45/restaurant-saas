@@ -42,7 +42,7 @@
                     start() {
                         window.setInterval(async () => {
                             try {
-                                const response = await fetch(@js(route('order.track.location', [$restaurant->slug, $order->tracking_code])), { headers: { Accept: 'application/json' } });
+                                const response = await fetch(@js(route('order.track.location', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token])), { headers: { Accept: 'application/json' } });
                                 if (!response.ok) throw new Error('تعذر جلب تحديث الحالة.');
                                 const data = await response.json();
                                 this.status = data.status;

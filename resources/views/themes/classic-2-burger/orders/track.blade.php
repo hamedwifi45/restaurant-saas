@@ -29,7 +29,13 @@
                 aria-live="assertive"
             >تعذر قبول طلبك. السبب: {{ $order->rejection_reason }}</div>
 
-            @if($order->delivery_latitude && $order->delivery_longitude)
+            @php($isInTransit = in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
+            @if($isInTransit)
+                <a href="{{ route('driver.order.tracking', ['slug' => $restaurant->slug, 'order' => $order->tracking_code, 'token' => $order->device_token]) }}"
+                    class="mb-8 block rounded-2xl bg-primary px-6 py-5 text-center text-lg font-black text-white shadow-lg transition hover:brightness-110">
+                    تتبع المندوب مباشر 🚴‍♂️
+                </a>
+            @elseif($order->delivery_latitude && $order->delivery_longitude)
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-lg">
                     <div class="mb-4 flex items-center justify-between gap-3">
                         <div>
@@ -38,7 +44,7 @@
                         </div>
                         <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">تحديث مباشر</span>
                     </div>
-                    <div id="tracking-map" class="h-80 rounded-2xl"></div>
+                    <div id="tracking-map" class="h-80 min-h-[250px] w-full rounded-2xl" style="min-height: 250px; width: 100%;"></div>
                 </div>
             @endif
 
@@ -60,18 +66,18 @@
 
                         <!-- الخطوة 2 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
-                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['preparing', 'on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
                                 ٢
                             </div>
-                            <span class="text-sm font-bold {{ in_array($order->status, ['preparing', 'on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">جاري التحضير</span>
+                            <span class="text-sm font-bold {{ in_array($order->status, ['preparing', 'on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">جاري التحضير</span>
                         </div>
 
                         <!-- الخطوة 3 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
-                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['on_way', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
+                            <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
                                 ٣
                             </div>
-                            <span class="text-sm font-bold {{ in_array($order->status, ['on_way', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">في الطريق إليك</span>
+                            <span class="text-sm font-bold {{ in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">في الطريق إليك</span>
                         </div>
 
                         <!-- الخطوة 4 -->
@@ -269,17 +275,19 @@
         </template>
     </div>
 
-    @if($order->delivery_latitude && $order->delivery_longitude)
+    @if($order->delivery_latitude && $order->delivery_longitude && ! $isInTransit)
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script>
             const customerPoint = [{{ $order->delivery_latitude }}, {{ $order->delivery_longitude }}];
             const trackingMap = L.map('tracking-map').fitBounds([customerPoint], { padding: [40, 40] });
+            requestAnimationFrame(() => trackingMap.invalidateSize());
+            window.setTimeout(() => trackingMap.invalidateSize(), 150);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(trackingMap);
             L.marker(customerPoint).addTo(trackingMap).bindPopup('موقع التوصيل').openPopup();
             let driverMarker;
 
             async function refreshDriverLocation() {
-                const response = await fetch('{{ route('order.track.location', [$restaurant->slug, $order->tracking_code]) }}');
+                const response = await fetch(@js(route('order.track.location', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token])));
                 if (!response.ok) return;
                 const data = await response.json();
                 if (data.driver.latitude && data.driver.longitude) {
@@ -300,7 +308,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const trackUrl = "{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}";
+            const trackUrl = "{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}";
 
             new QRCode(document.getElementById("qrcode-track"), {
                 text: trackUrl,
@@ -326,7 +334,7 @@
         }
 
         async function shareTrackQR() {
-            const trackUrl = "{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}";
+            const trackUrl = "{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}";
             const shareData = {
                 title: 'تتبع طلبي من {{ $restaurant->name }}',
                 text: `تتبع طلبك برمز: {{ $order->tracking_code }}`,

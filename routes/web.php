@@ -33,7 +33,7 @@ Route::post('/broadcasting/customer-auth', [CustomerBroadcastAuthController::cla
 */
 Route::middleware(['auth'])->group(function () {
 
-    Route::view('/dashboard', 'dashboard')->name('dashboard');
+    Route::redirect('/dashboard', '/')->name('dashboard');
 
     // إدارة الثيمات (Themes)
     Route::middleware('can:access-theme-editor')->group(function () {
@@ -64,15 +64,22 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // مسارات المندوبين (Drivers)
-    Route::prefix('{slug}/driver')->middleware('can:access-driver-panel')->group(function () {
-        Route::get('/orders', [DriverController::class, 'index'])->name('driver.orders');
-        Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('driver.dashboard');
+    Route::prefix('{slug}/driver')->group(function () {
+        Route::middleware('can:access-driver-orders,slug')->group(function () {
+            Route::get('/orders', [DriverController::class, 'index'])->name('driver.orders');
+            Route::get('/orders/{order}', [DriverController::class, 'show'])->name('driver.order.show');
+        });
 
-        Route::get('/orders/{order}', [DriverController::class, 'show'])->name('driver.order.show');
-        Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
-        Route::post('/orders/{order}/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
-        Route::post('/orders/{order}/status', [DriverController::class, 'updateStatus'])->name('driver.status.update');
-        Route::post('/orders/{order}/arrived', [DriverController::class, 'markArrived'])->name('driver.order.arrived');
+        Route::middleware('can:access-driver-dashboard,slug')->group(function () {
+            Route::get('/dashboard', [DriverController::class, 'dashboard'])->name('driver.dashboard');
+        });
+
+        Route::middleware('can:access-driver-panel,slug')->group(function () {
+            Route::post('/orders/{order}/accept', [DriverController::class, 'acceptOrder'])->name('orders.accept');
+            Route::post('/orders/{order}/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
+            Route::post('/orders/{order}/status', [DriverController::class, 'updateStatus'])->name('driver.status.update');
+            Route::post('/orders/{order}/arrived', [DriverController::class, 'markArrived'])->name('driver.order.arrived');
+        });
     });
 });
 Route::get('{slug}/driver/orders/{order:tracking_code}/tracking', [DriverController::class, 'tracking'])->name('driver.order.tracking');

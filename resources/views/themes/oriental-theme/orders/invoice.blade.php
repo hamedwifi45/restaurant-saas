@@ -10,7 +10,7 @@
     @endphp
     <section class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <div class="mb-5 flex items-center justify-between gap-3 print:hidden">
-            <a href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}" class="text-sm font-bold text-stone-600">← تتبع الطلب</a>
+            <a href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}" class="text-sm font-bold text-stone-600">← تتبع الطلب</a>
             <button type="button" onclick="window.print()" class="oriental-button rounded-xl px-5 py-2.5 font-bold">طباعة الفاتورة</button>
         </div>
         <article class="rounded-2xl border border-stone-200 bg-white p-5 sm:p-9">

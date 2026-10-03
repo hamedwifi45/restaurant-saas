@@ -16,7 +16,7 @@
             <p class="mt-3 text-sm text-stone-600">الإجمالي: <strong>{{ number_format($order->total_amount, 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</strong></p>
         </div>
         <div class="mt-6 flex w-full flex-col gap-3 sm:flex-row">
-            <a href="{{ route('order.track', [$restaurant->slug, $order->tracking_code]) }}" class="oriental-button flex-1 rounded-xl px-5 py-3 font-black">تتبع الطلب</a>
+            <a href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}" class="oriental-button flex-1 rounded-xl px-5 py-3 font-black">تتبع الطلب</a>
             @if($receiptPhone)
                 <a href="https://wa.me/{{ $receiptPhone }}?text={{ rawurlencode($receiptMessage) }}" target="_blank" rel="noopener noreferrer" class="flex-1 rounded-xl border border-stone-300 bg-white px-5 py-3 font-bold">إرسال إيصال واتساب</a>
             @endif

@@ -293,6 +293,7 @@
         }
 
         #map {
+            min-height: 250px;
             width: 100%;
             height: 100%;
             z-index: 1;
@@ -1136,7 +1137,7 @@
     </style>
 </head>
 
-<body data-view="driver">
+<body data-view="{{ $isDriver ? 'driver' : 'customer' }}">
 
     <!-- رأس الصفحة -->
     <header class="app-header" role="banner">
@@ -1311,18 +1312,20 @@
                     </button>
                 </div>
 
-                <!-- أزرار خاصة بوضع المندوب -->
-                <div class="driver-view-only"
-                    style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
-                    <button class="btn btn-success btn-full" id="btnStartDelivery" onclick="handleStartDelivery()"
-                        {{ $order->status === 'delivered' ? 'disabled' : '' }}>
-                        بدء التوصيل
-                    </button>
-                    <button class="btn btn-primary btn-full customer-view-only"
-                        onclick="showToast('success', 'تم', 'تم تحديث الموقع')">
-                        تحديث موقعي
-                    </button>
-                </div>
+                @if($isDriver)
+                    <!-- أزرار خاصة بوضع المندوب -->
+                    <div class="driver-view-only"
+                        style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
+                        <button class="btn btn-success btn-full" id="btnStartDelivery" onclick="handleStartDelivery()"
+                            {{ $order->status === 'delivered' ? 'disabled' : '' }}>
+                            بدء التوصيل
+                        </button>
+                        <button class="btn btn-primary btn-full customer-view-only"
+                            onclick="showToast('success', 'تم', 'تم تحديث الموقع')">
+                            تحديث موقعي
+                        </button>
+                    </div>
+                @endif
             </div>
 
             <!-- بطاقة الطلب -->
@@ -1362,22 +1365,24 @@
                     @endforeach
                 </div>
 
-                <!-- أزرار خاصة بوضع المندوب -->
-                <div class="driver-view-only"
-                    style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
-                    <a href="tel:{{ $order->customer_phone }}" class="btn btn-call btn-full">
-                        اتصال بالعميل
-                    </a>
-                    @if($order->status === 'on_way' && ! $order->driver_arrived_at)
-                        <button class="btn btn-full" id="btnArrived" onclick="handleArrived()">
-                            وصلت إلى الموقع
+                @if($isDriver)
+                    <!-- أزرار خاصة بوضع المندوب -->
+                    <div class="driver-view-only"
+                        style="margin-top: var(--spacing-md); flex-direction: column; gap: var(--spacing-sm);">
+                        <a href="tel:{{ $order->customer_phone }}" class="btn btn-call btn-full">
+                            اتصال بالعميل
+                        </a>
+                        @if($order->status === 'on_way' && ! $order->driver_arrived_at)
+                            <button class="btn btn-full" id="btnArrived" onclick="handleArrived()">
+                                وصلت إلى الموقع
+                            </button>
+                        @endif
+                        <button class="btn btn-success btn-full" id="btnDelivered" onclick="handleDelivered()"
+                            {{ $order->status !== 'on_way' ? 'disabled' : '' }}>
+                            ✓ تم التسليم
                         </button>
-                    @endif
-                    <button class="btn btn-success btn-full" id="btnDelivered" onclick="handleDelivered()"
-                        {{ $order->status !== 'on_way' ? 'disabled' : '' }}>
-                        ✓ تم التسليم
-                    </button>
-                </div>
+                    </div>
+                @endif
             </div>
         </aside>
     </main>
@@ -1389,12 +1394,18 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        @php
+            $trackingApiEndpoint = $isDriver
+                ? route('driver.order.show', [$order->restaurant->slug, $order])
+                : route('order.track.location', ['slug' => $order->restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]);
+        @endphp
+
         const trackingConfig = {
             orderId: @json($order->id),
-            viewMode: 'driver', //@json($isDriver ? 'driver' : 'customer'),
+            viewMode: @json($isDriver ? 'driver' : 'customer'),
             csrfToken: document.querySelector('meta[name="csrf-token"]').content,
             updateInterval: 5000,
-            apiEndpoint: @json(route('driver.order.show', [$order->restaurant->slug, $order])),
+            apiEndpoint: @json($trackingApiEndpoint),
             locationEndpoint: @json(route('driver.location.update', [$order->restaurant->slug, $order])),
             statusEndpoint: @json(route('driver.status.update', [$order->restaurant->slug, $order])),
             arrivalEndpoint: @json(route('driver.order.arrived', [$order->restaurant->slug, $order])),
@@ -1488,6 +1499,8 @@
                     attribution: 'OpenStreetMap contributors',
                     maxZoom: 19
                 }).addTo(this.map);
+                requestAnimationFrame(() => this.map.invalidateSize());
+                window.setTimeout(() => this.map.invalidateSize(), 150);
 
                 this.map.attributionControl.addAttribution('Routing: OSRM');
             }

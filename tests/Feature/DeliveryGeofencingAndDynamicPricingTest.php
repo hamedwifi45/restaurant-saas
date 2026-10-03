@@ -174,9 +174,14 @@ it('renders live checkout pricing and geofence controls for each customer theme'
         'restaurant_id' => $restaurant->id,
         'status' => 'cancelled',
         'rejection_reason' => 'العنوان غير واضح',
+        'device_token' => str_repeat('c', 40),
     ]);
 
-    $this->get(route('order.track', [$restaurant->slug, $order->tracking_code]))
+    $this->get(route('order.track', [
+        'slug' => $restaurant->slug,
+        'code' => $order->tracking_code,
+        'token' => $order->device_token,
+    ]))
         ->assertSuccessful()
         ->assertSee('تعذر قبول طلبك. السبب: العنوان غير واضح');
 })->with(deliveryCheckoutThemeFolders());

@@ -127,9 +127,14 @@ test('customer tracking pages render the authenticated real-time notification to
     $order = Order::factory()->create([
         'restaurant_id' => $restaurant->id,
         'tracking_code' => 'ORD-TRACKING-1',
+        'device_token' => str_repeat('d', 40),
     ]);
 
-    $this->get(route('order.track', [$restaurant->slug, $order->tracking_code]))
+    $this->get(route('order.track', [
+        'slug' => $restaurant->slug,
+        'code' => $order->tracking_code,
+        'token' => $order->device_token,
+    ]))
         ->assertSuccessful()
         ->assertSee('data-order-notifications', false)
         ->assertSee('data-tracking-code="'.$order->tracking_code.'"', false)

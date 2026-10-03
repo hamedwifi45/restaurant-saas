@@ -21,6 +21,7 @@ use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 
 test('checkout persists consistent order and invoice financial amounts', function () {
     $restaurant = Restaurant::factory()->create([
@@ -96,13 +97,31 @@ test('feature access requires the appropriate plan and role', function () {
         ->and(Gate::forUser($kitchenStaff)->allows('access-theme-editor'))->toBeFalse()
         ->and(Gate::forUser($proAdmin)->allows('access-theme-editor'))->toBeTrue()
         ->and(Gate::forUser($proAdmin)->allows('advanced-financial-analytics'))->toBeTrue()
-        ->and(Gate::forUser($driver)->allows('access-driver-panel'))->toBeTrue();
+        ->and(Gate::forUser($driver)->allows('access-driver-panel', $starterRestaurant->slug))->toBeTrue()
+        ->and(Gate::forUser($driver)->allows('access-driver-panel', $proRestaurant->slug))->toBeFalse();
 
     $this->actingAs($starterAdmin);
     expect(FinancialOverviewWidget::canView())->toBeFalse();
 
     $this->actingAs($proAdmin);
     expect(FinancialOverviewWidget::canView())->toBeTrue();
+});
+
+test('driver panel permission is scoped to the user restaurant', function () {
+    $restaurant = Restaurant::factory()->create();
+    $otherRestaurant = Restaurant::factory()->create();
+    $user = User::factory()->create([
+        'role' => 'customer',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $user->givePermissionTo(Permission::findOrCreate('access-driver-panel', 'web'));
+
+    expect(Gate::forUser($user)->allows('access-driver-panel', $restaurant->slug))->toBeTrue()
+        ->and(Gate::forUser($user)->allows('access-driver-panel', $otherRestaurant->slug))->toBeFalse();
+
+    $this->actingAs($user)
+        ->get(route('driver.orders', $restaurant->slug))
+        ->assertSuccessful();
 });
 
 test('financial overview calculates gross revenue expenses discounts and net profit', function () {

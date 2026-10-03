@@ -27,6 +27,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -68,6 +69,17 @@ class RestaurantPanelProvider extends PanelProvider
                 NavigationGroup::make('التسويق')->icon('heroicon-o-megaphone'),
                 NavigationGroup::make('الإعدادات')->icon('heroicon-o-cog-6-tooth'),
                 NavigationGroup::make('التقارير والمالية')->icon('heroicon-o-chart-bar-square'),
+            ])
+            ->navigationItems([
+                NavigationItem::make('لوحة التوصيل والمندوبين')
+                    ->group('التشغيل')
+                    ->icon('heroicon-o-map')
+                    ->sort(2)
+                    ->url(fn (): ?string => ($restaurant = auth('web')->user()?->restaurant)
+                        ? route('driver.dashboard', ['slug' => $restaurant->slug])
+                        : null)
+                    ->visible(fn (): bool => (bool) auth('web')->user()?->isRestaurantAdmin()
+                        && filled(auth('web')->user()?->restaurant_id)),
             ])
             ->darkMode(false)
             ->viteTheme('resources/css/filament/restaurant/theme.css')

@@ -91,6 +91,38 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return $this->hasMany(Order::class, 'driver_id');
     }
 
+    public function canAccessDriverPanelFor(Restaurant $restaurant): bool
+    {
+        return ! $this->isRestaurantAdmin()
+            && (int) $this->restaurant_id === (int) $restaurant->getKey()
+            && (
+                $this->role === 'driver'
+                || $this->hasRole('driver')
+                || $this->getAllPermissions()->contains('name', 'access-driver-panel')
+            );
+    }
+
+    public function canViewDriverOrdersFor(Restaurant $restaurant): bool
+    {
+        return (int) $this->restaurant_id === (int) $restaurant->getKey()
+            && $this->canAccessDriverPanelFor($restaurant);
+    }
+
+    public function canManageDriverDashboardFor(Restaurant $restaurant): bool
+    {
+        return $this->role === 'super_admin'
+            || $this->hasRole('super_admin')
+            || (
+                ($this->isRestaurantAdmin() || $this->role === 'restaurant_owner')
+                && (int) $this->restaurant_id === (int) $restaurant->getKey()
+            );
+    }
+
+    public function isRestaurantAdmin(): bool
+    {
+        return $this->role === 'restaurant_admin' || $this->hasRole('restaurant_admin');
+    }
+
     /**
      * Get the user's initials
      */
