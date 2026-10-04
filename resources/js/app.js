@@ -5,4 +5,6 @@
  */
 import './echo';
 import './order-notifications';
+import './order-push-subscriptions';
+import './driver-rating';
 import './checkout-pricing';

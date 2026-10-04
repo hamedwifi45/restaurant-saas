@@ -9,6 +9,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Support\Facades\Notification;
+use NotificationChannels\WebPush\WebPushChannel;
 
 test('status changes queue and broadcast the correct Arabic customer notification', function () {
     $restaurant = Restaurant::factory()->create();
@@ -29,11 +30,13 @@ test('status changes queue and broadcast the correct Arabic customer notificatio
         $payload = $message->data;
 
         expect($notification)->toBeInstanceOf(ShouldQueue::class)
-            ->and($channels)->toBe(['broadcast', 'database'])
+            ->and($channels)->toBe(['broadcast', 'database', WebPushChannel::class])
             ->and($message)->toBeInstanceOf(BroadcastMessage::class)
             ->and($payload['title'])->toBe('بدأ تحضير الطلب')
             ->and($payload['message'])->toBe('بدأ المطبخ في تحضير طلبك رقم ORD-ARABIC-1.')
             ->and($payload['status'])->toBe('preparing')
+            ->and($notification->toWebPush($order, $notification)->toArray()['data']['url'])
+            ->toBe(route('order.track', ['slug' => $order->restaurant->slug, 'code' => $order->tracking_code]))
             ->and(preg_match('/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u', $payload['title'].$payload['message']))->toBe(0)
             ->and($notification->broadcastOn())->toEqual([
                 new PrivateChannel('restaurant.'.$order->restaurant_id.'.customer.'.$order->tracking_code),
@@ -94,7 +97,7 @@ test('status notification content matches each delivery transition without emoji
     ) use ($order, $expectedStatus, $expectedMessage): bool {
         $payload = $notification->toBroadcast($order)->data;
 
-        expect($channels)->toBe(['broadcast', 'database'])
+        expect($channels)->toBe(['broadcast', 'database', WebPushChannel::class])
             ->and($payload['status'])->toBe($expectedStatus)
             ->and($payload['message'])->toBe($expectedMessage)
             ->and(preg_match('/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u', $payload['title'].$payload['message']))->toBe(0);
@@ -138,7 +141,69 @@ test('customer tracking pages render the authenticated real-time notification to
         ->assertSuccessful()
         ->assertSee('data-order-notifications', false)
         ->assertSee('data-tracking-code="'.$order->tracking_code.'"', false)
+        ->assertSee('data-order-push-subscription', false)
+        ->assertSee('data-csrf-token=', false)
         ->assertSee(route('broadcasting.customer-auth'), false);
+});
+
+test('a customer may subscribe this order to Web Push with its device token', function () {
+    $restaurant = Restaurant::factory()->create();
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'device_token' => str_repeat('p', 40),
+    ]);
+    $endpoint = 'https://fcm.googleapis.com/fcm/send/example-endpoint';
+    $subscription = [
+        'endpoint' => $endpoint,
+        'keys' => [
+            'p256dh' => 'public-key',
+            'auth' => 'auth-token',
+        ],
+        'token' => $order->device_token,
+    ];
+
+    $this->postJson(route('order.push-subscriptions.store', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+    ]), $subscription)
+        ->assertSuccessful()
+        ->assertJsonPath('success', true);
+
+    $this->assertDatabaseHas('push_subscriptions', [
+        'endpoint' => $endpoint,
+        'subscribable_type' => $order->getMorphClass(),
+        'subscribable_id' => $order->id,
+    ]);
+
+    $this->postJson(route('order.push-subscriptions.store', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+    ]), [...$subscription, 'token' => 'invalid'])
+        ->assertForbidden();
+
+    $this->postJson(route('order.push-subscriptions.store', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+    ]), [
+        ...$subscription,
+        'endpoint' => 'https://fcm.googleapis.com/fcm/send/'.str_repeat('x', 1100),
+    ])->assertUnprocessable();
+});
+
+test('the restaurant service worker handles push notifications and click navigation', function () {
+    $restaurant = Restaurant::factory()->create([
+        'slug' => 'push-restaurant',
+        'logo' => 'restaurants/logo.png',
+    ]);
+
+    $this->get(route('pwa.sw', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('self.addEventListener(\'push\'', false)
+        ->assertSee('self.addEventListener(\'notificationclick\'', false)
+        ->assertSee('self.skipWaiting()', false)
+        ->assertSee('self.clients.claim()', false)
+        ->assertSee($restaurant->slug)
+        ->assertSee('RESTAURANT_LOGO =', false);
 });
 
 test('a customer device cannot authorize another order private channel', function () {
@@ -219,10 +284,12 @@ test('a driver arrival is notified once and only by the assigned tenant driver',
     Notification::assertSentToTimes($order, OrderStatusUpdatedNotification::class, 1);
     Notification::assertSentTo($order, OrderStatusUpdatedNotification::class, function (
         OrderStatusUpdatedNotification $notification,
+        array $channels,
     ) use ($order): bool {
         $payload = $notification->toBroadcast($order)->data;
 
-        expect($payload['status'])->toBe('driver_arrived')
+        expect($channels)->toContain(WebPushChannel::class)
+            ->and($payload['status'])->toBe('driver_arrived')
             ->and($payload['message'])->toBe('وصل المندوب إلى موقعك للطلب رقم '.$order->tracking_code.'.')
             ->and(preg_match('/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u', $payload['message']))->toBe(0);
 

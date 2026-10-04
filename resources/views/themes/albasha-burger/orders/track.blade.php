@@ -29,8 +29,10 @@
                 aria-live="assertive"
             >تعذر قبول طلبك. السبب: {{ $order->rejection_reason }}</div>
 
-            @php($isInTransit = in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
-            @if($isInTransit)
+            @include('components.order-push-subscription', ['order' => $order, 'restaurant' => $restaurant])
+            @include('components.driver-rating', ['order' => $order, 'restaurant' => $restaurant])
+
+            @if(in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
                 <a href="{{ route('driver.order.tracking', ['slug' => $restaurant->slug, 'order' => $order->tracking_code, 'token' => $order->device_token]) }}"
                     class="mb-8 block rounded-2xl bg-primary px-6 py-5 text-center text-lg font-black text-white shadow-lg transition hover:brightness-110">
                     تتبع المندوب مباشر 🚴‍♂️
@@ -275,7 +277,7 @@
         </template>
     </div>
 
-    @if($order->delivery_latitude && $order->delivery_longitude && ! $isInTransit)
+    @if($order->delivery_latitude && $order->delivery_longitude && ! in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <script>
             const customerPoint = [{{ $order->delivery_latitude }}, {{ $order->delivery_longitude }}];
@@ -295,7 +297,7 @@
                     driverMarker = driverMarker || L.marker(point).addTo(trackingMap).bindPopup('المندوب');
                     driverMarker.setLatLng(point);
                     trackingMap.fitBounds([customerPoint, point], { padding: [40, 40] });
-                    document.getElementById('tracking-status').textContent = data.driver.updated_at ? `آخر تحديث: ${new Date(data.driver.updated_at).toLocaleTimeString('ar')}` : 'تم تحديث موقع المندوب.';
+                    document.getElementById('tracking-status').textContent = data.driver.updated_at ? `آخر تحديث: ${new Date(data.driver.updated_at).toLocaleTimeString('ar', { timeZone: @js(config('app.timezone')) })}` : 'تم تحديث موقع المندوب.';
                 } else {
                     document.getElementById('tracking-status').textContent = 'سيظهر موقع المندوب بعد بدء التوصيل.';
                 }

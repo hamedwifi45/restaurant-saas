@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'osrm' => [
+        'url' => env('OSRM_ROUTING_URL'),
+    ],
+
 ];

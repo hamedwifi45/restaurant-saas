@@ -1,7 +1,6 @@
 @extends("themes.burger-theme.layout")
 
 @section('content')
-@php($categories = isset($categories) && $categories instanceof \Illuminate\Support\Collection ? $categories : collect())
 
 <!-- Hero Section -->
 <section class="relative py-20 overflow-hidden">

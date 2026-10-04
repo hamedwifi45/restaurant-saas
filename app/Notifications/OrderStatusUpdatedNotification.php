@@ -9,6 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 use InvalidArgumentException;
+use NotificationChannels\WebPush\WebPushChannel;
+use NotificationChannels\WebPush\WebPushMessage;
 
 class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
 {
@@ -24,7 +26,7 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['broadcast', 'database'];
+        return ['broadcast', 'database', WebPushChannel::class];
     }
 
     /**
@@ -49,6 +51,26 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         return $this->payload();
+    }
+
+    public function toWebPush(object $notifiable, Notification $notification): WebPushMessage
+    {
+        $payload = $this->payload();
+        $restaurant = $this->order->restaurant;
+
+        return (new WebPushMessage)
+            ->title($payload['title'])
+            ->body($payload['message'])
+            ->icon(media_url($restaurant->logo) ?? asset('/icons/default-icon.png'))
+            ->dir('rtl')
+            ->lang('ar')
+            ->tag('order-'.$this->order->tracking_code)
+            ->data([
+                'url' => route('order.track', [
+                    'slug' => $restaurant->slug,
+                    'code' => $this->order->tracking_code,
+                ]),
+            ]);
     }
 
     /**

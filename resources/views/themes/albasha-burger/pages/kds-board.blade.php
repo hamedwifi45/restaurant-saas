@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>شاشة عرض المطبخ | KDS - نظام إدارة الطلبات</title>
     <meta name="description" content="نظام عرض المطبخ - Kitchen Display System لإدارة وتتبع الطلبات">
 
@@ -1428,16 +1429,55 @@
 
             connectWebSocket() {
                 if (typeof window.Echo === 'undefined') {
+                    if (!this.echoUnavailableLogged) {
+                        console.warn('[KDS Reverb Debug] Waiting for Echo to initialize.');
+                        this.echoUnavailableLogged = true;
+                    }
+
                     setTimeout(() => this.connectWebSocket(), 200);
                     return;
                 }
 
-                window.Echo.private(`restaurant.${this.config.restaurantId}.kds`)
-                    .listen('.order.created', (event) => {
-                        if (event && event.order) {
-                            this.handleNewOrder(event.order);
-                        }
+                const restaurantId = this.config.restaurantId;
+                const channelName = `restaurant.${restaurantId}.kds`;
+
+                console.log('🔍 [KDS Reverb Debug] Initializing Echo for Restaurant ID:', restaurantId);
+
+                const connection = window.Echo.connector?.pusher?.connection;
+
+                if (connection) {
+                    connection.bind('state_change', (states) => {
+                        console.log('🔌 [KDS Reverb State]:', states.previous, '->', states.current);
                     });
+                    connection.bind('error', (error) => {
+                        console.error('❌ [KDS Reverb Connection Error]:', error);
+                    });
+                } else {
+                    console.warn('[KDS Reverb Debug] Pusher connection diagnostics are unavailable.');
+                }
+
+                console.log(`📡 [KDS Reverb Subscribing to Private Channel]: ${channelName}`);
+
+                const channel = window.Echo.private(channelName);
+
+                channel.subscribed(() => {
+                    console.log(`✅ [KDS Reverb Subscribed Successfully]: Joined channel ${channelName}`);
+                });
+                channel.error((status) => {
+                    console.error('🚨 [KDS Reverb Subscription Auth Error]:', status);
+                });
+                channel.listen('.OrderCreated', (event) => {
+                    console.log('🎉 [KDS Reverb EVENT RECEIVED] .OrderCreated:', event);
+
+                    if (event && event.order) {
+                        this.handleNewOrder(event.order);
+                    } else {
+                        console.error('[KDS Reverb Debug] OrderCreated event has no order payload:', event);
+                    }
+                });
+                channel.listenToAll((eventName, data) => {
+                    console.warn(`📩 [KDS Reverb RAW EVENT DIRECTED]: ${eventName}`, data);
+                });
             }
 
             startTimers() {

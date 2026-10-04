@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Events\OrderStatusUpdated;
 use App\Models\Order;
 use App\Notifications\DriverAssignedNotification;
 use App\Notifications\OrderStatusUpdatedNotification;
@@ -10,6 +11,10 @@ class OrderObserver
 {
     public function updated(Order $order): void
     {
+        if ($order->wasChanged('status')) {
+            OrderStatusUpdated::dispatch($order);
+        }
+
         if ($order->wasChanged('status') && in_array($order->status, [
             'preparing',
             'ready',

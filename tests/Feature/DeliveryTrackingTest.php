@@ -1,10 +1,13 @@
 <?php
 
+use App\Events\DriverLocationUpdated;
+use App\Events\OrderStatusUpdated;
 use App\Models\Driver;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Theme;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 it('allows an assigned driver to update a delivery location', function () {
     $restaurant = Restaurant::factory()->create();
@@ -20,6 +23,8 @@ it('allows an assigned driver to update a delivery location', function () {
         'delivery_longitude' => 36.2,
     ]);
 
+    Event::fake([DriverLocationUpdated::class]);
+
     $this->actingAs($driver)
         ->postJson(route('driver.location.update', [$restaurant->slug, $order]), [
             'latitude' => 33.51,
@@ -32,6 +37,30 @@ it('allows an assigned driver to update a delivery location', function () {
         ->driver_latitude->toBe('33.5100000')
         ->driver_longitude->toBe('36.2100000')
         ->status->toBe('on_way');
+
+    Event::assertDispatched(DriverLocationUpdated::class, function (DriverLocationUpdated $event) use ($order): bool {
+        return $event->order->is($order)
+            && $event->broadcastWith()['latitude'] === '33.5100000'
+            && $event->broadcastWith()['longitude'] === '36.2100000';
+    });
+});
+
+it('broadcasts order status changes to the manager fleet channel', function () {
+    $restaurant = Restaurant::factory()->create();
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'status' => 'ready',
+    ]);
+
+    Event::fake([OrderStatusUpdated::class]);
+
+    $order->update(['status' => 'on_way']);
+
+    Event::assertDispatched(OrderStatusUpdated::class, function (OrderStatusUpdated $event) use ($restaurant, $order): bool {
+        return str_contains($event->broadcastOn()[0]->name, 'restaurant.'.$restaurant->id.'.admin')
+            && $event->broadcastWith()['order']['id'] === $order->id
+            && $event->broadcastWith()['order']['status'] === 'on_way';
+    });
 });
 
 it('redirects guests to login before authorizing driver panel routes', function () {
@@ -99,11 +128,152 @@ it('allows guests with a secure device token to view driver tracking', function 
     ]))
         ->assertSuccessful()
         ->assertSee($order->tracking_code);
+
+    $this->get(route('order.track', [
+        'slug' => $restaurant->slug,
+        'code' => $order->tracking_code,
+    ]))
+        ->assertSuccessful()
+        ->assertSee($order->tracking_code);
+});
+
+it('shows the driver vehicle model and configured CSP on classic driver tracking pages', function (string $themeFolder, ?string $vehicleModel, string $expectedModel) {
+    $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
+    $restaurant = Restaurant::factory()->create(['theme_id' => $theme->id]);
+    $driver = User::factory()->create([
+        'role' => 'driver',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    Driver::query()->create([
+        'user_id' => $driver->id,
+        'vehicle_model' => $vehicleModel,
+    ]);
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'driver_id' => $driver->id,
+        'status' => 'on_way',
+        'device_token' => str_repeat('v', 40),
+    ]);
+
+    $this->get(route('driver.order.tracking', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+        'token' => $order->device_token,
+    ]))
+        ->assertSuccessful()
+        ->assertSee('https://cdn.jsdelivr.net')
+        ->assertSee('connect-src \'self\' ws: wss: http: https:', false)
+        ->assertSee($order->created_at?->timezone(config('app.timezone'))->format('h:i A'))
+        ->assertSee($order->updated_at?->timezone(config('app.timezone'))->format('h:i A'))
+        ->assertSee($expectedModel)
+        ->assertDontSee('طلبات نشطة: 1')
+        ->assertDontSee('التقييم 4.8 من 5');
+
+    expect(config('app.timezone'))->toBe('Asia/Riyadh');
+})->with([
+    'burger theme' => ['burger-theme', 'هوندا', 'موديل المركبة: هوندا'],
+    'albasha theme' => ['albasha-burger', 'هوندا', 'موديل المركبة: هوندا'],
+    'classic theme' => ['classic-2-burger', 'هوندا', 'موديل المركبة: هوندا'],
+    'missing vehicle model' => ['classic-2-burger', null, 'موديل المركبة: غير محدد'],
+]);
+
+it('lets a customer rate a delivered driver once and updates the real driver rating', function () {
+    $theme = Theme::factory()->create(['folder_name' => 'burger-theme']);
+    $restaurant = Restaurant::factory()->create(['theme_id' => $theme->id]);
+    $driverUser = User::factory()->create([
+        'role' => 'driver',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $driver = Driver::query()->create(['user_id' => $driverUser->id]);
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'driver_id' => $driverUser->id,
+        'status' => 'delivered',
+        'device_token' => str_repeat('r', 40),
+    ]);
+
+    $this->get(route('order.track', [
+        'slug' => $restaurant->slug,
+        'code' => $order->tracking_code,
+        'token' => $order->device_token,
+    ]))
+        ->assertSuccessful()
+        ->assertSee('data-driver-rating', false)
+        ->assertSee('name="rating"', false);
+
+    $ratingUrl = route('order.driver-rating.store', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+    ]);
+
+    $this->post($ratingUrl, [
+        'rating' => 4,
+        'token' => $order->device_token,
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('orders', [
+        'id' => $order->id,
+        'driver_rating' => 4,
+    ]);
+    expect((float) $driver->fresh()->rating)->toBe(4.0);
+
+    $this->post($ratingUrl, [
+        'rating' => 1,
+        'token' => $order->device_token,
+    ])->assertRedirect();
+
+    expect($order->fresh()->driver_rating)->toBe(4)
+        ->and((float) $driver->fresh()->rating)->toBe(4.0);
+
+    $activeOrder = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'driver_id' => $driverUser->id,
+        'status' => 'on_way',
+        'device_token' => str_repeat('s', 40),
+    ]);
+
+    $this->get(route('driver.order.tracking', [
+        'slug' => $restaurant->slug,
+        'order' => $activeOrder->tracking_code,
+        'token' => $activeOrder->device_token,
+    ]))
+        ->assertSuccessful()
+        ->assertSee('4.0 / 5')
+        ->assertSee('موديل المركبة: غير محدد');
+});
+
+it('removes the device token from authenticated assigned driver tracking URLs', function () {
+    $restaurant = Restaurant::factory()->create();
+    $driver = User::factory()->create([
+        'role' => 'driver',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $order = Order::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'driver_id' => $driver->id,
+        'status' => 'on_way',
+        'device_token' => str_repeat('t', 40),
+    ]);
+    $canonicalUrl = route('driver.order.tracking', [
+        'slug' => $restaurant->slug,
+        'order' => $order->tracking_code,
+    ]);
+
+    $this->actingAs($driver)
+        ->get(route('driver.order.tracking', [
+            'slug' => $restaurant->slug,
+            'order' => $order->tracking_code,
+            'token' => $order->device_token,
+        ]))
+        ->assertRedirect($canonicalUrl);
 });
 
 it('renders sized maps and invalidates Leaflet dimensions on driver pages', function (string $themeFolder) {
     $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
-    $restaurant = Restaurant::factory()->create(['theme_id' => $theme->id]);
+    $restaurant = Restaurant::factory()->create([
+        'theme_id' => $theme->id,
+        'logo' => 'restaurants/logo.png',
+    ]);
     $driver = User::factory()->create([
         'role' => 'driver',
         'restaurant_id' => $restaurant->id,
@@ -146,7 +316,15 @@ it('renders sized maps and invalidates Leaflet dimensions on driver pages', func
             ->assertSuccessful()
             ->assertSee('leaflet.css')
             ->assertSee('min-height: 250px')
-            ->assertSee('this.map.invalidateSize()', false);
+            ->assertSee('absolute bottom-4 left-4 right-4 z-[1000]', false)
+            ->assertSee('whitespace-nowrap shrink-0 inline-block px-1', false)
+            ->assertSee('margin-top: var(--spacing-sm);', false)
+            ->assertSee('الوقت المتوقع للوصول')
+            ->assertSee('this.map.invalidateSize()', false)
+            ->assertSee('calculateBearing(startLat, startLng, destLat, destLng)', false)
+            ->assertSee(media_url($restaurant->logo), false)
+            ->assertSee($restaurant->name)
+            ->assertDontSee('توصيل سريع');
     }
 })->with([
     'burger theme' => 'burger-theme',
@@ -296,12 +474,19 @@ it('gives restaurant admins a delivery dashboard without access to driver action
 
         $this->get(route('driver.dashboard', $restaurant->slug))
             ->assertSuccessful()
-            ->assertSee('لوحة التوصيل والمندوبين')
-            ->assertSee('طلبات التوصيل النشطة')
-            ->assertSee('طلبات التوصيل المكتملة')
-            ->assertSee('<span data-metric="active-delivery-orders">2</span>', false)
-            ->assertSee('<span data-metric="completed-delivery-orders">1</span>', false)
-            ->assertSee('<span data-metric="dispatched-delivery-orders">1</span>', false)
+            ->assertSee('مركز قيادة التوصيل')
+            ->assertSee('متاحين الآن')
+            ->assertSee('طلبات قيد التوصيل')
+            ->assertSee('متوسط زمن التوصيل')
+            ->assertSee('طلبات بانتظار مندوب')
+            ->assertSee('data-fleet-stat="active-drivers">2</strong>', false)
+            ->assertSee('data-fleet-stat="live-orders">1</strong>', false)
+            ->assertSee('data-fleet-stat="unassigned-orders">1</strong>', false)
+            ->assertSee('data-metric="dispatched-delivery-orders">1 في الطريق</span>', false)
+            ->assertSee('id="fleet-map"', false)
+            ->assertSee('.DriverLocationUpdated', false)
+            ->assertSee('.OrderStatusUpdated', false)
+            ->assertSee('.OrderCreated', false)
             ->assertSee($activeOrder->tracking_code)
             ->assertSee($driver->name)
             ->assertSee('في التوصيل')
@@ -390,7 +575,8 @@ it('conditionally shows the live tracking button in every theme', function (stri
         'token' => $order->device_token,
     ]))
         ->assertSuccessful()
-        ->assertSee('في الطريق إليك');
+        ->assertSee('في الطريق إليك')
+        ->assertSee('data-order-push-subscription', false);
 
     if ($isInTransit) {
         $response

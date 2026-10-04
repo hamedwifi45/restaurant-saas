@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DriverLocationUpdated;
 use App\Helpers\ThemeHelper;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -10,6 +11,7 @@ use App\Notifications\OrderStatusUpdatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\View\View;
 
 class DriverController extends Controller
@@ -26,13 +28,14 @@ class DriverController extends Controller
         );
 
         $deliveryOrders = $restaurant->orders()->where('delivery_type', 'delivery');
+        $deliveryStatuses = ['on_way', 'out_for_delivery', 'in_transit'];
         $dispatchedOrders = (clone $deliveryOrders)
             ->whereNotNull('driver_id')
-            ->whereIn('status', ['on_way', 'out_for_delivery', 'in_transit'])
-            ->with('driverUser')
+            ->whereIn('status', $deliveryStatuses)
+            ->with('driverUser.driverProfile')
             ->latest('updated_at')
             ->get();
-        $activeOrderStatuses = ['delivered', 'cancelled', 'rejected'];
+        $driverOrderStatuses = ['ready', 'accepted', ...$deliveryStatuses];
         $drivers = User::query()
             ->where('restaurant_id', $restaurant->id)
             ->where(fn ($query) => $query
@@ -43,7 +46,7 @@ class DriverController extends Controller
                 'assignedOrders' => fn ($orders) => $orders
                     ->where('restaurant_id', $restaurant->id)
                     ->where('delivery_type', 'delivery')
-                    ->whereIn('status', ['on_way', 'out_for_delivery', 'in_transit'])
+                    ->whereIn('status', $driverOrderStatuses)
                     ->latest('updated_at'),
             ])
             ->orderBy('name')
@@ -54,25 +57,97 @@ class DriverController extends Controller
                 $status = $currentOrder ? 'on_delivery' : ($isAvailable ? 'available' : 'offline');
 
                 return [
+                    'id' => $driver->id,
                     'name' => $driver->name,
                     'phone' => $driver->driverProfile?->phone ?? $driver->phone,
                     'status' => $status,
+                    'is_on_shift' => $isAvailable || $currentOrder !== null,
+                    'avatar' => $driver->driverProfile?->avatar,
+                    'vehicle_model' => $driver->driverProfile?->vehicle_model,
+                    'vehicle_type' => $driver->driverProfile?->vehicle_type,
+                    'plate_number' => $driver->driverProfile?->plate_number,
+                    'latitude' => $currentOrder?->driver_latitude ?? $driver->driverProfile?->current_latitude,
+                    'longitude' => $currentOrder?->driver_longitude ?? $driver->driverProfile?->current_longitude,
                     'current_order' => $currentOrder,
                 ];
             });
+        $activeDrivers = $drivers
+            ->where('is_on_shift', true)
+            ->values();
+        $activeDeliveryOrders = $dispatchedOrders;
+        $unassignedOrderStates = (clone $deliveryOrders)
+            ->whereNull('driver_id')
+            ->where('status', 'ready')
+            ->get(['id', 'status', 'driver_id'])
+            ->map(fn (Order $order): array => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'driver_id' => $order->driver_id,
+            ])
+            ->values();
+        $unassignedOrders = $unassignedOrderStates->count();
+        $completedDeliveryOrders = (clone $deliveryOrders)
+            ->where('status', 'delivered')
+            ->count();
+        $averageDeliveryMinutes = (clone $deliveryOrders)
+            ->where('status', 'delivered')
+            ->latest('updated_at')
+            ->limit(500)
+            ->get(['created_at', 'delivered_at', 'updated_at'])
+            ->map(function (Order $order): float {
+                return $order->created_at->diffInMinutes($order->delivered_at ?? $order->updated_at);
+            })
+            ->avg();
         $metrics = [
-            'active' => (clone $deliveryOrders)->whereNotIn('status', $activeOrderStatuses)->count(),
-            'completed' => (clone $deliveryOrders)->where('status', 'delivered')->count(),
+            'active' => (clone $deliveryOrders)->whereNotIn('status', ['delivered', 'cancelled', 'rejected'])->count(),
+            'completed' => $completedDeliveryOrders,
             'dispatched' => $dispatchedOrders->count(),
             'drivers' => $drivers->count(),
         ];
+        $fleetStats = [
+            'active_drivers' => $activeDrivers->count(),
+            'live_orders' => $activeDeliveryOrders->count(),
+            'average_delivery_minutes' => $averageDeliveryMinutes === null ? null : (int) round($averageDeliveryMinutes),
+            'unassigned_orders' => $unassignedOrders,
+        ];
+        $orderStates = $unassignedOrderStates
+            ->concat($activeDeliveryOrders->map(fn (Order $order): array => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'driver_id' => $order->driver_id,
+            ]))
+            ->values();
+        $mapRoutes = $activeDeliveryOrders->map(fn (Order $order): array => [
+            'id' => $order->id,
+            'tracking_code' => $order->tracking_code,
+            'status' => $order->status,
+            'driver_id' => $order->driver_id,
+            'driver_name' => $order->driverUser?->name,
+            'driver_latitude' => $order->driver_latitude ?? $order->driverUser?->driverProfile?->current_latitude,
+            'driver_longitude' => $order->driver_longitude ?? $order->driverUser?->driverProfile?->current_longitude,
+            'customer_name' => $order->customer_name,
+            'customer_latitude' => $order->delivery_latitude ?? $order->customer_lat,
+            'customer_longitude' => $order->delivery_longitude ?? $order->customer_lng,
+        ])->values();
+        $mapDrivers = $activeDrivers->map(fn (array $driver): array => [
+            'id' => $driver['id'],
+            'name' => $driver['name'],
+            'latitude' => $driver['latitude'],
+            'longitude' => $driver['longitude'],
+        ])->values();
         $themePath = ThemeHelper::getThemePath($restaurant);
 
         return view("themes.{$themePath}.driver.dashboard", compact(
             'restaurant',
             'metrics',
             'drivers',
-            'dispatchedOrders'
+            'dispatchedOrders',
+            'activeDrivers',
+            'activeDeliveryOrders',
+            'fleetStats',
+            'mapRoutes',
+            'mapDrivers',
+            'orderStates'
         ));
     }
 
@@ -177,6 +252,18 @@ class DriverController extends Controller
             'غير مصرح لك بالوصول لصفحة التتبع إلا من الجهاز الذي تم إنشاء الطلب منه.'
         );
 
+        if ($hasTrackingToken && ! $isDriver) {
+            $request->session()->put('order_device_tokens.'.$order->tracking_code, $order->device_token);
+            Cookie::queue('order_device_token_'.$order->id, $order->device_token, 60 * 24 * 7);
+        }
+
+        if ($isDriver && $request->query->has('token')) {
+            return redirect()->route('driver.order.tracking', [
+                'slug' => $slug,
+                'order' => $order->tracking_code,
+            ]);
+        }
+
         if ($order->status === 'delivered' && ! $user) {
             return redirect()->route('order.invoice', ['slug' => $slug, 'trackingCode' => $order->tracking_code]);
         }
@@ -186,9 +273,24 @@ class DriverController extends Controller
 
         $themePath = ThemeHelper::getThemePath($restaurant);
         $order->load(['restaurant', 'driver', 'items.product']);
+        if ($order->driver) {
+            $driverRatings = Order::query()
+                ->where('driver_id', $order->driver_id)
+                ->whereNotNull('driver_rating')
+                ->selectRaw('COUNT(*) as rating_count, AVG(driver_rating) as average_rating')
+                ->first();
 
-        // إرسال المتغير isDriver لملف الـ Blade لتحديد هل تظهر لوحة التحكم أم العرض فقط
-        return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant', 'isDriver', 'slug'));
+            $order->driver->setAttribute('rating_count', (int) $driverRatings->rating_count);
+            $order->driver->setAttribute(
+                'rating',
+                $driverRatings->average_rating === null ? null : (float) $driverRatings->average_rating
+            );
+        }
+
+        $trackingApiEndpoint = $isDriver
+            ? route('driver.order.show', [$order->restaurant->slug, $order])
+            : route('order.track.location', ['slug' => $order->restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]);
+        return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant','trackingApiEndpoint', 'isDriver', 'slug'));
     }
 
     public function updateLocation(Request $request, string $slug, Order $order): JsonResponse
@@ -208,6 +310,8 @@ class DriverController extends Controller
             'driver_location_updated_at' => now(),
             'status' => $order->status === 'ready' ? 'on_way' : $order->status,
         ])->save();
+
+        DriverLocationUpdated::dispatch($order);
 
         return response()->json([
             'success' => true,

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https://router.project-osrm.org;">
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data: https://*.tile.openstreetmap.org https:; connect-src 'self' ws: wss: http: https:;">
     <title>نظام تتبع الطلبات والتوصيل</title>
 
     <!-- Leaflet CSS -->
@@ -156,18 +156,25 @@
             display: flex;
             align-items: center;
             gap: var(--spacing-sm);
+            min-width: 0;
         }
 
-        .header-logo svg {
+        .header-logo img {
             width: 32px;
             height: 32px;
-            color: var(--primary-color);
+            flex-shrink: 0;
+            object-fit: cover;
+            border-radius: 50%;
         }
 
         .header-logo span {
             font-size: var(--font-size-lg);
             font-weight: var(--font-weight-bold);
             color: var(--text-primary);
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .header-order-info {
@@ -180,6 +187,8 @@
         .order-id {
             font-size: var(--font-size-sm);
             color: var(--text-secondary);
+            min-width: 0;
+            text-align: right;
             background: var(--bg-secondary);
             padding: var(--spacing-xs) var(--spacing-sm);
             border-radius: var(--border-radius-sm);
@@ -301,24 +310,22 @@
 
         .map-overlay-info {
             position: absolute;
-            bottom: var(--spacing-lg);
-            left: var(--spacing-lg);
-            right: var(--spacing-lg);
-            background: var(--bg-primary);
-            border-radius: var(--border-radius-lg);
-            padding: var(--spacing-md);
-            box-shadow: var(--shadow-lg);
-            z-index: 10;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: var(--spacing-md);
+            gap: var(--spacing-sm);
+            padding: 1rem;
         }
 
         .map-info-item {
             display: flex;
             align-items: center;
             gap: var(--spacing-sm);
+            min-width: 0;
         }
 
         .map-info-item .icon {
@@ -349,12 +356,14 @@
         .map-info-label {
             font-size: var(--font-size-xs);
             color: var(--text-light);
+            white-space: nowrap;
         }
 
         .map-info-value {
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-semibold);
             color: var(--text-primary);
+            white-space: nowrap;
         }
 
         /* ============================================
@@ -399,6 +408,7 @@
             gap: var(--spacing-md);
             position: relative;
             padding-bottom: var(--spacing-lg);
+            text-align: right;
         }
 
         .timeline-step:last-child {
@@ -408,10 +418,10 @@
         .timeline-step::before {
             content: '';
             position: absolute;
-            top: 24px;
+            top: 12px;
+            bottom: -12px;
             right: 11px;
             width: 2px;
-            height: calc(100% - 24px);
             background: var(--border-color);
         }
 
@@ -474,6 +484,8 @@
 
         .step-content {
             flex: 1;
+            min-width: 0;
+            text-align: right;
         }
 
         .step-title {
@@ -488,8 +500,17 @@
         }
 
         .step-time {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            margin-top: 2px;
+            padding: 2px var(--spacing-sm);
+            border-radius: var(--border-radius-full);
+            background: var(--bg-tertiary);
             font-size: var(--font-size-xs);
             color: var(--text-light);
+            direction: ltr;
+            white-space: nowrap;
         }
 
         /* بطاقة المندوب */
@@ -499,6 +520,8 @@
             border-radius: var(--border-radius-lg);
             padding: var(--spacing-lg);
             transition: all var(--transition-normal);
+            direction: rtl;
+            text-align: right;
         }
 
         .driver-card:hover {
@@ -529,6 +552,8 @@
 
         .driver-info {
             flex: 1;
+            min-width: 0;
+            text-align: right;
         }
 
         .driver-name {
@@ -560,6 +585,8 @@
             grid-template-columns: 1fr 1fr;
             gap: var(--spacing-sm);
             margin-bottom: var(--spacing-md);
+            direction: rtl;
+            text-align: right;
         }
 
         .driver-detail-item {
@@ -572,11 +599,33 @@
 
         .driver-detail-item .detail-icon {
             font-size: var(--font-size-base);
+            flex-shrink: 0;
+        }
+
+        .driver-plate-badge {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--primary-color);
+            border-radius: var(--border-radius-sm);
+            background: color-mix(in srgb, var(--primary-color) 10%, white);
+            color: var(--primary-dark);
+            direction: ltr;
+            font-family: monospace;
+            font-weight: var(--font-weight-bold);
+            padding: 2px var(--spacing-sm);
+            white-space: nowrap;
         }
 
         .driver-actions {
             display: flex;
             gap: var(--spacing-sm);
+            direction: rtl;
+        }
+
+        .driver-actions .btn {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
         }
 
         .btn {
@@ -926,8 +975,10 @@
             transition: transform 0.3s ease;
         }
 
-        .marker-driver span {
-            font-size: 20px;
+        .marker-driver svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
         }
 
         @keyframes marker-pulse {
@@ -1006,7 +1057,8 @@
             }
 
             .header-logo span {
-                display: none;
+            max-width: 120px;
+            font-size: var(--font-size-sm);
             }
 
             .header-order-info {
@@ -1050,8 +1102,26 @@
                 bottom: var(--spacing-sm);
                 left: var(--spacing-sm);
                 right: var(--spacing-sm);
+                gap: var(--spacing-xs);
                 padding: var(--spacing-sm);
-                flex-wrap: wrap;
+            }
+
+            .map-info-item {
+                gap: var(--spacing-xs);
+            }
+
+            .map-info-item .icon {
+                width: 28px;
+                height: 28px;
+                font-size: var(--font-size-xs);
+            }
+
+            .map-info-label {
+                font-size: 0.5625rem;
+            }
+
+            .map-info-value {
+                font-size: var(--font-size-xs);
             }
 
             .driver-details {
@@ -1115,6 +1185,7 @@
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             border-radius: var(--border-radius-lg);
             padding: var(--spacing-lg);
+            margin-top: var(--spacing-sm);
             color: var(--text-white);
             text-align: center;
         }
@@ -1142,12 +1213,10 @@
     <!-- رأس الصفحة -->
     <header class="app-header" role="banner">
         <div class="header-logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-            </svg>
-            <span>توصيل سريع</span>
+            @if($restaurant->logo)
+                <img src="{{ media_url($restaurant->logo) }}" alt="{{ $restaurant->name }}">
+            @endif
+            <span>{{ $restaurant->name }}</span>
         </div>
 
         <div class="header-order-info">
@@ -1176,23 +1245,23 @@
         <!-- الخريطة -->
         <section class="map-container" aria-label="خريطة التتبع">
             <div id="map"></div>
-            <div class="map-overlay-info">
+            <div class="map-overlay-info absolute bottom-4 left-4 right-4 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-slate-200/80 flex items-center justify-between gap-2 overflow-hidden">
                 <div class="map-info-item">
-                    <div class="icon distance">كم</div>
+                    <div class="icon distance whitespace-nowrap shrink-0 inline-block px-1">كم</div>
                     <div>
                         <div class="map-info-label">المسافة المتبقية</div>
                         <div class="map-info-value" id="distanceValue">2.4 كم</div>
                     </div>
                 </div>
                 <div class="map-info-item">
-                    <div class="icon time">د</div>
+                    <div class="icon time whitespace-nowrap shrink-0 inline-block px-1">د</div>
                     <div>
                         <div class="map-info-label">وقت الوصول</div>
                         <div class="map-info-value" id="timeValue">8 دقائق</div>
                     </div>
                 </div>
                 <div class="map-info-item">
-                    <div class="icon speed">كم/س</div>
+                    <div class="icon speed whitespace-nowrap shrink-0 inline-block px-1">كم/س</div>
                     <div>
                         <div class="map-info-label">السرعة</div>
                         <div class="map-info-value" id="speedValue">35 كم/س</div>
@@ -1220,7 +1289,7 @@
                         <div class="step-content">
                             <div class="step-title">تم تأكيد الطلب</div>
                             <div class="step-time" id="step1Time">
-                                {{ $order->created_at ? $order->created_at->format('h:i A') : '—' }}</div>
+                                {{ $order->created_at?->timezone(config('app.timezone'))->format('h:i A') ?? '—' }}</div>
                         </div>
                     </div>
                     <div class="timeline-step {{ in_array($order->status, ['on_way', 'delivered'], true) ? 'completed' : 'pending' }}"
@@ -1229,7 +1298,7 @@
                         <div class="step-content">
                             <div class="step-title">قيد التحضير</div>
                             <div class="step-time" id="step2Time">
-                                {{ $order->updated_at && $order->status === 'preparing' ? $order->updated_at->format('h:i A') : '—' }}
+                                {{ $order->status === 'preparing' ? ($order->updated_at?->timezone(config('app.timezone'))->format('h:i A') ?? '—') : '—' }}
                             </div>
                         </div>
                     </div>
@@ -1239,7 +1308,7 @@
                         <div class="step-content">
                             <div class="step-title">في الطريق إليك</div>
                             <div class="step-time" id="step3Time">
-                                {{ $order->status === 'on_way' ? $order->updated_at->format('h:i A') : '—' }}</div>
+                                {{ $order->status === 'on_way' ? ($order->updated_at?->timezone(config('app.timezone'))->format('h:i A') ?? '—') : '—' }}</div>
                         </div>
                     </div>
                     <div class="timeline-step {{ $order->status === 'delivered' ? 'completed' : 'pending' }}"
@@ -1248,7 +1317,7 @@
                         <div class="step-content">
                             <div class="step-title">تم التسليم</div>
                             <div class="step-time">
-                                {{ $order->status === 'delivered' ? $order->updated_at->format('h:i A') : '—' }}</div>
+                                {{ $order->status === 'delivered' ? ($order->updated_at?->timezone(config('app.timezone'))->format('h:i A') ?? '—') : '—' }}</div>
                         </div>
                     </div>
                 </div>
@@ -1259,6 +1328,11 @@
                 <span class="live-dot"></span>
                 <span>مباشر - آخر تحديث: <span id="lastUpdateTime">--:--:--</span></span>
             </div>
+
+            @unless($isDriver)
+                @include('components.order-push-subscription', ['order' => $order, 'restaurant' => $restaurant])
+                @include('components.driver-rating', ['order' => $order, 'restaurant' => $restaurant])
+            @endunless
 
             <!-- بطاقة المندوب -->
             <div class="driver-card" aria-label="معلومات المندوب">
@@ -1272,9 +1346,13 @@
                         <!-- PHP: اسم المندوب -->
                         <div class="driver-name" id="driverName">{{ $order->driverUser?->name ?? 'المندوب' }}</div>
                         <div class="driver-rating">
-                            <span class="stars" aria-label="التقييم 4.8 من 5">٤٫٨ من ٥</span>
-                            <!-- PHP: التقييم -->
-                            <span class="rating-value" id="driverRating">{{ $order->driver?->rating ?? '—' }}</span>
+                            @if(($order->driver?->rating_count ?? 0) > 0)
+                                <span class="stars" aria-label="تقييم المندوب {{ number_format($order->driver->rating, 1) }} من 5">{{ str_repeat('★', (int) round($order->driver->rating)) }}</span>
+                                <span class="rating-value" id="driverRating">{{ number_format($order->driver->rating, 1) }} / 5</span>
+                            @else
+                                <span class="stars" aria-label="لا توجد تقييمات بعد">☆☆☆☆☆</span>
+                                <span class="rating-value" id="driverRating">—</span>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1292,13 +1370,13 @@
                         <span id="driverVehicle">{{ $order->driver?->vehicle_type ?? 'غير محدد' }}</span>
                     </div>
                     <!-- PHP: رقم اللوحة -->
-                    <div class="driver-detail-item">
+                    <div class="driver-detail-item driver-plate-item">
                         <span class="detail-icon">لوحة</span>
-                        <span id="driverPlate">{{ $order->driver?->plate_number ?? 'بدون لوحة' }}</span>
+                        <span class="driver-plate-badge" id="driverPlate">{{ $order->driver?->plate_number ?? 'بدون لوحة' }}</span>
                     </div>
                     <div class="driver-detail-item">
                         <span class="detail-icon">طلب</span>
-                        <span>طلبات نشطة: 1</span>
+                        <span id="driverVehicleModel">موديل المركبة: {{ $order->driver?->vehicle_model ?: 'غير محدد' }}</span>
                     </div>
                 </div>
 
@@ -1394,12 +1472,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        @php
-            $trackingApiEndpoint = $isDriver
-                ? route('driver.order.show', [$order->restaurant->slug, $order])
-                : route('order.track.location', ['slug' => $order->restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]);
-        @endphp
-
+        
         const trackingConfig = {
             orderId: @json($order->id),
             viewMode: @json($isDriver ? 'driver' : 'customer'),
@@ -1444,6 +1517,27 @@
                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
             return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        function calculateBearing(startLat, startLng, destLat, destLng) {
+            const startLatRad = startLat * (Math.PI / 180);
+            const destLatRad = destLat * (Math.PI / 180);
+            const dLng = (destLng - startLng) * (Math.PI / 180);
+            const y = Math.sin(dLng) * Math.cos(destLatRad);
+            const x = Math.cos(startLatRad) * Math.sin(destLatRad) -
+                Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(dLng);
+
+            return (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+        }
+
+        function createDriverArrowIcon() {
+            return L.divIcon({
+                className: 'custom-marker',
+                html: '<div class="marker-driver"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 22 12 17.5 19.5 22 12 2Z"/></svg></div>',
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -44]
+            });
         }
 
         // ============================================
@@ -1556,13 +1650,7 @@
                 }
 
                 // Marker المندوب
-                const driverIcon = L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div class="marker-driver"><span>مندوب</span></div>',
-                    iconSize: [44, 44],
-                    iconAnchor: [22, 22],
-                    popupAnchor: [0, -44]
-                });
+                const driverIcon = createDriverArrowIcon();
 
                 if (driverPoint) {
                     this.markers.driver = L.marker(driverPoint, {
@@ -1570,7 +1658,7 @@
                     }).addTo(this.map).bindPopup(`
                         <div class="driver-popup">
                             <strong>${driver.name}</strong><br>
-                            <small>آخر تحديث: ${new Date().toLocaleTimeString('ar-SA')}</small>
+                            <small>آخر تحديث: ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</small>
                         </div>
                     `);
 
@@ -1695,34 +1783,59 @@
 
             // تحديث موقع المندوب
             updateDriverLocation(driverData) {
-                if (this.markers.driver) {
-                    const newLatLng = [driverData.lat, driverData.lng];
+                const newLatLng = [driverData.lat, driverData.lng];
 
-                    this.markers.driver.setLatLng(newLatLng);
+                if (!this.markers.driver) {
+                    this.markers.driver = L.marker(newLatLng, {
+                        icon: createDriverArrowIcon()
+                    }).addTo(this.map).bindPopup('');
+                    this.accuracyCircle = L.circle(newLatLng, {
+                        radius: 50,
+                        color: '#3B82F6',
+                        fillColor: '#3B82F6',
+                        fillOpacity: 0.1,
+                        weight: 1
+                    }).addTo(this.map);
+                }
 
-                    if (driverData.heading !== undefined && driverData.heading !== null) {
-                        const iconEl = this.markers.driver.getElement()?.querySelector('.marker-driver');
-                        if (iconEl) iconEl.style.transform = `rotate(${driverData.heading}deg)`;
-                    }
+                this.markers.driver.setLatLng(newLatLng);
 
-                    if (this.config.viewMode === 'customer') {
-                        this.map.panTo(newLatLng, {
-                            animate: true,
-                            duration: 1.0
-                        });
-                    }
+                const hasGpsHeading = driverData.heading !== undefined
+                    && driverData.heading !== null
+                    && Number.isFinite(Number(driverData.heading));
+                const customerLatValue = this.config.initialData.customer.lat;
+                const customerLngValue = this.config.initialData.customer.lng;
+                const customerLat = Number(customerLatValue);
+                const customerLng = Number(customerLngValue);
+                const hasCustomerPoint = customerLatValue !== null
+                    && customerLngValue !== null
+                    && Number.isFinite(customerLat)
+                    && Number.isFinite(customerLng);
+                const heading = hasGpsHeading
+                    ? Number(driverData.heading)
+                    : hasCustomerPoint
+                        ? calculateBearing(driverData.lat, driverData.lng, customerLat, customerLng)
+                        : null;
+                const iconEl = this.markers.driver.getElement()?.querySelector('.marker-driver');
+                if (iconEl && heading !== null) iconEl.style.transform = `rotate(${heading}deg)`;
 
-                    this.markers.driver.setPopupContent(`
-                        <div class="driver-popup">
-                            <strong>${driverData.name}</strong><br>
-                            <small>آخر تحديث: ${new Date().toLocaleTimeString('ar-SA')}</small>
-                        </div>
-                    `);
+                if (this.config.viewMode === 'customer') {
+                    this.map.panTo(newLatLng, {
+                        animate: true,
+                        duration: 1.0
+                    });
+                }
 
-                    this.driverPath.push(newLatLng);
-                    if (this.driverPath.length > 100) {
-                        this.driverPath.shift();
-                    }
+                this.markers.driver.setPopupContent(`
+                    <div class="driver-popup">
+                        <strong>${driverData.name}</strong><br>
+                        <small>آخر تحديث: ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</small>
+                    </div>
+                `);
+
+                this.driverPath.push(newLatLng);
+                if (this.driverPath.length > 100) {
+                    this.driverPath.shift();
                 }
             }
 
@@ -1861,7 +1974,7 @@
             // تحديث وقت آخر تحديث
             updateLastUpdateTime() {
                 const el = document.getElementById('lastUpdateTime');
-                if (el) el.textContent = new Date().toLocaleTimeString('ar-SA');
+                if (el) el.textContent = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             }
 
             // عرض خطأ الاتصال
@@ -2044,6 +2157,12 @@
                             await postTracking(trackingConfig.locationEndpoint, {
                                 latitude: latitude,
                                 longitude: longitude,
+                                heading: heading
+                            });
+                            tracker.updateDriverLocation({
+                                lat: latitude,
+                                lng: longitude,
+                                name: trackingConfig.initialData.driver.name,
                                 heading: heading
                             });
 

@@ -3,10 +3,12 @@
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CustomerBroadcastAuthController;
 use App\Http\Controllers\DriverController;
+use App\Http\Controllers\DriverRatingController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KdsController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderPushSubscriptionController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\Restaurant\ThemeSettingsController;
 use App\Http\Controllers\RestaurantController;
@@ -126,6 +128,12 @@ Route::prefix('{slug}')->group(function () {
     Route::post('/track', [OrderController::class, 'trackSearch'])->name('order.track.search');
     Route::get('/track/{code}', [OrderController::class, 'track'])->name('order.track');
     Route::get('/track/{code}/location', [OrderController::class, 'trackingLocation'])->name('order.track.location');
+    Route::post('/track/{order:tracking_code}/push-subscription', [OrderPushSubscriptionController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('order.push-subscriptions.store');
+    Route::post('/track/{order:tracking_code}/driver-rating', [DriverRatingController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('order.driver-rating.store');
 
     // التقييمات والفواتير
     Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');

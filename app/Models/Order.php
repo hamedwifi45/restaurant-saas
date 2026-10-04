@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 /**
  * @property Carbon|null $driver_arrived_at
  */
 class Order extends Model
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasPushSubscriptions, Notifiable;
 
     protected $fillable = [
         'restaurant_id',
@@ -54,6 +55,7 @@ class Order extends Model
         'distance_km',
         'tracking_code',
         'rating',
+        'driver_rating',
         'review',
         'offer_id',
         'discount_amount',
@@ -70,6 +72,7 @@ class Order extends Model
             'coupon_discount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'final_amount' => 'decimal:2',
+            'delivered_at' => 'datetime',
             'delivery_latitude' => 'decimal:7',
             'delivery_longitude' => 'decimal:7',
             'driver_latitude' => 'decimal:7',
@@ -79,6 +82,7 @@ class Order extends Model
             'customer_lat' => 'decimal:7',
             'customer_lng' => 'decimal:7',
             'distance_km' => 'decimal:2',
+            'driver_rating' => 'integer',
         ];
     }
 

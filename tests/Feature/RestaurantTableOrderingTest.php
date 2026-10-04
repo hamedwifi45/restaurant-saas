@@ -9,9 +9,13 @@ use App\Models\Order_item;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Models\Theme;
 use App\Models\User;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 
 it('opens a table QR link and keeps the table in the customer session', function () {
     $restaurant = Restaurant::factory()->create();
@@ -320,18 +324,103 @@ it('serializes the table number and product name for the kitchen display', funct
         ->and($payload['items']->first()['name'])->toBe('برجر خاص');
 });
 
-it('broadcasts an order only on its restaurant KDS channel', function () {
+it('broadcasts an order only to its restaurant KDS and manager channels', function () {
     $restaurant = Restaurant::factory()->create();
     $otherRestaurant = Restaurant::factory()->create();
     $order = Order::factory()->create(['restaurant_id' => $restaurant->id]);
 
-    $channel = (new OrderCreated($order))->broadcastOn()[0];
+    Log::spy();
 
-    expect($channel->name)->toBe('private-restaurant.'.$restaurant->id.'.kds')
-        ->and($channel->name)->not->toContain((string) $otherRestaurant->id);
+    $channelNames = collect((new OrderCreated($order))->broadcastOn())
+        ->map(fn ($channel): string => $channel->name);
+
+    expect($channelNames)
+        ->toContain('private-restaurant.'.$restaurant->id.'.kds')
+        ->toContain('private-restaurant.'.$restaurant->id.'.admin')
+        ->toHaveCount(2)
+        ->and($channelNames->filter(fn (string $name): bool => str_contains($name, (string) $otherRestaurant->id)))
+        ->toBeEmpty();
+
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with("📣 [Server Broadcast] Dispatching OrderCreated event for Order ID: {$order->id} on channel: restaurant.{$restaurant->id}.kds");
 });
 
-it('queues order-created and order-ready broadcasts', function () {
-    expect(is_subclass_of(OrderCreated::class, ShouldBroadcast::class))->toBeTrue()
+it('renders Reverb diagnostics in every themed kitchen display', function (string $themeFolder) {
+    $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
+    $restaurant = Restaurant::factory()->create(['theme_id' => $theme->id]);
+    $user = User::factory()->create(['restaurant_id' => $restaurant->id]);
+
+    $this->withoutMiddleware()
+        ->actingAs($user)
+        ->get(route('kitchen.display', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('name="csrf-token" content="', false)
+        ->assertSee('[KDS Reverb State]', false)
+        ->assertSee('[KDS Reverb Subscribing to Private Channel]', false)
+        ->assertSee('[KDS Reverb Subscription Auth Error]', false)
+        ->assertSee('.listenToAll', false)
+        ->assertSee('.OrderCreated', false);
+})->with([
+    'albasha theme' => 'albasha-burger',
+    'burger theme' => 'burger-theme',
+    'classic theme' => 'classic-2-burger',
+    'oriental theme' => 'oriental-theme',
+]);
+
+it('authorizes KDS broadcast subscriptions only for staff in the restaurant', function () {
+    $restaurant = Restaurant::factory()->create();
+    $otherRestaurant = Restaurant::factory()->create();
+    $kitchenStaff = User::factory()->create([
+        'role' => 'kitchen_staff',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $otherRestaurantStaff = User::factory()->create([
+        'role' => 'kitchen_staff',
+        'restaurant_id' => $otherRestaurant->id,
+    ]);
+    $driver = User::factory()->create([
+        'role' => 'driver',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $authorizer = Broadcast::getChannels()->get('restaurant.{restaurantId}.kds');
+
+    expect($authorizer($kitchenStaff, $restaurant->id))->toBeTrue()
+        ->and($authorizer($otherRestaurantStaff, $restaurant->id))->toBeFalse()
+        ->and($authorizer($driver, $restaurant->id))->toBeFalse();
+});
+
+it('authorizes fleet broadcast subscriptions only for restaurant managers and kitchen staff', function () {
+    $restaurant = Restaurant::factory()->create();
+    $otherRestaurant = Restaurant::factory()->create();
+    $owner = User::factory()->create([
+        'role' => 'restaurant_owner',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $otherRestaurantOwner = User::factory()->create([
+        'role' => 'restaurant_owner',
+        'restaurant_id' => $otherRestaurant->id,
+    ]);
+    $kitchenStaff = User::factory()->create([
+        'role' => 'kitchen_staff',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $driver = User::factory()->create([
+        'role' => 'driver',
+        'restaurant_id' => $restaurant->id,
+    ]);
+    $superAdmin = User::factory()->create(['role' => 'super_admin']);
+    $authorizer = Broadcast::getChannels()->get('restaurant.{restaurantId}.admin');
+
+    expect($authorizer($owner, $restaurant->id))->toBeTrue()
+        ->and($authorizer($otherRestaurantOwner, $restaurant->id))->toBeFalse()
+        ->and($authorizer($kitchenStaff, $restaurant->id))->toBeTrue()
+        ->and($authorizer($driver, $restaurant->id))->toBeFalse()
+        ->and($authorizer($superAdmin, $restaurant->id))->toBeTrue();
+});
+
+it('broadcasts new KDS orders immediately with a stable event name', function () {
+    expect(is_subclass_of(OrderCreated::class, ShouldBroadcastNow::class))->toBeTrue()
+        ->and((new OrderCreated(Order::factory()->make()))->broadcastAs())->toBe('OrderCreated')
         ->and(is_subclass_of(OrderReadyForDelivery::class, ShouldBroadcast::class))->toBeTrue();
 });

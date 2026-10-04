@@ -34,10 +34,16 @@ class OrderController extends Controller
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
-            ->with(['invoice', 'items.product'])
+            ->with(['invoice', 'items.product', 'driver'])
             ->firstOrFail();
 
         $this->authorizeOrderTracking($request, $order);
+
+        $requestToken = $request->query('token');
+        if (filled($order->device_token) && is_string($requestToken) && hash_equals($order->device_token, $requestToken)) {
+            $request->session()->put('order_device_tokens.'.$order->tracking_code, $order->device_token);
+            Cookie::queue('order_device_token_'.$order->id, $order->device_token, 60 * 24 * 7);
+        }
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
@@ -95,6 +101,7 @@ class OrderController extends Controller
             403,
             'لا تملك صلاحية تتبع هذا الطلب.'
         );
+
     }
 
     public function checkout($slug)
