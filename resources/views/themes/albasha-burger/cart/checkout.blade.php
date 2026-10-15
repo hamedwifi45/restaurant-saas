@@ -1,167 +1,217 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @push('head')
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
     <script>
-        // تعريف مكون Alpine في النطاق العام قبل بدء تشغيل Alpine/Vite
-        window.checkoutPricing = function(config) {
-            return {
-                subtotal: Number(config.subtotal || 0),
-                tax: Number(config.tax || 0),
-                legacyFee: Number(config.legacyFee || 0),
-                offerDiscount: Number(config.offerDiscount || 0),
-                restaurantLatitude: Number(config.restaurantLatitude),
-                restaurantLongitude: Number(config.restaurantLongitude),
-                deliveryRadius: Number(config.deliveryRadius || 10),
-                baseDeliveryFee: Number(config.baseDeliveryFee || 2.0),
-                baseDeliveryKilometers: Number(config.baseDeliveryKilometers || 2.0),
-                feePerAdditionalKilometer: Number(config.feePerAdditionalKilometer || 0.5),
-                currency: config.currency || 'ل.س',
-                isDineIn: Boolean(config.isDineIn),
+    // تعريف مكون Alpine في النطاق العام قبل بدء تشغيل Alpine/Vite
+    window.checkoutPricing = function(config) {
+        return {
+            subtotal: Number(config.subtotal || 0),
+            tax: Number(config.tax || 0),
+            legacyFee: Number(config.legacyFee || 0),
+            offerDiscount: Number(config.offerDiscount || 0),
+            restaurantLatitude: Number(config.restaurantLatitude),
+            restaurantLongitude: Number(config.restaurantLongitude),
+            deliveryRadius: Number(config.deliveryRadius || 10),
+            baseDeliveryFee: Number(config.baseDeliveryFee || 2.0),
+            baseDeliveryKilometers: Number(config.baseDeliveryKilometers || 2.0),
+            feePerAdditionalKilometer: Number(config.feePerAdditionalKilometer || 0.5),
+            currency: config.currency || 'ل.س',
+            isDineIn: Boolean(config.isDineIn),
 
-                customerName: '',
-                customerPhone: '',
-                customerAddress: '',
-                customerLat: '',
-                customerLng: '',
+            // استرجاع البيانات المحفوظة من localStorage تلقائياً
+            customerName: localStorage.getItem('customer_name') || '',
+            customerPhone: localStorage.getItem('customer_phone') || '',
+            customerAddress: localStorage.getItem('customer_address') || '',
+            customerLat: localStorage.getItem('customer_lat') || '',
+            customerLng: localStorage.getItem('customer_lng') || '',
 
-                distance: null,
-                extraKilometers: 0,
-                deliveryFeeHelper: '',
-                deliveryFee: Number(config.legacyFee || 0),
-                total: 0,
-                deliveryFeeDisplay: '',
-                totalDisplay: '',
-                isOutOfRange: false,
-                warningMessage: '',
-                couponDiscount: 0,
-                processing: false,
+            distance: null,
+            extraKilometers: 0,
+            deliveryFeeHelper: '',
+            deliveryFee: Number(config.legacyFee || 0),
+            total: 0,
+            deliveryFeeDisplay: '',
+            totalDisplay: '',
+            isOutOfRange: false,
+            warningMessage: '',
+            couponDiscount: 0,
+            processing: false,
 
-                init() {
-                    window.checkoutPricingState = this;
+            init() {
+                window.checkoutPricingState = this;
 
-                    // الاستماع لأحداث الخريطة
-                    window.addEventListener('customer-location-updated', (event) => {
-                        const { latitude, longitude } = event.detail || {};
-                        if (latitude && longitude) {
-                            this.setCustomerLocation(latitude, longitude);
-                        }
-                    });
+                // استعادة البيانات عند التحميل ومزامنتها مع الحقول
+                this.$nextTick(() => {
+                    this.restoreCustomerData();
+                });
 
-                    this.syncFromForm();
-                    this.recalculate();
-                },
-
-                syncFromForm() {
-                    const form = document.getElementById('checkout-form');
-                    if (!form) return;
-                    
-                    const latInput = form.querySelector('[name="latitude"]');
-                    const lngInput = form.querySelector('[name="longitude"]');
-                    const nameInput = form.querySelector('[name="name"]');
-                    const phoneInput = form.querySelector('[name="phone"]');
-                    const addrInput = form.querySelector('[name="address"]');
-
-                    if (latInput?.value) this.customerLat = latInput.value;
-                    if (lngInput?.value) this.customerLng = lngInput.value;
-                    if (nameInput?.value) this.customerName = nameInput.value;
-                    if (phoneInput?.value) this.customerPhone = phoneInput.value;
-                    if (addrInput?.value) this.customerAddress = addrInput.value;
-                },
-
-                persistCustomer() {
-                    this.syncFromForm();
-                    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-                    document.cookie = `customer_lat=${encodeURIComponent(this.customerLat || '')}; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
-                    document.cookie = `customer_lng=${encodeURIComponent(this.customerLng || '')}; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
-                },
-
-                setCustomerLocation(latitude, longitude) {
-                    this.customerLat = String(latitude);
-                    this.customerLng = String(longitude);
-
-                    const latInput = document.getElementById('latitude');
-                    const lngInput = document.getElementById('longitude');
-                    if (latInput) latInput.value = this.customerLat;
-                    if (lngInput) lngInput.value = this.customerLng;
-
-                    this.persistCustomer();
-                    this.recalculate();
-                },
-
-                recalculate() {
-                    const lat = Number(this.customerLat);
-                    const lng = Number(this.customerLng);
-                    const restLat = this.restaurantLatitude;
-                    const restLng = this.restaurantLongitude;
-
-                    const hasCustomer = this.customerLat !== '' && this.customerLng !== '' && Number.isFinite(lat) && Number.isFinite(lng);
-                    const hasRestaurant = Number.isFinite(restLat) && Number.isFinite(restLng);
-
-                    this.isOutOfRange = false;
-                    this.warningMessage = '';
-                    this.distance = null;
-                    this.extraKilometers = 0;
-
-                    if (this.isDineIn) {
-                        this.deliveryFee = 0;
-                    } else if (hasCustomer && hasRestaurant) {
-                        // حساب المسافة بدقة عبر معادلة Haversine
-                        const dLat = (lat - restLat) * Math.PI / 180;
-                        const dLng = (lng - restLng) * Math.PI / 180;
-                        const a = Math.sin(dLat / 2) ** 2 + Math.cos(restLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-                        const c = 2 * Math.atan2(Math.sqrt(Math.min(1, Math.max(0, a))), Math.sqrt(1 - Math.min(1, Math.max(0, a))));
-
-                        this.distance = 6371 * c;
-                        this.extraKilometers = Math.max(0, this.distance - this.baseDeliveryKilometers);
-                        this.deliveryFee = Math.round((this.baseDeliveryFee + (this.extraKilometers * this.feePerAdditionalKilometer)) * 100) / 100;
-
-                        if (this.distance > this.deliveryRadius) {
-                            this.isOutOfRange = true;
-                            this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${this.deliveryRadius.toFixed(2)} كم)`;
-                        }
-                    } else {
-                        this.deliveryFee = this.baseDeliveryFee;
+                // الاستماع لأحداث الخريطة
+                window.addEventListener('customer-location-updated', (event) => {
+                    const { latitude, longitude } = event.detail || {};
+                    if (latitude && longitude) {
+                        this.setCustomerLocation(latitude, longitude);
                     }
+                });
 
-                    this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
-                    this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${this.currency}`;
-                    this.total = this.subtotal + this.tax + this.deliveryFee - this.offerDiscount - this.couponDiscount;
-                    this.totalDisplay = `${this.total.toFixed(2)} ${this.currency}`;
+                this.recalculate();
+            },
 
-                    const form = document.getElementById('checkout-form');
-                    if (form) {
-                        form.dataset.outOfRange = this.isOutOfRange ? 'true' : 'false';
-                    }
-                },
+            restoreCustomerData() {
+                const form = document.getElementById('checkout-form');
+                if (!form) return;
 
-                formatDistance() {
-                    return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
-                },
+                const nameInput = form.querySelector('[name="name"]');
+                const phoneInput = form.querySelector('[name="phone"]');
+                const addrInput = form.querySelector('[name="address"]');
+                const latInput = form.querySelector('[name="latitude"]');
+                const lngInput = form.querySelector('[name="longitude"]');
 
-                validateSubmission(event) {
-                    this.persistCustomer();
-                    this.recalculate();
+                // إذا كانت حقول Laravel محملة بقيمة old() فنعتمدها أولوية، وإلا نستخدم المحفوظ
+                if (nameInput?.value) this.customerName = nameInput.value;
+                else if (this.customerName && nameInput) nameInput.value = this.customerName;
 
-                    if (this.isOutOfRange) {
-                        event.preventDefault();
-                        this.$nextTick(() => {
-                            this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        });
-                        return;
-                    }
+                if (phoneInput?.value) this.customerPhone = phoneInput.value;
+                else if (this.customerPhone && phoneInput) phoneInput.value = this.customerPhone;
 
-                    this.processing = true;
-                },
+                if (addrInput?.value) this.customerAddress = addrInput.value;
+                else if (this.customerAddress && addrInput) addrInput.value = this.customerAddress;
 
-                setCouponDiscount(discount) {
-                    this.couponDiscount = Number(discount) || 0;
-                    this.recalculate();
+                if (latInput?.value) this.customerLat = latInput.value;
+                else if (this.customerLat && latInput) latInput.value = this.customerLat;
+
+                if (lngInput?.value) this.customerLng = lngInput.value;
+                else if (this.customerLng && lngInput) lngInput.value = this.customerLng;
+
+                // استعادة تثبيت الموقع على الخريطة إذا كانت الإحداثيات مخزنة
+                if (this.customerLat && this.customerLng && typeof setCheckoutLocation === 'function') {
+                    setCheckoutLocation(this.customerLat, this.customerLng, true);
                 }
-            };
+            },
+
+            syncFromForm() {
+                const form = document.getElementById('checkout-form');
+                if (!form) return;
+                
+                const latInput = form.querySelector('[name="latitude"]');
+                const lngInput = form.querySelector('[name="longitude"]');
+                const nameInput = form.querySelector('[name="name"]');
+                const phoneInput = form.querySelector('[name="phone"]');
+                const addrInput = form.querySelector('[name="address"]');
+
+                if (latInput?.value) this.customerLat = latInput.value;
+                if (lngInput?.value) this.customerLng = lngInput.value;
+                if (nameInput?.value) this.customerName = nameInput.value;
+                if (phoneInput?.value) this.customerPhone = phoneInput.value;
+                if (addrInput?.value) this.customerAddress = addrInput.value;
+            },
+
+            persistCustomer() {
+                this.syncFromForm();
+
+                // 1. الحفظ في LocalStorage
+                localStorage.setItem('customer_name', this.customerName || '');
+                localStorage.setItem('customer_phone', this.customerPhone || '');
+                localStorage.setItem('customer_address', this.customerAddress || '');
+                localStorage.setItem('customer_lat', this.customerLat || '');
+                localStorage.setItem('customer_lng', this.customerLng || '');
+
+                // 2. الحفظ في Cookies لتمريرها للسيرفر (لمدة 30 يوماً)
+                const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                const cookieOptions = `; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
+
+                document.cookie = `customer_name=${encodeURIComponent(this.customerName || '')}${cookieOptions}`;
+                document.cookie = `customer_phone=${encodeURIComponent(this.customerPhone || '')}${cookieOptions}`;
+                document.cookie = `customer_address=${encodeURIComponent(this.customerAddress || '')}${cookieOptions}`;
+                document.cookie = `customer_lat=${encodeURIComponent(this.customerLat || '')}${cookieOptions}`;
+                document.cookie = `customer_lng=${encodeURIComponent(this.customerLng || '')}${cookieOptions}`;
+            },
+
+            setCustomerLocation(latitude, longitude) {
+                this.customerLat = String(latitude);
+                this.customerLng = String(longitude);
+
+                const latInput = document.getElementById('latitude');
+                const lngInput = document.getElementById('longitude');
+                if (latInput) latInput.value = this.customerLat;
+                if (lngInput) lngInput.value = this.customerLng;
+
+                this.persistCustomer();
+                this.recalculate();
+            },
+
+            recalculate() {
+                const lat = Number(this.customerLat);
+                const lng = Number(this.customerLng);
+                const restLat = this.restaurantLatitude;
+                const restLng = this.restaurantLongitude;
+
+                const hasCustomer = this.customerLat !== '' && this.customerLng !== '' && Number.isFinite(lat) && Number.isFinite(lng);
+                const hasRestaurant = Number.isFinite(restLat) && Number.isFinite(restLng);
+
+                this.isOutOfRange = false;
+                this.warningMessage = '';
+                this.distance = null;
+                this.extraKilometers = 0;
+
+                if (this.isDineIn) {
+                    this.deliveryFee = 0;
+                } else if (hasCustomer && hasRestaurant) {
+                    // حساب المسافة بدقة عبر معادلة Haversine
+                    const dLat = (lat - restLat) * Math.PI / 180;
+                    const dLng = (lng - restLng) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(restLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+                    const c = 2 * Math.atan2(Math.sqrt(Math.min(1, Math.max(0, a))), Math.sqrt(1 - Math.min(1, Math.max(0, a))));
+
+                    this.distance = 6371 * c;
+                    this.extraKilometers = Math.max(0, this.distance - this.baseDeliveryKilometers);
+                    this.deliveryFee = Math.round((this.baseDeliveryFee + (this.extraKilometers * this.feePerAdditionalKilometer)) * 100) / 100;
+
+                    if (this.distance > this.deliveryRadius) {
+                        this.isOutOfRange = true;
+                        this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${this.deliveryRadius.toFixed(2)} كم)`;
+                    }
+                } else {
+                    this.deliveryFee = this.baseDeliveryFee;
+                }
+
+                this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
+                this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${this.currency}`;
+                this.total = this.subtotal + this.tax + this.deliveryFee - this.offerDiscount - this.couponDiscount;
+                this.totalDisplay = `${this.total.toFixed(2)} ${this.currency}`;
+
+                const form = document.getElementById('checkout-form');
+                if (form) {
+                    form.dataset.outOfRange = this.isOutOfRange ? 'true' : 'false';
+                }
+            },
+
+            formatDistance() {
+                return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
+            },
+
+            validateSubmission(event) {
+                this.persistCustomer();
+                this.recalculate();
+
+                if (this.isOutOfRange) {
+                    event.preventDefault();
+                    this.$nextTick(() => {
+                        this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                    return;
+                }
+
+                this.processing = true;
+            },
+
+            setCouponDiscount(discount) {
+                this.couponDiscount = Number(discount) || 0;
+                this.recalculate();
+            }
         };
-    </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    };
+</script>
 @endpush
 
 @section('content')
@@ -216,6 +266,12 @@
                     <h3 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">ملخص المبلغ</h3>
 
                     <div class="space-y-2 mb-4">
+                        @foreach($checkoutItems as $item)
+                            <div class="flex justify-between gap-4 text-sm text-gray-600">
+                                <span>{{ $item['name'] }}@if($item['variant_name']) ({{ $item['variant_name'] }})@endif × {{ $item['quantity'] }} <span class="text-xs">({{ number_format($item['unit_price'], 2) }} ل.س)</span></span>
+                                <span class="shrink-0">{{ number_format($item['subtotal'], 2) }} ل.س</span>
+                            </div>
+                        @endforeach
                         <div class="flex justify-between">
                             <span>المجموع الفرعي:</span>
                             <span id="subtotal-display">{{ number_format($baseSubtotal, 2) }} ل.س</span>
@@ -295,10 +351,10 @@
                         <input type="radio" name="payment_method" value="cash" checked class="text-primary focus:ring-primary">
                         <span>دفع عند الاستلام 💵</span>
                     </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
+                    {{-- <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="payment_method" value="transfer" class="text-primary focus:ring-primary">
                         <span>تحويل بنكي 🏦</span>
-                    </label>
+                    </label> --}}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">ملاحظات للطلب (اختياري)</label>
@@ -313,7 +369,7 @@
             <input type="hidden" name="coupon_id" id="selected-coupon-id" value="">
             <input type="hidden" name="coupon_code" id="selected-coupon-code" value="">
 
-            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition" :disabled="processing || isOutOfRange" :class="{'cursor-not-allowed opacity-50': isOutOfRange}">تأكيد الطلب ✅</button>
+            <button type="submit" @disabled(! $restaurant->canAcceptOrders()) class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition disabled:cursor-not-allowed disabled:opacity-50" :disabled="processing || isOutOfRange || {{ $restaurant->canAcceptOrders() ? 'false' : 'true' }}" :class="{'cursor-not-allowed opacity-50': isOutOfRange}">تأكيد الطلب ✅</button>
         </form>
         <div id="checkout-processing" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50" role="status" aria-live="assertive" aria-hidden="true">
             <div class="flex items-center gap-4 rounded-xl bg-white px-6 py-5 text-gray-800 shadow-xl">
@@ -324,7 +380,10 @@
     </div>
 </section>
 
-@if(!$table)<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>@endif
+@if(!$table)
+    <script src="{{ asset('vendor/leaflet/leaflet.js') }}"></script>
+    <script src="{{ asset('js/offline-map-tiles.js') }}"></script>
+@endif
 
 <script>
     document.getElementById('checkout-form')?.addEventListener('submit', function (e) {
@@ -353,10 +412,7 @@
     const defaultLocation = [restaurantLatitude, restaurantLongitude];
 
     const checkoutMap = L.map('checkout-map', { maxZoom: 19 }).setView(defaultLocation, 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        maxZoom: 19, 
-        attribution: '&copy; OpenStreetMap' 
-    }).addTo(checkoutMap);
+    window.addOfflineAwareMapTiles(checkoutMap);
 
     const restaurantMarkerIcon = L.divIcon({
         className: 'restaurant-map-marker',

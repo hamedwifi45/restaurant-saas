@@ -13,6 +13,7 @@ use App\Http\Controllers\PwaController;
 use App\Http\Controllers\Restaurant\ThemeSettingsController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\RestaurantDashboardController;
+use App\Http\Controllers\RestaurantOrderAvailabilityController;
 use App\Http\Controllers\RestaurantTableController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ThemeController;
@@ -57,6 +58,8 @@ Route::middleware(['auth'])->group(function () {
     // API لوحة تحكم المطعم والطاولات
     Route::prefix('restaurant')->group(function () {
         Route::get('/tables/{table}/qr', [RestaurantTableController::class, 'qr'])->name('restaurant.table.qr');
+        Route::post('/{slug}/orders/availability', [RestaurantOrderAvailabilityController::class, 'update'])
+            ->name('restaurant.orders.availability');
 
         Route::prefix('api')->group(function () {
             Route::get('/theme/settings', [ThemeSettingsController::class, 'getSettings'])->middleware('can:access-theme-editor')->name('restaurant.theme.settings.get');
@@ -104,7 +107,7 @@ Route::prefix('{slug}')->group(function () {
     // الرئيسية والمنيو والمنتجات والعروض
     Route::get('/', [RestaurantController::class, 'home'])->name('restaurant.home');
     Route::get('/menu', [RestaurantController::class, 'menu'])->name('restaurant.menu');
-    Route::get('/product/{id}', [RestaurantController::class, 'showProduct'])->name('product.show');
+    Route::get('/product/{slugP}', [RestaurantController::class, 'showProduct'])->name('product.show');
     Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
     Route::get('/table/{token}', [RestaurantTableController::class, 'enter'])->name('restaurant.table.menu');
 

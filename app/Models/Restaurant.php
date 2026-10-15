@@ -18,6 +18,7 @@ class Restaurant extends Model
         'base_delivery_fee' => 2.00,
         'base_delivery_km' => 2.00,
         'per_km_delivery_fee' => 0.50,
+        'is_accepting_orders' => true,
     ];
 
     protected $fillable = [
@@ -49,6 +50,9 @@ class Restaurant extends Model
         'commission_rate',
         'subscription_fee',
         'is_active',
+        'opening_time',
+        'closing_time',
+        'is_accepting_orders',
         'trial_ends_at',
         'latitude',
         'longitude',
@@ -82,6 +86,7 @@ class Restaurant extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_accepting_orders' => 'boolean',
         'delivery_fee' => 'decimal:2',
         'commission_rate' => 'decimal:2',
         'subscription_fee' => 'decimal:2',
@@ -221,5 +226,42 @@ class Restaurant extends Model
             self::PLAN_FEATURES[$plan] ?? self::PLAN_FEATURES['starter'],
             true
         );
+    }
+
+    public function canAcceptOrders(): bool
+    {
+        if (! $this->is_accepting_orders) {
+            return false;
+        }
+
+        if (! $this->opening_time || ! $this->closing_time) {
+            return true;
+        }
+
+        $currentTime = now()->format('H:i');
+        $openingTime = substr((string) $this->opening_time, 0, 5);
+        $closingTime = substr((string) $this->closing_time, 0, 5);
+
+        if ($openingTime === $closingTime) {
+            return false;
+        }
+
+        if ($openingTime < $closingTime) {
+            return $currentTime >= $openingTime && $currentTime < $closingTime;
+        }
+
+        return $currentTime >= $openingTime || $currentTime < $closingTime;
+    }
+
+    public function orderUnavailableMessage(): string
+    {
+        if (! $this->is_accepting_orders) {
+            return 'نعتذر منكم، المطعم يمر بفترة زحمة حالياً وتوقف عن استقبال الطلبات مؤقتاً. يرجى المحاولة بعد قليل.';
+        }
+
+        $openingTime = substr((string) $this->opening_time, 0, 5);
+        $closingTime = substr((string) $this->closing_time, 0, 5);
+
+        return "عذراً، المطعم مغلق حالياً ولا يمكن استقبال الطلبات في هذا الوقت. أوقات العمل من {$openingTime} إلى {$closingTime}.";
     }
 }

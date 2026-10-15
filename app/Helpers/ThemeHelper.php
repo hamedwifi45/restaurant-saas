@@ -16,7 +16,7 @@ class ThemeHelper
 
         return $folderName && is_dir(resource_path("views/themes/{$folderName}"))
             ? $folderName
-            : 'burger-theme';
+            : 'albasha-burger';
     }
 
     /**
@@ -62,5 +62,4 @@ class ThemeHelper
 
         return null;
     }
-    
 }

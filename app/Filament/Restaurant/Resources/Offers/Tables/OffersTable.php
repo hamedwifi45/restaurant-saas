@@ -22,7 +22,7 @@ class OffersTable
                     ->label('الصورة')
                     ->disk('public')
                     ->circular()
-                    ->default('https://via.placeholder.com/50'),
+                    ->defaultImageUrl(asset('images/placeholder.svg')),
 
                 TextColumn::make('title')
                     ->label('العنوان')

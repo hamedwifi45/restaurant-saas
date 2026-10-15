@@ -1,4 +1,4 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @section('content')
 

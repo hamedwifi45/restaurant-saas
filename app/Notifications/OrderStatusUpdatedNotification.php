@@ -61,7 +61,7 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
         return (new WebPushMessage)
             ->title($payload['title'])
             ->body($payload['message'])
-            ->icon(media_url($restaurant->logo) ?? asset('/icons/default-icon.png'))
+            ->icon(media_url($restaurant->logo) ?? asset('apple-touch-icon.png'))
             ->dir('rtl')
             ->lang('ar')
             ->tag('order-'.$this->order->tracking_code)

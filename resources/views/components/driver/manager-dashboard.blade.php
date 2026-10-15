@@ -10,7 +10,7 @@
     'orderStates',
 ])
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
 
 <section dir="rtl" class="mx-auto min-h-screen max-w-[1600px] space-y-6 bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
     <header class="flex flex-wrap items-center justify-between gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -209,7 +209,8 @@
     </div>
 </section>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer crossorigin=""></script>
+<script src="{{ asset('vendor/leaflet/leaflet.js') }}" defer></script>
+<script src="{{ asset('js/offline-map-tiles.js') }}" defer></script>
 <script>
     window.addEventListener('load', () => {
         const mapElement = document.getElementById('fleet-map');
@@ -247,10 +248,7 @@
 
         const map = L.map(mapElement, { zoomControl: false, scrollWheelZoom: true });
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 19,
-        }).addTo(map);
+        window.addOfflineAwareMapTiles(map);
 
         const defaultCenter = @js([$restaurant->latitude ?? 33.5138, $restaurant->longitude ?? 36.2765]);
         const initialCenter = toCoordinate(defaultCenter[0], defaultCenter[1]) || [33.5138, 36.2765];

@@ -3,11 +3,13 @@
 namespace App\Filament\Sham\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class ProductForm
 {
@@ -53,6 +55,36 @@ class ProductForm
                     ->directory('products')
                     ->maxSize(5120)
                     ->helperText('يرجى رفع صورة من جهازك بصيغة JPG أو PNG أو WEBP بحد أقصى 5 ميغابايت.'),
+                Repeater::make('images')
+                    ->label('معرض صور المنتج')
+                    ->relationship()
+                    ->defaultItems(0)
+                    ->schema([
+                        FileUpload::make('path')
+                            ->label('الصورة')
+                            ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->preventFilePathTampering(
+                                allowFilePathUsing: fn (string $file): bool => str_starts_with($file, 'products/')
+                                    && Storage::disk('public')->exists($file)
+                            )
+                            ->disk('public')
+                            ->directory('products')
+                            ->maxSize(5120)
+                            ->required(),
+                        TextInput::make('alt')
+                            ->label('وصف الصورة')
+                            ->maxLength(255),
+                        Toggle::make('is_primary')
+                            ->label('الصورة الرئيسية')
+                            ->default(false),
+                    ])
+                    ->columns(2)
+                    ->reorderable()
+                    ->orderColumn('sort_order')
+                    ->columnSpanFull()
+                    ->addActionLabel('إضافة صورة للمعرض')
+                    ->helperText('يمكنك رفع عدة صور وترتيبها لتظهر في معرض المنتج.'),
                 Toggle::make('is_available')
                     ->label('متوفر')
                     ->required(),

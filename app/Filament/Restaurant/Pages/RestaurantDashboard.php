@@ -29,6 +29,11 @@ class RestaurantDashboard extends Page
 
     public function getViewData(): array
     {
-        return app(RestaurantDashboardService::class)->forRestaurant(auth('web')->user()?->restaurant);
+        $restaurant = auth('web')->user()?->restaurant;
+
+        return [
+            ...app(RestaurantDashboardService::class)->forRestaurant($restaurant),
+            'restaurant' => $restaurant,
+        ];
     }
 }

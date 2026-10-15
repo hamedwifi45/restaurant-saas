@@ -66,7 +66,7 @@ class PwaController extends Controller
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $restaurantSlug = json_encode($restaurant->slug, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
         $restaurantLogo = json_encode(
-            media_url($restaurant->logo) ?? asset('/icons/default-icon.png'),
+            media_url($restaurant->logo) ?? asset('apple-touch-icon.png'),
             JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT
         );
 

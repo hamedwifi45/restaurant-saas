@@ -1,4 +1,4 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @section('content')
 
@@ -24,7 +24,16 @@
                 </a>
             </div>
         @else
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div
+                class="grid grid-cols-1 lg:grid-cols-3 gap-8"
+                x-data="cartQuantityManager({
+                    items: @js(collect($products)->mapWithKeys(fn ($item) => [(string) $item['cart_key'] => ['quantity' => (int) $item['qty'], 'price' => (float) $item['price']]])->all()),
+                    endpoint: @js(route('cart.update', $restaurant->slug)),
+                    csrfToken: @js(csrf_token()),
+                    currencySymbol: @js($restaurant->currency_symbol ?? 'ل.س')
+                })"
+                :aria-busy="isSaving"
+            >
                 
                 <!-- قائمة المنتجات -->
                 <div class="lg:col-span-2 space-y-4">
@@ -44,26 +53,30 @@
                             <!-- تفاصيل المنتج -->
                             <div class="flex-1">
                                 <h3 class="text-xl font-bold text-gray-800">{{ $item['product']->name }}</h3>
-                                <p class="text-primary font-bold mt-1">{{ number_format($item['price'], 2) }} ل.س</p>
+                                @if(!empty($item['variant_name']))
+                                    <p class="text-sm text-gray-500 font-semibold">{{ $item['variant_name'] }}</p>
+                                @endif
+                                <p class="text-primary font-bold mt-1">{{ number_format($item['price'], 0) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</p>
                             </div>
 
                             <!-- التحكم بالكمية -->
                             <div class="flex items-center gap-3">
-                                <form action="{{ route('cart.update' , $restaurant->slug) }}" method="POST" class="flex items-center gap-2">
-                                    @csrf
-                                    <input type="hidden" name="product_id" value="{{ $item['product']->id }}">
-                                    <button type="submit" name="quantity" value="{{ max(1, $item['qty'] - 1) }}" 
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="changeQuantity('{{ $item['cart_key'] }}', -1)" aria-label="تقليل كمية {{ $item['product']->name }}"
                                             class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center font-bold">-</button>
-                                    
-                                    <span class="font-bold w-8 text-center">{{ $item['qty'] }}</span>
-                                    
-                                    <button type="submit" name="quantity" value="{{ $item['qty'] + 1 }}" 
+
+                                    <span class="inline-flex w-8 min-w-8 shrink-0 items-center justify-center text-center font-bold text-gray-800 tabular-nums text-lg"
+                                          x-text="quantities['{{ $item['cart_key'] }}'] ?? {{ (int) $item['qty'] }}">
+                                        {{ $item['qty'] }}
+                                    </span>
+
+                                    <button type="button" @click="changeQuantity('{{ $item['cart_key'] }}', 1)" aria-label="زيادة كمية {{ $item['product']->name }}"
                                             class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center font-bold">+</button>
-                                </form>
+                                </div>
 
                                 <form action="{{ route('cart.remove' , $restaurant->slug) }}" method="POST">
                                     @csrf
-                                    <input type="hidden" name="product_id" value="{{ $item['product']->id }}">
+                                    <input type="hidden" name="cart_key" value="{{ $item['cart_key'] }}">
                                     <button type="submit" class="text-red-500 hover:text-red-700 p-2">
                                         🗑️
                                     </button>
@@ -79,30 +92,33 @@
                         <h3 class="text-2xl font-bold mb-6 text-gray-800">ملخص الطلب</h3>
                         
                         <div class="space-y-4 mb-6">
-                            <div class="flex justify-between text-gray-600">
-                                <span>المجموع الفرعي</span>
-                                <span>{{ number_format($total, 2) }} ل.س</span>
-                            </div>
-                            <div class="flex justify-between text-gray-600">
-                                <span>التوصيل</span>
-                                <span class="{{ $deliveryFee > 0 ? 'font-bold' : 'text-green-600 font-bold' }}">
-                                    {{ $deliveryFee > 0 ? number_format($deliveryFee, 2).' '.($restaurant->currency_symbol ?? 'ل.س') : 'مجاني' }}
+                            <div class="flex items-center justify-between gap-4 border-b pb-4 text-xl font-black text-gray-800">
+                                <span>مجموع الطلبات</span>
+                                <span class="text-2xl font-black text-primary">
+                                    <span x-text="formatMoney(subtotal)">{{ number_format($total, 0) }}</span> {{ $restaurant->currency_symbol ?? 'ل.س' }}
                                 </span>
                             </div>
-                            <div class="flex justify-between text-gray-600">
-                                <span>الضريبة ({{ $restaurant->tax_percentage ?? 0 }}٪)</span>
-                                <span>{{ number_format($total * (($restaurant->tax_percentage ?? 0) / 100), 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</span>
+
+                            <!-- تنويه ذكي وواضح للزبون -->
+                            <div class="text-xs text-gray-600 bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
+                                <span>📍</span>
+                                <span>تُحسب أجرة التوصيل في الخطوة التالية بناءً على موقعك وبعدك عن المطعم.</span>
                             </div>
-                            <div class="border-t pt-4 flex justify-between text-xl font-black text-gray-800">
-                                <span>الإجمالي</span>
-                                <span class="text-primary">{{ number_format($total * (1 + (($restaurant->tax_percentage ?? 0) / 100)) + $deliveryFee, 2) }} {{ $restaurant->currency_symbol ?? 'ل.س' }}</span>
-                            </div>
+
+                            <p class="text-sm text-red-600" role="alert" aria-live="polite" x-show="errorMessage" x-text="errorMessage"></p>
+                            <p class="text-sm text-gray-500" aria-live="polite" x-show="isSaving">جارٍ حفظ الكميات...</p>
                         </div>
 
-                        <a href="{{ route('checkout' , $restaurant->slug) }}" 
-                           class="w-full btn-primary py-4 rounded-xl font-bold text-center block hover:shadow-lg transition">
-                            إتمام الطلب
-                        </a>
+                        @if($restaurant->canAcceptOrders())
+                            <a href="{{ route('checkout' , $restaurant->slug) }}"
+                               class="w-full btn-primary py-4 rounded-xl font-bold text-center block hover:shadow-lg transition">
+                                متابعة لإنهاء الطلب
+                            </a>
+                        @else
+                            <button type="button" disabled class="w-full cursor-not-allowed rounded-xl bg-gray-300 py-4 text-center font-bold text-gray-600">
+                                المطعم مغلق حالياً
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -110,5 +126,84 @@
         @endif
     </div>
 </section>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('cartQuantityManager', (config) => ({
+            quantities: {},
+            prices: {},
+            subtotal: 0,
+            isSaving: false,
+            errorMessage: '',
+
+            init() {
+                if (config.items) {
+                    Object.keys(config.items).forEach(key => {
+                        this.quantities[key] = Number(config.items[key].quantity);
+                        this.prices[key] = Number(config.items[key].price);
+                    });
+                }
+                this.recalculate();
+            },
+
+            changeQuantity(cartKey, delta) {
+                let keyStr = String(cartKey);
+                let current = Number(this.quantities[keyStr] || 1);
+                let next = current + delta;
+                if (next < 1) return;
+
+                this.quantities[keyStr] = next;
+                this.recalculate();
+                this.syncWithServer(cartKey, next);
+            },
+
+            recalculate() {
+                let total = 0;
+                Object.keys(this.quantities).forEach(key => {
+                    total += (Number(this.quantities[key] || 0) * Number(this.prices[key] || 0));
+                });
+                this.subtotal = total;
+            },
+
+            formatMoney(amount) {
+                return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount || 0);
+            },
+
+            async syncWithServer(cartKey, quantity) {
+                this.isSaving = true;
+                this.errorMessage = '';
+
+                let rawProductId = typeof cartKey === 'string' && cartKey.includes('_') 
+                    ? cartKey.split('_')[0] 
+                    : cartKey;
+
+                try {
+                    let response = await fetch(config.endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': config.csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            cart_key: cartKey, 
+                            product_id: isNaN(rawProductId) ? null : Number(rawProductId),
+                            quantity: Number(quantity) 
+                        })
+                    });
+
+                    if (!response.ok) {
+                        let errData = await response.json().catch(() => ({}));
+                        this.errorMessage = errData.message || 'حدث خطأ أثناء تحديث السلة';
+                    }
+                } catch (e) {
+                    this.errorMessage = 'فشل الاتصال بالسيرفر';
+                } finally {
+                    this.isSaving = false;
+                }
+            }
+        }));
+    });
+</script>
 
 @endsection

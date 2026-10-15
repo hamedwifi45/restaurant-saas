@@ -1,4 +1,4 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @section('content')
 
@@ -83,7 +83,7 @@
                         @foreach($order->items as $item)
                             <tr class="border-b border-gray-100">
                                 <td class="py-4 px-4">
-                                    <div class="font-bold text-gray-800">{{ $item->product_name }}</div>
+                                    <div class="font-bold text-gray-800">{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</div>
                                     @if($item->product && $item->product->description)
                                         <div class="text-sm text-gray-500 mt-1">{{ Str::limit($item->product->description, 50) }}</div>
                                     @endif
@@ -156,8 +156,8 @@
                 <p class="text-gray-700">
                     @if($order->payment_method === 'cash')
                         💵 دفع عند الاستلام
-                    @elseif($order->payment_method === 'transfer')
-                        🏦 تحويل بنكي
+                    {{-- @elseif($order->payment_method === 'transfer')
+                        🏦 تحويل بنكي --}}
                     @endif
                 </p>
                 <p class="text-sm text-gray-500 mt-2">

@@ -6,67 +6,13 @@
     <title>منصة المطاعم السورية | حوّل مطعمك إلى متجر إلكتروني في دقائق</title>
     <meta name="description" content="المنصة السورية المتكاملة لإنشاء متجرك الإلكتروني للمطاعم مع لوحة تحكم احترافية، نظام طلبات ذكي، وتتبع مباشر.">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/app.css'])
     
-    <!-- Fontsource Tajawal -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/tajawal@latest/arabic.css" />
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#FFF4EE',
-                            100: '#FFE7D9',
-                            200: '#FFD0B3',
-                            300: '#FFB38A',
-                            400: '#FF8F5C',
-                            500: '#FF6B35',
-                            600: '#E85A24',
-                            700: '#C44A1C',
-                            800: '#9E3B16',
-                            900: '#7A2E11',
-                        },
-                        dark: '#1A1A1A',
-                        'soft-gray': '#F9FAFB',
-                        success: '#10B981',
-                        warning: '#F59E0B',
-                    },
-                    fontFamily: {
-                        sans: ['Tajawal', 'system-ui', 'sans-serif'],
-                    },
-                    boxShadow: {
-                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.06)',
-                        'card': '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
-                        'glow': '0 20px 50px -10px rgba(255, 107, 53, 0.35)',
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'fade-up': 'fadeUp 0.8s ease-out forwards',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-15px)' },
-                        },
-                        fadeUp: {
-                            '0%': { opacity: '0', transform: 'translateY(30px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
 
     <style>
         html { scroll-behavior: smooth; }
-        body { font-family: 'Tajawal', system-ui, sans-serif; }
+        body { font-family: system-ui, 'Segoe UI', Arial, sans-serif; }
         
         /* خلفية Hero بنمط هندسي */
         .hero-pattern {

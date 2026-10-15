@@ -37,7 +37,11 @@ class KdsController extends Controller
             'table' => $order->restaurantTable?->number,
             'items' => $order->items->map(static fn ($item): array => [
                 'product_name' => $item->product_name,
+                'name' => $item->name,
+                'variant_name' => $item->variant_name,
                 'quantity' => $item->quantity,
+                'unit_price' => (float) $item->price,
+                'total' => (float) $item->total,
             ])->values(),
         ])->values();
 

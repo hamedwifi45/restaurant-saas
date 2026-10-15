@@ -290,7 +290,8 @@ class DriverController extends Controller
         $trackingApiEndpoint = $isDriver
             ? route('driver.order.show', [$order->restaurant->slug, $order])
             : route('order.track.location', ['slug' => $order->restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]);
-        return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant','trackingApiEndpoint', 'isDriver', 'slug'));
+
+        return view("themes.{$themePath}.driver.tracking", compact('order', 'restaurant', 'trackingApiEndpoint', 'isDriver', 'slug'));
     }
 
     public function updateLocation(Request $request, string $slug, Order $order): JsonResponse
@@ -437,8 +438,10 @@ class DriverController extends Controller
                 'name' => $order->restaurant?->name,
             ],
             'items' => $order->items->map(fn ($item): array => [
-                'name' => $item->product?->name ?? 'منتج محذوف',
+                'name' => $item->name,
                 'quantity' => $item->quantity,
+                'unit_price' => (float) $item->price,
+                'total' => (float) $item->total,
             ])->values()->all(),
         ];
     }

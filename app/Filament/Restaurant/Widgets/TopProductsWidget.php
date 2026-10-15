@@ -22,8 +22,8 @@ class TopProductsWidget extends TableWidget
             ->where('orders.payment_status', 'verified')
             ->where('orders.status', '!=', 'cancelled')
             ->whereBetween('orders.created_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->selectRaw('MIN(order_items.id) as id, order_items.product_name as product_name, SUM(order_items.quantity) as quantity_sold, SUM(order_items.total) as revenue')
-            ->groupBy('order_items.product_id', 'order_items.product_name')
+            ->selectRaw('MIN(order_items.id) as id, order_items.product_name as product_name, order_items.variant_name as variant_name, SUM(order_items.quantity) as quantity_sold, SUM(order_items.total) as revenue')
+            ->groupBy('order_items.product_id', 'order_items.product_name', 'order_items.variant_name')
             ->orderByDesc('quantity_sold')
             ->orderByRaw('MIN(order_items.id) ASC')
             ->limit(5);
@@ -37,6 +37,9 @@ class TopProductsWidget extends TableWidget
                 TextColumn::make('product_name')
                     ->label('المنتج')
                     ->wrap(),
+                TextColumn::make('variant_name')
+                    ->label('الخيار')
+                    ->placeholder('—'),
                 TextColumn::make('quantity_sold')
                     ->label('الكمية المباعة')
                     ->numeric(),

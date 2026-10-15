@@ -7,7 +7,7 @@ use App\Models\Restaurant;
 class CartService
 {
     /**
-     * @return array<int, array{product_id: int, quantity: int, options: array}>
+     * @return array<int|string, array{product_id: int, quantity: int, unit_price?: float, variant_name?: string|null, price_type?: string, options: array}>
      */
     public function get(Restaurant $restaurant): array
     {
@@ -28,11 +28,8 @@ class CartService
                     continue;
                 }
 
-                $cart[$productId] = [
-                    'product_id' => $productId,
-                    'quantity' => $quantity,
-                    'options' => $this->primitiveArray($details['options'] ?? []),
-                ];
+                $cartKey = is_string($key) && ! ctype_digit($key) ? $key : $productId;
+                $cart[$cartKey] = $this->normalizeDetails($details, $productId, $quantity);
             }
         }
 
@@ -44,7 +41,7 @@ class CartService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $cart
+     * @param  array<int|string, array<string, mixed>>  $cart
      */
     public function put(Restaurant $restaurant, array $cart): void
     {
@@ -62,11 +59,8 @@ class CartService
                 continue;
             }
 
-            $normalizedCart[$productId] = [
-                'product_id' => $productId,
-                'quantity' => $quantity,
-                'options' => $this->primitiveArray($details['options'] ?? []),
-            ];
+            $cartKey = is_string($key) && ! ctype_digit($key) ? $key : $productId;
+            $normalizedCart[$cartKey] = $this->normalizeDetails($details, $productId, $quantity);
         }
 
         session()->put($this->sessionKey($restaurant), $normalizedCart);
@@ -80,6 +74,35 @@ class CartService
     private function sessionKey(Restaurant $restaurant): string
     {
         return 'cart_'.$restaurant->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     * @return array{product_id: int, quantity: int, unit_price?: float, variant_name?: string|null, price_type?: string, options: array}
+     */
+    private function normalizeDetails(array $details, int $productId, int $quantity): array
+    {
+        $normalized = [
+            'product_id' => $productId,
+            'quantity' => $quantity,
+            'options' => $this->primitiveArray($details['options'] ?? []),
+        ];
+
+        if (isset($details['unit_price']) && is_numeric($details['unit_price']) && (float) $details['unit_price'] >= 0) {
+            $normalized['unit_price'] = (float) $details['unit_price'];
+        }
+
+        if (isset($details['variant_name']) && is_scalar($details['variant_name'])) {
+            $normalized['variant_name'] = (string) $details['variant_name'];
+        } elseif (array_key_exists('variant_name', $details)) {
+            $normalized['variant_name'] = null;
+        }
+
+        if (isset($details['price_type']) && is_string($details['price_type'])) {
+            $normalized['price_type'] = $details['price_type'];
+        }
+
+        return $normalized;
     }
 
     private function primitiveArray(mixed $value): array

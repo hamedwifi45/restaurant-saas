@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>مركز التوصيل | {{ $restaurant->name }}</title>
-    <link rel="preconnect" href="https://unpkg.com">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-950 p-4 text-slate-900 sm:p-6">
@@ -84,7 +83,7 @@
                                     <div class="space-y-2 text-sm">
                                         @foreach ($order->items as $item)
                                             <div class="flex justify-between">
-                                                <span>{{ $item->product?->name ?? 'منتج محذوف' }}</span>
+                                                <span>{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</span>
                                                 <span class="font-bold text-amber-400">×{{ $item->quantity }}</span>
                                             </div>
                                         @endforeach
@@ -157,7 +156,7 @@
                                 <div class="space-y-2 text-sm">
                                     @foreach ($order->items as $item)
                                         <div class="flex justify-between">
-                                            <span>{{ $item->product?->name ?? 'منتج محذوف' }}</span>
+                                            <span>{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</span>
                                             <span class="font-bold text-slate-400">×{{ $item->quantity }}</span>
                                         </div>
                                     @endforeach
@@ -185,7 +184,8 @@
         </section>
     </main>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="{{ asset('vendor/leaflet/leaflet.js') }}"></script>
+    <script src="{{ asset('js/offline-map-tiles.js') }}"></script>
     <script>
         const bindDriverOrderEcho = () => {
             if (typeof window.Echo !== 'undefined' && window.Echo) {
@@ -230,9 +230,9 @@
 
         if (typeof window.L !== 'undefined') {
             const customerMarkerIcon = L.icon({
-                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                iconUrl: @json(asset('vendor/leaflet/images/marker-icon.png')),
+                iconRetinaUrl: @json(asset('vendor/leaflet/images/marker-icon-2x.png')),
+                shadowUrl: @json(asset('vendor/leaflet/images/marker-shadow.png')),
                 iconSize: [25, 41],
                 iconAnchor: [12, 41],
                 popupAnchor: [1, -34],
@@ -260,10 +260,7 @@
                 const map = L.map(mapElement, { zoomControl: false }).setView(initialCenter, hasCustomerCoords ? 15 : 13);
 
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors',
-                    maxZoom: 19,
-                }).addTo(map);
+                window.addOfflineAwareMapTiles(map);
 
                 if (hasCustomerCoords) {
                     const popup = document.createElement('span');

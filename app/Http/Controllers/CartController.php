@@ -8,6 +8,7 @@ use App\Models\Restaurant;
 use App\Services\CartService;
 use App\Services\RestaurantTableSession;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
@@ -26,24 +27,28 @@ class CartController extends Controller
         $cart = $this->cartService->get($restaurant);
         $deliveryFee = $this->deliveryFeeFor($restaurant);
         $cartProducts = Product::where('restaurant_id', $restaurant->id)
-            ->whereIn('id', array_keys($cart))
+            ->whereIn('id', collect($cart)->pluck('product_id')->unique())
             ->get()
             ->keyBy('id');
 
         $products = [];
         $total = 0;
-
-        foreach ($cart as $id => $details) {
-            $product = $cartProducts->get($id);
+        foreach ($cart as $cartKey => $details) {
+            $product = $cartProducts->get($details['product_id']);
 
             if ($product) {
+                $price = (float) ($details['unit_price'] ?? $product->price);
+                $subtotal = $price * $details['quantity'];
+
                 $products[] = [
+                    'cart_key' => $cartKey,
                     'product' => $product,
                     'qty' => $details['quantity'],
-                    'price' => $product->price,
-                    'subtotal' => $product->price * $details['quantity'],
+                    'price' => $price,
+                    'variant_name' => $details['variant_name'] ?? null,
+                    'subtotal' => $subtotal,
                 ];
-                $total += $product->price * $details['quantity'];
+                $total += $subtotal;
             }
         }
 
@@ -55,110 +60,153 @@ class CartController extends Controller
     /**
      * إضافة منتج للسلة
      */
+    /**
+     * إضافة منتج للسلة (دعم الأسعار المفتوحة والأوزان)
+     */
     public function add(Request $request, $slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
+        if (! $restaurant->canAcceptOrders()) {
+            $message = $restaurant->orderUnavailableMessage();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 409);
+            }
+
+            return redirect()->back()->with('error', $message);
+        }
+
+        // 1. التحقق من المدخلات
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'custom_amount' => 'nullable|numeric|min:0',
+            'variant_index' => 'nullable|integer',
             'options' => 'sometimes|array',
         ]);
 
-        // التأكد أن المنتج ينتمي للمطعم الحالي ومتاح
+        // 2. جلب المنتج المتاح
         $product = Product::where('restaurant_id', $restaurant->id)
             ->where('is_available', true)
             ->findOrFail($request->product_id);
 
-        // 3. استخدام مفتاح الجلسة الخاص بهذا المطعم فقط
+        $unitPrice = (float) $product->price;
+        $selectedVariantName = null;
+
+        // 3. تحديد السعر بناءً على نوع المنتج (سعر مفتوح / أوزان / سعر ثابت)
+        if ($product->price_type === 'open_price') {
+            $customAmount = $request->input('custom_amount', $product->min_price ?? $product->price);
+            if (! is_numeric($customAmount)) {
+                throw ValidationException::withMessages([
+                    'custom_amount' => 'يرجى إدخال مبلغ صالح.',
+                ]);
+            }
+
+            $unitPrice = (float) $customAmount;
+            if (($product->min_price !== null && $unitPrice < (float) $product->min_price)
+                || ($product->max_price !== null && $unitPrice > (float) $product->max_price)) {
+                throw ValidationException::withMessages([
+                    'custom_amount' => 'المبلغ المدخل خارج النطاق المسموح.',
+                ]);
+            }
+        } elseif ($product->price_type === 'variant') {
+            $variants = is_array($product->variants) ? $product->variants : [];
+            $variantIndex = $request->integer('variant_index');
+            $selectedVariant = $variants[$variantIndex] ?? null;
+
+            if (! is_array($selectedVariant)
+                || ! isset($selectedVariant['name'], $selectedVariant['price'])
+                || ! is_numeric($selectedVariant['price'])) {
+                throw ValidationException::withMessages([
+                    'variant_index' => 'يرجى اختيار خيار صالح.',
+                ]);
+            }
+
+            $unitPrice = (float) $selectedVariant['price'];
+            $selectedVariantName = (string) $selectedVariant['name'];
+        }
+
+        // 4. إنشاء مفتاح فريد لعنصر السلة لدعم تعدد الخيارات
+        $cartKey = (string) $product->id;
+        if ($selectedVariantName !== null) {
+            $cartKey .= '_v_'.$request->input('variant_index');
+        } elseif ($product->price_type === 'open_price') {
+            $cartKey .= '_op_'.$unitPrice;
+        }
+
         $cart = $this->cartService->get($restaurant);
+        $quantity = (int) $request->quantity;
 
-        // (تم حذف التحقق من وجود مطاعم أخرى لأنه لم يعد ضرورياً مع فصل جلسات السلة)
-
-        $productId = $product->id;
-        $quantity = $request->quantity;
-
-        if (isset($cart[$productId])) {
-            $cart[$productId]['quantity'] += $quantity;
+        // 5. حفظ البيانات في السلة
+        if (isset($cart[$cartKey])) {
+            $cart[$cartKey]['quantity'] += $quantity;
         } else {
-            $cart[$productId] = [
-                'product_id' => (int) $productId,
-                'quantity' => (int) $quantity,
+            $cart[$cartKey] = [
+                'product_id' => (int) $product->id,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'variant_name' => $selectedVariantName,
+                'price_type' => $product->price_type,
                 'options' => $request->input('options', []),
             ];
         }
 
         $this->cartService->put($restaurant, $cart);
 
+        // 6. جلب بيانات المنتجات لحساب الإجمالي المحدث
+        $productIds = collect($cart)->pluck('product_id')->unique();
         $cartProducts = Product::where('restaurant_id', $restaurant->id)
-            ->whereIn('id', array_keys($cart))
+            ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
 
-        // --- بناء محتوى السلة المصغرة ---
+        // 7. بناء الاستجابة ومحتوى السلة المصغرة
         $total = 0;
-        $cartHtml = '';
         $count = 0;
+        $items = [];
 
-        foreach ($cart as $id => $details) {
-            $cartProduct = $cartProducts->get($id);
+        foreach ($cart as $key => $details) {
+            $cartProduct = $cartProducts->get($details['product_id']);
             if ($cartProduct) {
-                $count += $details['quantity'];
-                $total += $cartProduct->price * $details['quantity'];
-                $imageUrl = $cartProduct->image ? asset('storage/'.$cartProduct->image) : 'https://via.placeholder.com/50';
+                $itemPrice = (float) ($details['unit_price'] ?? $cartProduct->price);
+                $itemQuantity = (int) $details['quantity'];
+                $itemSubtotal = $itemPrice * $itemQuantity;
 
-                $cartHtml .= '
-                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
-                        <img src="'.$imageUrl.'" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover">
-                        <div class="flex-1">
-                            <h4 class="text-sm font-bold text-gray-800 truncate">'.$cartProduct->name.'</h4>
-                            <p class="text-xs text-primary font-bold">'.$cartProduct->price.' ل.س × '.$details['quantity'].'</p>
-                        </div>
-                    </div>
-                ';
+                $count += $itemQuantity;
+                $total += $itemSubtotal;
+
+                $itemName = $cartProduct->name;
+                if (! empty($details['variant_name'])) {
+                    $itemName .= ' ('.$details['variant_name'].')';
+                }
+
+                $items[] = [
+                    'cart_key' => $key,
+                    'name' => $itemName,
+                    'quantity' => $itemQuantity,
+                    'price' => (float) $itemPrice,
+                    'subtotal' => (float) $itemSubtotal,
+                ];
             }
         }
 
-        if ($count === 0) {
-            $cartHtml = '<div class="text-center py-8 text-gray-400 text-sm">السلة فارغة حالياً 🍽️</div>';
-        }
+        $deliveryFee = $this->deliveryFeeFor($restaurant);
+        $tax = round($total * (float) ($restaurant->tax_percentage ?? 0) / 100, 2);
 
         if ($request->wantsJson() || $request->ajax()) {
-            $items = collect($cart)
-                ->map(function (array $details, $id) use ($cartProducts): ?array {
-                    $product = $cartProducts->get($id);
-
-                    if (! $product) {
-                        return null;
-                    }
-
-                    $quantity = (int) $details['quantity'];
-
-                    return [
-                        'name' => $product->name,
-                        'quantity' => $quantity,
-                        'price' => (float) $product->price,
-                        'subtotal' => (float) ($product->price * $quantity),
-                    ];
-                })
-                ->filter()
-                ->values();
-
-            $deliveryFee = $this->deliveryFeeFor($restaurant);
-
             return response()->json([
                 'success' => true,
                 'message' => 'تمت إضافة المنتج للسلة بنجاح! 🛒',
                 'count' => $count,
                 'subtotal' => $total,
                 'total' => $total,
+                'tax_amount' => $tax,
                 'delivery_fee' => $deliveryFee,
-                'grand_total' => round(
-                    $total
-                    + ($total * ((float) ($restaurant->tax_percentage ?? 0) / 100))
-                    + $deliveryFee,
-                    2
-                ),
+                'grand_total' => $total + $tax + $deliveryFee,
                 'items' => $items,
             ]);
         }
@@ -169,29 +217,100 @@ class CartController extends Controller
     /**
      * تحديث كمية منتج في السلة
      */
+    /**
+     * تحديث كمية منتج في السلة (دعم متوافق للأسعار الثابتة والمفتوحة والأوزان)
+     */
     public function update(Request $request, $slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
+
+        if ($request->has('items')) {
+            $validated = $request->validate([
+                'items' => ['required', 'array', 'min:1'],
+                'items.*.cart_key' => ['nullable', 'string', 'max:100'],
+                'items.*.product_id' => ['nullable', 'integer'],
+                'items.*.quantity' => ['required', 'integer', 'min:1'],
+            ]);
+
+            $cart = $this->cartService->get($restaurant);
+            $updatedItems = [];
+
+            foreach ($validated['items'] as $item) {
+                $cartKey = $item['cart_key'] ?? null;
+                $productId = isset($item['product_id']) ? (int) $item['product_id'] : null;
+
+                // إذا لم يوجد cart_key مباشر، نحاول مطابقته عبر product_id في السلة
+                if (($cartKey === null || !isset($cart[$cartKey])) && $productId !== null) {
+                    foreach ($cart as $key => $details) {
+                        if ((int) $details['product_id'] === $productId) {
+                            $cartKey = $key;
+                            break;
+                        }
+                    }
+                }
+
+                if ($cartKey === null || !isset($cart[$cartKey])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'تم تغيير محتويات السلة أو المنتج غير موجود. يرجى تحديث الصفحة.',
+                    ], 409);
+                }
+
+                $cart[$cartKey]['quantity'] = (int) $item['quantity'];
+                $updatedItems[] = [
+                    'cart_key' => $cartKey,
+                    'product_id' => $cart[$cartKey]['product_id'],
+                    'quantity' => $cart[$cartKey]['quantity'],
+                ];
+            }
+
+            $this->cartService->put($restaurant, $cart);
+
+            return response()->json([
+                'success' => true,
+                'items' => $updatedItems,
+            ]);
+        }
+
+        // التعامل مع الطلب الفردي (Single Request)
+        $validated = $request->validate([
+            'cart_key' => ['nullable', 'string', 'max:100'],
+            'product_id' => ['nullable', 'integer'],
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        // التأكد من أن المنتج ينتمي للمطعم
-        $product = Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
-
         $cart = $this->cartService->get($restaurant);
+        $cartKey = $validated['cart_key'] ?? null;
+        $productId = isset($validated['product_id']) ? (int) $validated['product_id'] : null;
 
-        if (isset($cart[$request->product_id])) {
-            $cart[$request->product_id]['quantity'] = (int) $request->quantity;
-            $this->cartService->put($restaurant, $cart);
+        if (($cartKey === null || !isset($cart[$cartKey])) && $productId !== null) {
+            foreach ($cart as $key => $details) {
+                if ((int) $details['product_id'] === $productId) {
+                    $cartKey = $key;
+                    break;
+                }
+            }
         }
+
+        if ($cartKey === null || !isset($cart[$cartKey])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'العنصر غير موجود في السلة.',
+            ], 409);
+        }
+
+        $product = Product::where('restaurant_id', $restaurant->id)
+            ->findOrFail($cart[$cartKey]['product_id']);
+            
+        $cart[$cartKey]['quantity'] = (int) $validated['quantity'];
+        $this->cartService->put($restaurant, $cart);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'product_id' => $product->id,
-                'quantity' => (int) ($cart[$product->id]['quantity'] ?? $request->quantity),
+                'cart_key' => $cartKey,
+                'quantity' => $cart[$cartKey]['quantity'],
             ]);
         }
 
@@ -204,23 +323,39 @@ class CartController extends Controller
     public function remove(Request $request, $slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
+        $validated = $request->validate([
+            'cart_key' => ['nullable', 'string', 'max:100', 'required_without:product_id'],
+            'product_id' => ['nullable', 'integer', 'exists:products,id', 'required_without:cart_key'],
         ]);
 
-        $product = Product::where('restaurant_id', $restaurant->id)->findOrFail($request->product_id);
-
         $cart = $this->cartService->get($restaurant);
+        $cartKey = $validated['cart_key'] ?? null;
 
-        if (isset($cart[$request->product_id])) {
-            unset($cart[$request->product_id]);
-            $this->cartService->put($restaurant, $cart);
+        if ($cartKey === null && isset($validated['product_id'])) {
+            $productId = (int) $validated['product_id'];
+            $cartKey = array_key_first(array_filter(
+                $cart,
+                static fn (array $details): bool => $details['product_id'] === $productId
+            ));
         }
+
+        if ($cartKey === null || ! isset($cart[$cartKey])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تم تغيير محتويات السلة. يرجى تحديث الصفحة.',
+            ], 409);
+        }
+
+        $product = Product::where('restaurant_id', $restaurant->id)
+            ->findOrFail($cart[$cartKey]['product_id']);
+        unset($cart[$cartKey]);
+        $this->cartService->put($restaurant, $cart);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'product_id' => $product->id,
+                'cart_key' => $cartKey,
             ]);
         }
 

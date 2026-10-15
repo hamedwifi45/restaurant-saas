@@ -6,15 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; img-src 'self' data: https://*.tile.openstreetmap.org https:; connect-src 'self' ws: wss: http: https:;">
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' ws: wss: https://router.project-osrm.org;">
     <title>نظام تتبع الطلبات والتوصيل</title>
 
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
 
-    <!-- Fontsource Inter -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/inter@latest/arabic.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/inter@latest/latin.css" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
@@ -1437,7 +1434,7 @@
                     <!-- PHP: عناصر الطلب -->
                     @foreach ($order->items as $item)
                         <div class="order-item">
-                            <span class="order-item-name">{{ $item->product?->name ?? 'منتج محذوف' }}</span>
+                            <span class="order-item-name">{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</span>
                             <span class="order-item-qty">×{{ $item->quantity }}</span>
                         </div>
                     @endforeach
@@ -1469,7 +1466,8 @@
     <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ asset('vendor/leaflet/leaflet.js') }}"></script>
+    <script src="{{ asset('js/offline-map-tiles.js') }}"></script>
 
     <script>
         
@@ -1589,10 +1587,7 @@
                 }).setView([centerLat, centerLng], 14);
 
                 // استخدام OpenStreetMap
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: 'OpenStreetMap contributors',
-                    maxZoom: 19
-                }).addTo(this.map);
+                window.addOfflineAwareMapTiles(this.map);
                 requestAnimationFrame(() => this.map.invalidateSize());
                 window.setTimeout(() => this.map.invalidateSize(), 150);
 
@@ -1856,6 +1851,10 @@
                     .getPropertyValue('--primary-color').trim() || '#3B82F6';
 
                 try {
+                    if (!navigator.onLine) {
+                        throw new Error('Route service is unavailable offline.');
+                    }
+
                     const routeUrl =
                         `https://router.project-osrm.org/route/v1/driving/${driver.lng},${driver.lat};${customer.lng},${customer.lat}?overview=full&geometries=geojson`;
                     const response = await fetch(routeUrl, {

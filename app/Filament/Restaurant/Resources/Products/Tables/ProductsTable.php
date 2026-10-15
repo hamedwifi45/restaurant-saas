@@ -50,6 +50,19 @@ class ProductsTable
                 IconColumn::make('is_featured')
                     ->label('مميز')
                     ->boolean(),
+                TextColumn::make('price_type')
+                    ->label('نوع التسعير')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'open_price' => 'مبلغ حر 💰',
+                        'variant' => 'أوزان/أحجام ⚖️',
+                        default => 'ثابت 🏷️',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'open_price' => 'warning',
+                        'variant' => 'info',
+                        default => 'gray',
+                    }),
                 TextColumn::make('sort_order')
                     ->label('الترتيب')
                     ->numeric()

@@ -1,4 +1,4 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @section('content')
 <section class="py-20 bg-gray-50 min-h-screen flex items-center justify-center">

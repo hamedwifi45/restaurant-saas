@@ -108,20 +108,25 @@ class OrderController extends Controller
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
+        if (! $restaurant->canAcceptOrders()) {
+            return redirect()->route('restaurant.menu', $slug)
+                ->with('error', $restaurant->orderUnavailableMessage());
+        }
+
         $cart = $this->cartService->get($restaurant);
 
         if (empty($cart)) {
             return redirect()->route('restaurant.menu', $slug)->with('error', 'السلة فارغة');
         }
 
-        $productIds = array_keys($cart);
+        $productIds = collect($cart)->pluck('product_id')->unique();
         $products = Product::where('restaurant_id', $restaurant->id)
             ->where('is_available', true)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
 
-        if ($products->count() !== count(array_unique($productIds))) {
+        if ($products->count() !== $productIds->count()) {
             $this->cartService->forget($restaurant);
 
             return redirect()->route('restaurant.menu', $slug)
@@ -129,7 +134,8 @@ class OrderController extends Controller
         }
 
         $subtotal = 0;
-        foreach ($cart as $id => $details) {
+        $checkoutItems = [];
+        foreach ($cart as $details) {
             $quantity = (int) $details['quantity'];
 
             if ($quantity < 1) {
@@ -137,7 +143,17 @@ class OrderController extends Controller
                     ->with('error', 'تحتوي السلة على كمية غير صالحة');
             }
 
-            $subtotal += $products->get($id)->price * $quantity;
+            $product = $products->get($details['product_id']);
+            $unitPrice = (float) ($details['unit_price'] ?? $product->price);
+            $itemSubtotal = $unitPrice * $quantity;
+            $subtotal += $itemSubtotal;
+            $checkoutItems[] = [
+                'name' => $product->name,
+                'variant_name' => $details['variant_name'] ?? null,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'subtotal' => $itemSubtotal,
+            ];
         }
 
         $taxRate = (float) ($restaurant->tax_percentage ?? 0);
@@ -166,6 +182,15 @@ class OrderController extends Controller
 
         $table = $this->currentTable($restaurant);
 
+        // ===== استرجاع بيانات العميل المحفوظة سابقاً من الكوكيز =====
+        $savedCustomer = [
+            'name' => request()->cookie('customer_name'),
+            'phone' => request()->cookie('customer_phone'),
+            'address' => request()->cookie('customer_address'),
+            'lat' => request()->cookie('customer_lat'),
+            'lng' => request()->cookie('customer_lng'),
+        ];
+
         return view("themes.{$themePath}.cart.checkout", compact(
             'restaurant',
             'restaurantLatitude',
@@ -175,19 +200,31 @@ class OrderController extends Controller
             'table',
             'baseSubtotal',
             'baseTax',
+            'checkoutItems',
             'deliveryFee',
             'activeOffer',
             'autoDiscount',
-            'initialFinalTotal'
+            'initialFinalTotal',
+            'savedCustomer'
         ));
     }
 
     /**
      * حفظ الطلب الجديد
      */
+    /**
+     * حفظ الطلب الجديد
+     */
     public function store(Request $request, $slug)
     {
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+
+        if (! $restaurant->canAcceptOrders()) {
+            throw ValidationException::withMessages([
+                'availability' => $restaurant->orderUnavailableMessage(),
+            ]);
+        }
+
         $table = $this->currentTable($restaurant);
 
         $validated = $request->validate([
@@ -244,37 +281,41 @@ class OrderController extends Controller
 
         $subtotal = 0;
         $itemsData = [];
-        $productIds = array_keys($cart);
+        $productIds = collect($cart)->pluck('product_id')->unique();
         $products = Product::where('restaurant_id', $restaurant->id)
             ->where('is_available', true)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
 
-        if ($products->count() !== count(array_unique($productIds))) {
+        if ($products->count() !== $productIds->count()) {
             return redirect()->back()->with('error', 'تحتوي السلة على منتج غير تابع لهذا المطعم');
         }
 
-        foreach ($cart as $id => $details) {
+        foreach ($cart as $details) {
             $quantity = (int) $details['quantity'];
 
             if ($quantity < 1) {
                 return redirect()->back()->with('error', 'تحتوي السلة على كمية غير صالحة');
             }
 
-            $product = $products->get($id);
-            $subtotal += $product->price * $quantity;
+            $product = $products->get($details['product_id']);
+            $unitPrice = (float) ($details['unit_price'] ?? $product->price);
+            $itemSubtotal = $unitPrice * $quantity;
+            $subtotal += $itemSubtotal;
             $itemsData[] = [
                 'product_id' => $details['product_id'],
                 'quantity' => $quantity,
-                'price' => $product->price,
-                'subtotal' => $product->price * $quantity,
+                'price' => $unitPrice,
+                'variant_name' => $details['variant_name'] ?? null,
+                'subtotal' => $itemSubtotal,
             ];
         }
 
         // حساب خصم العرض (تلقائي)
         $offerDiscount = 0;
         $appliedOfferId = null;
+        $offer = null;
 
         if ($request->offer_id) {
             $offer = Offer::where('id', $request->offer_id)
@@ -284,7 +325,6 @@ class OrderController extends Controller
             if ($offer && $offer->isCurrentlyActive() && $subtotal >= $offer->min_order_amount) {
                 $offerDiscount = $offer->getDiscountAmount($subtotal);
                 $appliedOfferId = $offer->id;
-                $offer->incrementUsage();
             }
         }
 
@@ -292,6 +332,7 @@ class OrderController extends Controller
         $couponDiscount = 0;
         $appliedCouponId = null;
         $appliedCouponCode = null;
+        $coupon = null;
 
         if ($request->coupon_id) {
             $coupon = Coupon::where('id', $request->coupon_id)
@@ -305,7 +346,6 @@ class OrderController extends Controller
                     $couponDiscount = $coupon->getDiscountAmount($subtotal);
                     $appliedCouponId = $coupon->id;
                     $appliedCouponCode = $request->coupon_code;
-                    $coupon->incrementUsage();
                 }
             }
         }
@@ -316,6 +356,22 @@ class OrderController extends Controller
         $taxRate = (float) ($restaurant->tax_percentage ?? 0);
         $tax = round($subtotal * $taxRate / 100, 2);
         $finalAmount = round($subtotal + $tax + $deliveryFee - ($offerDiscount + $couponDiscount), 2);
+        $restaurant->refresh();
+
+        if (! $restaurant->canAcceptOrders()) {
+            throw ValidationException::withMessages([
+                'availability' => $restaurant->orderUnavailableMessage(),
+            ]);
+        }
+
+        if ($appliedOfferId && $offer) {
+            $offer->incrementUsage();
+        }
+
+        if ($appliedCouponId && $coupon) {
+            $coupon->incrementUsage();
+        }
+
         $deviceToken = Str::random(40);
         // إنشاء سجل الطلب
         $order = Order::create([
@@ -349,8 +405,19 @@ class OrderController extends Controller
             'device_token' => $deviceToken,
             'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
         ]);
+
+        // ===== حفظ بيانات الزبون في الكوكيز للزيارات القادمة (لمدة 30 يوماً) =====
+        Cookie::queue('customer_name', $request->name, 60 * 24 * 30);
+        Cookie::queue('customer_phone', $request->phone, 60 * 24 * 30);
+        Cookie::queue('customer_address', $request->address, 60 * 24 * 30);
+        if ($customerLatitude && $customerLongitude) {
+            Cookie::queue('customer_lat', $customerLatitude, 60 * 24 * 30);
+            Cookie::queue('customer_lng', $customerLongitude, 60 * 24 * 30);
+        }
+
         Cookie::queue('order_device_token_'.$order->id, $deviceToken, 60 * 24 * 7);
         $request->session()->put('order_device_tokens.'.$order->tracking_code, $deviceToken);
+
         // حفظ عناصر الطلب
         foreach ($itemsData as $item) {
             $product = $products->get($item['product_id']);
@@ -361,6 +428,7 @@ class OrderController extends Controller
                 'product_name' => $product->name,
                 'quantity' => $item['quantity'],
                 'price' => $item['price'],
+                'variant_name' => $item['variant_name'],
                 'total' => $item['subtotal'],
             ]);
         }
@@ -380,7 +448,7 @@ class OrderController extends Controller
             'status' => 'pending',
         ]);
 
-        // ✅ التعديل الثالث: حذف سلة هذا المطعم فقط بعد نجاح الطلب
+        // حذف سلة هذا المطعم فقط بعد نجاح الطلب
         $this->cartService->forget($restaurant);
         $this->tableSession->forget();
 

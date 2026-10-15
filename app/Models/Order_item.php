@@ -15,6 +15,7 @@ class Order_item extends Model
         'product_name',
         'quantity',
         'price',
+        'variant_name',
         'total',
     ];
 
@@ -27,11 +28,15 @@ class Order_item extends Model
     {
         return $this->belongsTo(Product::class)->withTrashed(); // جلب المنتج حتى لو كان محذوفاً
     }
+
     protected $appends = ['name', 'qty'];
 
-    public function getNameAttribute()
+    public function getNameAttribute(): string
     {
-        return $this->attributes['product_name'] ?? '';
+        $productName = $this->attributes['product_name'] ?? '';
+        $variantName = $this->attributes['variant_name'] ?? null;
+
+        return filled($variantName) ? $productName.' ('.$variantName.')' : $productName;
     }
 
     public function getQtyAttribute()

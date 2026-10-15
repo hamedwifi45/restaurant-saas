@@ -21,10 +21,21 @@ class Product extends Model
         'description',
         'price',
         'old_price',
+        'price_type',
+        'min_price',
+        'max_price',
+        'variants',
         'image',
         'is_available',
         'is_featured',
         'sort_order',
+    ];
+
+    protected $casts = [
+        'variants' => 'array',
+        'price' => 'decimal:2',
+        'min_price' => 'decimal:2',
+        'max_price' => 'decimal:2',
     ];
 
     public function restaurant()

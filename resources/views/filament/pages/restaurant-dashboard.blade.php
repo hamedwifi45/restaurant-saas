@@ -22,6 +22,24 @@
         <p class="text-xs text-slate-500">آخر تحديث: {{ $updated_at }}</p>
     </div>
 
+    @if($restaurant)
+        <section class="flex flex-col gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="font-black text-slate-950">إيقاف استقبال الطلبات مؤقتاً (وضع الزحمة)</h2>
+                <p class="mt-1 text-sm {{ $restaurant->is_accepting_orders ? 'text-emerald-700' : 'text-red-700' }}">
+                    {{ $restaurant->canAcceptOrders() ? 'استقبال الطلبات متاح' : ($restaurant->is_accepting_orders ? 'المطعم مغلق خارج أوقات العمل' : 'استقبال الطلبات متوقف مؤقتاً') }}
+                </p>
+            </div>
+            <form method="POST" action="{{ route('restaurant.orders.availability', $restaurant->slug) }}">
+                @csrf
+                <input type="hidden" name="is_accepting_orders" value="{{ $restaurant->is_accepting_orders ? '0' : '1' }}">
+                <button type="submit" class="rounded-xl px-5 py-3 text-sm font-bold text-white transition {{ $restaurant->is_accepting_orders ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700' }}">
+                    {{ $restaurant->is_accepting_orders ? 'إيقاف استقبال الطلبات مؤقتاً (وضع الزحمة)' : 'استقبال الطلبات متاح' }}
+                </button>
+            </form>
+        </section>
+    @endif
+
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach([
             ['label' => 'مبيعات اليوم', 'value' => $formatMoney($summary['sales_today'] ?? 0), 'hint' => 'إجمالي الطلبات المسجلة اليوم', 'color' => 'orange', 'icon' => 'ل.س'],

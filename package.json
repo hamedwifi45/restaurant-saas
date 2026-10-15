@@ -19,9 +19,9 @@
         "lightningcss-linux-x64-gnu": "^1.29.1"
     },
     "devDependencies": {
-        "autoprefixer": "^10.6.0",
+        "autoprefixer": "^10.6.1",
         "laravel-echo": "^2.5.0",
-        "postcss": "^8.5.28",
+        "postcss": "^8.5.29",
         "pusher-js": "^8.6.0",
         "tailwindcss": "^4.3.3"
     }

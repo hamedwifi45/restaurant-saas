@@ -8,3 +8,4 @@ import './order-notifications';
 import './order-push-subscriptions';
 import './driver-rating';
 import './checkout-pricing';
+import './cart-quantity';

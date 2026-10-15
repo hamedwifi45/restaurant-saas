@@ -30,8 +30,11 @@ class KdsOrderResource extends JsonResource
             'notes' => $this->notes ?? '',
             'items' => $this->items->map(function ($item) {
                 return [
-                    'name' => $item->product_name,
+                    'name' => $item->name,
+                    'variant_name' => $item->variant_name,
                     'qty' => $item->quantity,
+                    'unit_price' => (float) $item->price,
+                    'total' => (float) $item->total,
                 ];
             }),
         ];

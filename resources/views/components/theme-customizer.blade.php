@@ -101,11 +101,21 @@ document.getElementById('theme-settings-form').addEventListener('submit', async 
     }
 
     try {
-        const response = await axios.post('/restaurant/api/theme/settings', { settings }, {
-            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+        const response = await fetch('/restaurant/api/theme/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ settings })
         });
-        if (response.data.success) {
-            showToast(response.data.message);
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || `Request failed with status ${response.status}.`);
+        }
+        if (data.success) {
+            showToast(data.message);
         }
     } catch (error) {
         showToast('حدث خطأ أثناء الحفظ', 'error');

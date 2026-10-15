@@ -1,12 +1,11 @@
-@extends("themes.burger-theme.layout")
+@extends('themes.albasha-burger.layout')
 
 @pushOnce('head')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endPushOnce
 
 @push('head')
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
 @endpush
 
 @section('content')
@@ -185,7 +184,7 @@
 
                                 <div>
                                     @if($item->product)
-                                        <h4 class="font-bold text-lg text-gray-800">{{ $item->product->name }}</h4>
+                                        <h4 class="font-bold text-lg text-gray-800">{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</h4>
                                         <p class="text-sm text-gray-500">
                                             الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ل.س
                                         </p>
@@ -195,7 +194,7 @@
                                             عرض المنتج ←
                                         </a>
                                     @else
-                                        <h4 class="font-bold text-lg text-gray-800">منتج محذوف</h4>
+                                        <h4 class="font-bold text-lg text-gray-800">{{ $item->product_name }}@if($item->variant_name) ({{ $item->variant_name }})@endif</h4>
                                         <p class="text-sm text-gray-500">
                                             الكمية: {{ $item->quantity }} × {{ number_format($item->price, 2) }} ل.س
                                         </p>
@@ -278,13 +277,14 @@
     </div>
 
     @if($order->delivery_latitude && $order->delivery_longitude && ! in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+        <script src="{{ asset('vendor/leaflet/leaflet.js') }}"></script>
+        <script src="{{ asset('js/offline-map-tiles.js') }}"></script>
         <script>
             const customerPoint = [{{ $order->delivery_latitude }}, {{ $order->delivery_longitude }}];
             const trackingMap = L.map('tracking-map').fitBounds([customerPoint], { padding: [40, 40] });
             requestAnimationFrame(() => trackingMap.invalidateSize());
             window.setTimeout(() => trackingMap.invalidateSize(), 150);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(trackingMap);
+            window.addOfflineAwareMapTiles(trackingMap);
             L.marker(customerPoint).addTo(trackingMap).bindPopup('موقع التوصيل').openPopup();
             let driverMarker;
 

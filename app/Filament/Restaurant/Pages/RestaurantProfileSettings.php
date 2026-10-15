@@ -7,6 +7,7 @@ use BackedEnum;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -55,6 +56,8 @@ class RestaurantProfileSettings extends Page implements HasForms
         'base_delivery_fee',
         'base_delivery_km',
         'per_km_delivery_fee',
+        'opening_time',
+        'closing_time',
         'whatsapp_number',
         'instagram_url',
         'facebook_url',
@@ -117,6 +120,14 @@ class RestaurantProfileSettings extends Page implements HasForms
                         TextInput::make('currency_symbol')->label('رمز العملة')->required()->maxLength(12),
                         TextInput::make('tax_percentage')->label('نسبة الضريبة')->numeric()->minValue(0)->maxValue(100)->suffix('%'),
                         TextInput::make('delivery_fee')->label('رسوم التوصيل')->numeric()->minValue(0),
+                        TimePicker::make('opening_time')
+                            ->label('وقت الافتتاح')
+                            ->seconds(false)
+                            ->requiredWith('closing_time'),
+                        TimePicker::make('closing_time')
+                            ->label('وقت الإغلاق')
+                            ->seconds(false)
+                            ->requiredWith('opening_time'),
                     ])
                     ->columns(2),
                 Section::make('نطاق التوصيل والتسعير حسب المسافة')

@@ -27,6 +27,8 @@ it('loads the custom restaurant dashboard page for authenticated users', functio
 
     $response->assertOk()
         ->assertSee('لوحة التحكم')
+        ->assertSee('إيقاف استقبال الطلبات مؤقتاً (وضع الزحمة)')
+        ->assertSee('استقبال الطلبات متاح')
         ->assertSee('لوحة التوصيل والمندوبين')
         ->assertSee(route('driver.dashboard', ['slug' => $user->restaurant->slug]), false);
 });

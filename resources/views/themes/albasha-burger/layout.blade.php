@@ -22,17 +22,14 @@
     
     <!-- PWA Manifest & Icons ديناميكية -->
     <link rel="manifest" href="{{ route('pwa.manifest', $restaurant->slug) }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ media_url($restaurant->logo) ?? asset('/icons/default-icon.png') }}">
-    <link rel="apple-touch-icon" href="{{ media_url($restaurant->logo) ?? asset('/icons/default-icon.png') }}">
+    <link rel="icon" href="{{ media_url($restaurant->logo) ?? asset('apple-touch-icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ media_url($restaurant->logo) ?? asset('apple-touch-icon.png') }}">
     
     <!-- ==================== Libraries & Fonts ==================== -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Cairo:wght@300;400;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <script defer src="{{ asset('vendor/alpinejs/alpine.min.js') }}"></script>
+    <script defer src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
+    <script defer src="{{ asset('vendor/axios/axios.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
     <x-theme-styles :restaurant="$restaurant" />
@@ -194,23 +191,7 @@
 </head>
 <body class="antialiased flex flex-col min-h-screen">
 
-    <!-- ==================== Top Bar ==================== -->
-    <div class="bg-primary text-white text-xs md:text-sm py-2 hidden md:block">
-        <div class="container mx-auto px-4 flex justify-between items-center">
-            <span class="flex items-center gap-2">
-                <span>🚚</span>
-                <span>توصيل مجاني للطلبات فوق 50 ريال!</span>
-            </span>
-            <div class="flex items-center gap-4">
-                @if($restaurant->phone)
-                    <a href="tel:{{ $restaurant->phone }}" class="hover:text-gray-200 transition flex items-center gap-1">
-                        <span>📞</span> {{ $restaurant->phone }}
-                    </a>
-                @endif
-            </div>
-        </div>
-    </div>
-
+    
     <!-- ==================== Header & Navigation ==================== -->
     <header class="{{ theme_setting('header_style', 'sticky') === 'transparent' ? 'bg-transparent text-white absolute top-0 left-0 w-full z-40' : 'bg-white shadow-sm sticky top-0 z-40 transition-all duration-300' }}" id="main-header">
         <div class="container mx-auto px-4 py-3">
@@ -255,6 +236,20 @@
                         </button>
 
                         <!-- Dropdown Content -->
+                        @php
+                            $cartPreview = session('cart_'.$restaurant->id, []);
+                            $cartPreviewProductIds = collect($cartPreview)->map(fn ($details, $key) => is_array($details) ? ($details['product_id'] ?? $key) : null)->filter()->unique();
+                            $cartPreviewProducts = $restaurant->products()->whereIn('id', $cartPreviewProductIds)->get()->keyBy('id');
+                            $cartPreviewTotal = collect($cartPreview)->sum(function ($details, $key) use ($cartPreviewProducts) {
+                                if (! is_array($details)) {
+                                    return 0;
+                                }
+
+                                $product = $cartPreviewProducts->get($details['product_id'] ?? $key);
+
+                                return ((float) ($details['unit_price'] ?? $product?->price ?? 0)) * (int) ($details['quantity'] ?? $details['qty'] ?? 0);
+                            });
+                        @endphp
                         <div class="cart-dropdown absolute left-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                             <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                                 <h3 class="font-bold text-gray-800 text-sm">منتجاتك المختارة</h3>
@@ -264,13 +259,18 @@
                             </div>
                             
                             <div id="mini-cart-items" class="max-h-64 overflow-y-auto p-2 space-y-2">
-                                @forelse($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get() as $product)
-                                    @if(($cartQty = (session('cart_'.$restaurant->id)[$product->id]['quantity'] ?? 0)) > 0)
+                                @forelse($cartPreview as $cartKey => $cartItem)
+                                    @php
+                                        $product = is_array($cartItem) ? $cartPreviewProducts->get($cartItem['product_id'] ?? $cartKey) : null;
+                                        $cartQty = (int) ($cartItem['quantity'] ?? $cartItem['qty'] ?? 0);
+                                        $cartUnitPrice = (float) ($cartItem['unit_price'] ?? $product?->price ?? 0);
+                                    @endphp
+                                    @if($product && $cartQty > 0)
                                         <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition">
-                                            <img src="{{ media_url($product->image) ?? 'https://via.placeholder.com/50?text=food' }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover bg-gray-100">
+                                            <img src="{{ media_url($product->image) ?? asset('images/placeholder.svg') }}" loading="lazy" decoding="async" class="w-12 h-12 rounded-md object-cover bg-gray-100">
                                             <div class="flex-1 min-w-0">
-                                                <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}</h4>
-                                                <p class="text-xs text-primary font-bold">{{ number_format($product->price, 2) }} ل.س × {{ $cartQty }}</p>
+                                                <h4 class="text-sm font-bold text-gray-800 truncate">{{ $product->name }}@if(!empty($cartItem['variant_name'])) ({{ $cartItem['variant_name'] }})@endif</h4>
+                                                <p class="text-xs text-primary font-bold">{{ number_format($cartUnitPrice, 2) }} ل.س × {{ $cartQty }}</p>
                                             </div>
                                         </div>
                                     @endif
@@ -287,7 +287,7 @@
                                 <div class="flex justify-between mb-3 text-sm font-bold text-gray-700">
                                     <span>المجموع:</span>
                                     <span id="mini-cart-total">
-                                        {{ number_format($restaurant->products()->whereIn('id', array_keys(session('cart_'.$restaurant->id, [])))->get()->sum(function($p) use ($restaurant) { return $p->price * (session('cart_'.$restaurant->id)[$p->id]['quantity'] ?? 0); }), 2) }} ل.س
+                                        {{ number_format($cartPreviewTotal, 2) }} ل.س
                                     </span>
                                 </div>
                                 <a href="{{ route('cart.index', $restaurant->slug) }}" class="block w-full btn-primary text-center py-2.5 rounded-xl text-sm font-bold hover:shadow-md transition">
@@ -306,8 +306,8 @@
         </div>
 
         <!-- Mobile Menu (Off-canvas) -->
-        <div id="mobile-menu" class="fixed inset-0 bg-black opacity-50 z-50 hidden" onclick="toggleMobileMenu()">
-            <div class="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
+        <div id="mobile-menu" class="fixed inset-0 bg-black/50 z-50 hidden" onclick="toggleMobileMenu()">
+            <div class="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
                 <div class="flex justify-between items-center mb-8 border-b pb-4">
                     <h2 class="text-xl font-black text-gray-800">القائمة</h2>
                     <button onclick="toggleMobileMenu()" class="text-gray-500 hover:text-red-500 text-2xl transition">✕</button>
@@ -327,6 +327,14 @@
     </header>
 
     <!-- ==================== Main Content Area ==================== -->
+    @if(! $restaurant->canAcceptOrders())
+        <div class="mx-auto mt-4 max-w-7xl px-4" role="alert">
+            <div class="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-center font-bold text-amber-900 shadow-sm">
+                {{ $restaurant->orderUnavailableMessage() }}
+            </div>
+        </div>
+    @endif
+
     <main class="flex-grow min-h-screen">
         @yield('content')
     </main>

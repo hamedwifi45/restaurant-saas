@@ -1,4 +1,5 @@
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
+<script src="{{ asset('js/offline-map-tiles.js') }}" defer></script>
 
 <div
     x-data="restaurantLocationPicker($wire.entangle('data.latitude'), $wire.entangle('data.longitude'))"
@@ -120,10 +121,7 @@
                         initialZoom,
                     );
 
-                    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                        maxZoom: 19,
-                    }).addTo(this.map);
+                    window.addOfflineAwareMapTiles(this.map);
 
                     this.marker = window.L.marker([initialLatitude, initialLongitude], {
                         draggable: true,
@@ -161,7 +159,7 @@
                 if (!window.restaurantLeafletLoading) {
                     window.restaurantLeafletLoading = new Promise((resolve, reject) => {
                         const script = document.createElement('script');
-                        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                        script.src = @json(asset('vendor/leaflet/leaflet.js'));
                         script.onload = resolve;
                         script.onerror = () => reject(new Error('Leaflet could not be loaded.'));
                         document.head.appendChild(script);
@@ -265,6 +263,11 @@
                     return;
                 }
 
+                if (!navigator.onLine) {
+                    this.errorMessage = 'البحث عن المواقع يحتاج اتصالاً بالإنترنت. يمكنك تحديد الموقع يدوياً على الخريطة.';
+                    return;
+                }
+
                 if (Date.now() - this.lastSearchAt < 1000) {
                     this.errorMessage = 'يرجى الانتظار قليلاً قبل إجراء بحث آخر.';
                     return;
@@ -284,7 +287,10 @@
                     });
                     const response = await fetch(
                         `https://nominatim.openstreetmap.org/search?${parameters.toString()}`,
-                        { headers: { Accept: 'application/json' } },
+                        {
+                            headers: { Accept: 'application/json' },
+                            signal: AbortSignal.timeout(5000),
+                        },
                     );
 
                     if (!response.ok) {
