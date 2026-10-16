@@ -79,6 +79,11 @@ class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
     private function payload(): array
     {
         [$title, $message, $notificationStatus] = match ($this->status) {
+            'reservation_confirmed' => [
+                'تم تأكيد حجز طاولتك',
+                'تم تأكيد حجز الطاولة '.$this->order->restaurantTable?->number.' في '.$this->order->dine_in_arrival_at?->format('Y-m-d H:i').'. ننتظرك!',
+                'reservation_confirmed',
+            ],
             'preparing' => ['بدأ تحضير الطلب', 'بدأ المطبخ في تحضير طلبك رقم '.$this->order->tracking_code.'.', 'preparing'],
             'ready' => ['الطلب جاهز', 'طلبك رقم '.$this->order->tracking_code.' جاهز الآن.', 'ready'],
             'on_way', 'out_for_delivery' => ['الطلب في الطريق', 'الطلب رقم '.$this->order->tracking_code.' في الطريق إليك مع المندوب.', 'out_for_delivery'],

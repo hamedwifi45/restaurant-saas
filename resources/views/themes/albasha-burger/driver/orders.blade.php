@@ -30,7 +30,7 @@
         </header>
 
         <!-- ========================================================= -->
-        <!-- 🚨 1. قسم طلبات المندوب الحالية (مميزة بلون ونمط تنبيهي) -->
+        <!-- 1. قسم طلبات المندوب الحالية (مميزة بلون ونمط تنبيهي) -->
         <!-- ========================================================= -->
         @if($myActiveOrders->isNotEmpty())
             <section class="space-y-4">
@@ -62,18 +62,18 @@
                                         <h2 class="mt-1 text-2xl font-black">طلب {{ $order->tracking_code }}</h2>
                                     </div>
                                     <span class="shrink-0 animate-pulse rounded-full bg-amber-500/30 px-3.5 py-1.5 text-xs font-black text-amber-300 border border-amber-500/50">
-                                        ⚠️ {{ $order->status === 'on_way' ? 'جاري التوصيل للزبون' : 'قيد الاستلام' }}
+                                        <i class="fa-solid fa-triangle-exclamation ml-1" aria-hidden="true"></i> {{ $order->status === 'on_way' ? 'جاري التوصيل للزبون' : 'قيد الاستلام' }}
                                     </span>
                                 </div>
 
                                 <div class="space-y-3 border-y border-amber-500/30 py-4 text-sm">
                                     <div class="flex gap-3 items-center">
-                                        <span class="text-amber-400 text-lg">👤</span>
+                                        <i class="fa-solid fa-user text-lg text-amber-400" aria-hidden="true"></i>
                                         <span class="font-bold text-amber-100">{{ $order->customer_name }}</span>
                                         <a class="mr-auto rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-300 underline border border-amber-500/30" href="tel:{{ $order->customer_phone }}">اتصال</a>
                                     </div>
                                     <div class="flex gap-3 text-slate-300">
-                                        <span class="text-amber-400 text-lg">📍</span>
+                                        <i class="fa-solid fa-location-dot text-lg text-amber-400" aria-hidden="true"></i>
                                         <span>{{ $order->delivery_address ?: 'لا يوجد عنوان مسجل' }}</span>
                                     </div>
                                 </div>
@@ -93,13 +93,13 @@
                                 <div class="mt-auto space-y-3 pt-2">
                                     <!-- رابط التتبع الخارجي للطلب -->
                                     <a href="{{ route('driver.order.tracking', [$restaurant->slug,$order->tracking_code]) }}" class="block w-full text-center rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition">
-                                        🗺️ فتح الخريطة المباشرة للتتبع
+                                        <i class="fa-solid fa-map-location-dot ml-1" aria-hidden="true"></i> فتح الخريطة المباشرة للتتبع
                                     </a>
 
                                     @unless(auth()->user()->isRestaurantAdmin())
                                         <!-- زر تأكيد التسليم -->
                                         <button type="button" data-deliver-order="{{ $order->id }}" class="w-full rounded-xl bg-emerald-600 px-4 py-3.5 font-black text-white transition hover:bg-emerald-500 active:scale-[0.99] shadow-lg shadow-emerald-900/40">
-                                            ✅ تأكيد تسليم الطلب للعميل
+                                            <i class="fa-solid fa-circle-check ml-1" aria-hidden="true"></i> تأكيد تسليم الطلب للعميل
                                         </button>
                                     @endunless
                                 </div>
@@ -111,7 +111,7 @@
         @endif
 
         <!-- ========================================================= -->
-        <!-- 📦 2. قسم الطلبات المتاحة للاستلام (العادية) -->
+        <!-- 2. قسم الطلبات المتاحة للاستلام (العادية) -->
         <!-- ========================================================= -->
         <section class="space-y-4 pt-4 border-t border-slate-800">
             <h2 class="text-xl font-black text-slate-200">الطلبات المتاحة للقبول والتوصيل</h2>
@@ -135,7 +135,7 @@
                                     <h2 class="mt-1 text-xl font-black">طلب {{ $order->tracking_code }}</h2>
                                 </div>
                                 <span class="shrink-0 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-400 border border-emerald-500/30">
-                                    🔥 متاح للاستلام
+                                    <i class="fa-solid fa-fire ml-1" aria-hidden="true"></i> متاح للاستلام
                                 </span>
                             </div>
 
@@ -196,7 +196,10 @@
 
                         const alertBox = document.createElement('div');
                         alertBox.className = "fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-2xl animate-bounce";
-                        alertBox.innerText = `🔥 طلب جديد جاهز للتوصيل: #${e.orderData.tracking_code}`;
+                        const alertIcon = document.createElement('i');
+                        alertIcon.className = 'fa-solid fa-fire ml-2';
+                        alertIcon.setAttribute('aria-hidden', 'true');
+                        alertBox.append(alertIcon, document.createTextNode(`طلب جديد جاهز للتوصيل: #${e.orderData.tracking_code}`));
                         document.body.appendChild(alertBox);
 
                         setTimeout(() => {

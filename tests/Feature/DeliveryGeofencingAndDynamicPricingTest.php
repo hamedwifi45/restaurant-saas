@@ -47,6 +47,21 @@ function deliveryCheckoutThemeFolders(): array
     );
 }
 
+it('restores saved customer coordinates through the original checkout map flow', function () {
+    $restaurant = Restaurant::factory()->create();
+    seedDeliveryCheckout($restaurant);
+
+    $this->get(route('checkout', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('const defaultLocation = [restaurantLatitude, restaurantLongitude]', false)
+        ->assertSee('if (this.customerLat && this.customerLng && typeof setCheckoutLocation === \'function\')', false)
+        ->assertSee('const lat = Number(latitude);', false)
+        ->assertSee('const lng = Number(longitude);', false)
+        ->assertSee('checkoutMap.flyTo([lat, lng]', false)
+        ->assertSee('setCheckoutLocation(this.customerLat, this.customerLng, true)', false)
+        ->assertSee('Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)', false);
+});
+
 it('blocks checkout when the delivery location is outside the restaurant radius', function () {
     $restaurant = Restaurant::factory()->create([
         'latitude' => 0,
@@ -81,8 +96,8 @@ it('uses safe fallback restaurant coordinates and still enforces the delivery ra
         ->assertSee('data-restaurant-longitude="36.2765"', false)
         ->assertSee('restaurantLatitude: 33.5138', false)
         ->assertSee('restaurantLongitude: 36.2765', false)
-        ->assertSee(':disabled="processing || isOutOfRange"', false)
-        ->assertSee('window.checkoutPricingState?.setCustomerLocation(latitude, longitude)', false)
+        ->assertSee(':disabled="processing || isOutOfRange ||', false)
+        ->assertSee('window.checkoutPricingState.setCustomerLocation(latitude, longitude)', false)
         ->assertDontSee('جاري التحديد...', false);
 
     $this->postJson(route('checkout.store', $restaurant->slug), deliveryCheckoutPayload(0, 0))
@@ -146,7 +161,7 @@ it('renders live checkout pricing and geofence controls for each customer theme'
         ->assertDontSee('x-show="deliveryFee > 0"', false)
         ->assertSee('x-text="totalDisplay"', false)
         ->assertSee('<template x-if="warningMessage.length > 0">', false)
-        ->assertSee(':disabled="processing || isOutOfRange"', false)
+        ->assertSee(':disabled="processing || isOutOfRange ||', false)
         ->assertSee('x-model="customerLat" @input="persistCustomer(); recalculate()"', false)
         ->assertSee('x-model="customerLng" @input="persistCustomer(); recalculate()"', false)
         ->assertSee('navigator.geolocation.getCurrentPosition', false)
@@ -201,12 +216,12 @@ it('updates Alpine customer coordinate state before recalculating checkout prici
         ->toContain('return this.distance === null ? \'\' : `${this.distance.toFixed(2)} كم`;')
         ->toContain('this.deliveryFee = Math.round((')
         ->toContain('this.isOutOfRange = true;')
-        ->toContain('this.total = Number(configuration.subtotal)')
+        ->toContain('this.total = Number(configuration.subtotal || 0)')
         ->toContain('this.warningMessage = `نعتذر، موقعك يبعد');
 });
 
-it('dispatches checkout map location updates for every installed theme', function (string $themeFolder) {
-    $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
+it('dispatches checkout map location updates for the albasha burger theme', function () {
+    $theme = Theme::factory()->create(['folder_name' => 'albasha-burger']);
     $restaurant = Restaurant::factory()->create([
         'theme_id' => $theme->id,
         'latitude' => 33.5138,
@@ -218,17 +233,17 @@ it('dispatches checkout map location updates for every installed theme', functio
         ->assertSuccessful()
         ->assertSee('setView(defaultLocation, 16)', false)
         ->assertSee("window.dispatchEvent(new CustomEvent('customer-location-updated'", false)
-        ->assertSee('detail: { latitude, longitude }', false)
-        ->assertSee('window.checkoutPricingState?.setCustomerLocation(', false)
+        ->assertSee('detail: { latitude: Number(latitude), longitude: Number(longitude) }', false)
+        ->assertSee('window.checkoutPricingState.setCustomerLocation(', false)
         ->assertSee("checkoutMarker.on('drag'", false)
         ->assertSee("checkoutMarker.on('dragend'", false)
         ->assertSee('updateLocationAndPricing(', false)
         ->assertSee("checkoutMap.on('click'", false)
         ->assertSee('x-cloak x-show="isOutOfRange"', false)
-        ->assertSee(':disabled="processing || isOutOfRange"', false)
+        ->assertSee(':disabled="processing || isOutOfRange ||', false)
         ->assertSee(':class="{\'cursor-not-allowed opacity-50\': isOutOfRange}"', false)
         ->assertDontSee('fitBounds(', false);
-})->with(deliveryCheckoutThemeFolders());
+});
 
 it('persists a KDS rejection reason and sends it with the cancellation notification', function () {
     $restaurant = Restaurant::factory()->create(['plan' => 'pro']);

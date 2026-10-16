@@ -10,10 +10,20 @@
             <!-- الرأس -->
             <div class="bg-gradient-to-br from-green-500 to-emerald-600 p-8 text-center text-white">
                 <div class="w-24 h-24 bg-white opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                    <span class="text-6xl">🎉</span>
+                    <i class="fa-solid fa-circle-check text-6xl" aria-hidden="true"></i>
                 </div>
-                <h1 class="text-3xl text-green-500 font-black mb-2">تم استلام طلبك بنجاح!</h1>
-                <p class="text-green-500">سنبدأ في تحضير طلبك فوراً</p>
+                <h1 class="text-3xl text-green-500 font-black mb-2">
+                    {{ $order->deposit_amount > 0 && $order->payment_status === 'pending' ? 'وصلنا طلبك وإيصال العربون' : 'تم استلام طلبك بنجاح!' }}
+                </h1>
+                @if($order->deposit_amount > 0 && $order->payment_status === 'pending')
+                    <p class="text-green-500">سيؤكد المطعم الحجز أو موعد الاستلام بعد مراجعة الإيصال. لم يُرسل الطلب إلى المطبخ بعد.</p>
+                @elseif($order->dine_in_arrival_at)
+                    <p class="text-green-500">تم تسجيل طلب حجز الطاولة، بانتظار وصولك في الموعد المحدد.</p>
+                @elseif($order->requested_pickup_at)
+                    <p class="text-green-500">تم تسجيل موعد استلامك من المطعم، وسيكون طلبك جاهزاً في الموعد المحدد.</p>
+                @else
+                    <p class="text-green-500">سنبدأ في تحضير طلبك فوراً</p>
+                @endif
             </div>
 
             <!-- محتوى البطاقة -->
@@ -27,7 +37,7 @@
                         onclick="copyTrackingCode('{{ $order->tracking_code }}')"
                         class="mt-3 text-sm text-gray-500 hover:text-primary transition flex items-center gap-1 mx-auto"
                     >
-                        <span id="copy-icon">📋</span>
+                        <i id="copy-icon" class="fa-regular fa-copy" aria-hidden="true"></i>
                         <span id="copy-text">نسخ الرمز</span>
                     </button>
                 </div>
@@ -35,7 +45,7 @@
                 <!-- QR Code -->
                 <div class="bg-white border-2 border-gray-100 rounded-2xl p-6 mb-6 text-center">
                     <h3 class="font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
-                        <span>📱</span>
+                        <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
                         <span>امسح الرمز للتتبع المباشر</span>
                     </h3>
                     
@@ -52,7 +62,7 @@
                             onclick="downloadQRCode()"
                             class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2"
                         >
-                            <span>💾</span>
+                            <i class="fa-solid fa-download" aria-hidden="true"></i>
                             <span>تحميل الصورة</span>
                         </button>
                         
@@ -60,7 +70,7 @@
                             onclick="shareQRCode()"
                             class="btn-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
                         >
-                            <span>📤</span>
+                            <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
                             <span>مشاركة</span>
                         </button>
                     </div>
@@ -69,7 +79,7 @@
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2 text-blue-700">
-                            <span class="text-2xl">📄</span>
+                            <i class="fa-solid fa-file-invoice text-2xl" aria-hidden="true"></i>
                             <div>
                                 <p class="font-bold">فاتورتك جاهزة</p>
                                 <p class="text-sm">يمكنك مراجعة وطباعة فاتورتك في أي وقت</p>
@@ -94,11 +104,12 @@
                         طلب الطاولة <strong>{{ $order->restaurantTable->number }}</strong>
                     </div>
                 @endif
+                <x-dine-in-reservation-details :order="$order" />
                 <!-- معلومات الخصم (إذا تم تطبيقه) -->
                 @if($order->discount_amount > 0)
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
                         <div class="flex items-center gap-2 text-green-700">
-                            <span class="text-2xl">🎉</span>
+                            <i class="fa-solid fa-tags text-2xl" aria-hidden="true"></i>
                             <div>
                                 <p class="font-bold">تم تطبيق خصم خاص!</p>
                                 <p class="text-sm">وفرت {{ number_format($order->discount_amount, 2) }} ل.س</p>
@@ -109,14 +120,28 @@
                 <!-- معلومات سريعة -->
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-blue-50 p-4 rounded-xl text-center">
-                        <div class="text-2xl mb-1">💰</div>
+                        <i class="fa-solid fa-coins mb-1 text-2xl text-primary" aria-hidden="true"></i>
                         <p class="text-xs text-gray-500">المبلغ</p>
                         <p class="font-bold text-gray-800">{{ number_format($order->final_amount, 2) }} ل.س</p>
                     </div>
                     <div class="bg-orange-50 p-4 rounded-xl text-center">
-                        <div class="text-2xl mb-1">⏱️</div>
-                        <p class="text-xs text-gray-500">وقت التوصيل</p>
-                        <p class="font-bold text-gray-800">{{ $restaurant->estimated_delivery_time ?? 30 }} دقيقة</p>
+                        @if($order->dine_in_arrival_at)
+                            <i class="fa-regular fa-calendar-check mb-1 text-2xl text-primary" aria-hidden="true"></i>
+                            <p class="text-xs text-gray-500">موعد الوصول</p>
+                            <p class="font-bold text-gray-800">{{ $order->dine_in_arrival_at->format('Y-m-d H:i') }}</p>
+                        @elseif($order->delivery_type === 'dine_in')
+                            <i class="fa-solid fa-utensils mb-1 text-2xl text-primary" aria-hidden="true"></i>
+                            <p class="text-xs text-gray-500">نوع الطلب</p>
+                            <p class="font-bold text-gray-800">داخل المطعم</p>
+                        @elseif($order->requested_pickup_at)
+                            <i class="fa-solid fa-store mb-1 text-2xl text-primary" aria-hidden="true"></i>
+                            <p class="text-xs text-gray-500">موعد الاستلام</p>
+                            <p class="font-bold text-gray-800">{{ $order->requested_pickup_at->format('Y-m-d H:i') }}</p>
+                        @else
+                            <div class="text-2xl mb-1">⏱️</div>
+                            <p class="text-xs text-gray-500">وقت التوصيل</p>
+                            <p class="font-bold text-gray-800">{{ $restaurant->estimated_delivery_time ?? 30 }} دقيقة</p>
+                        @endif
                     </div>
                 </div>
 
@@ -126,7 +151,7 @@
                         href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
                         class="flex-1 btn-primary py-3 rounded-xl font-bold text-center hover:shadow-lg transition"
                     >
-                        تتبع الطلب 🚚
+                        تتبع الطلب <i class="fa-solid {{ $order->delivery_type === 'dine_in' ? 'fa-utensils' : ($order->delivery_type === 'takeaway' ? 'fa-store' : 'fa-truck-fast') }} mr-1" aria-hidden="true"></i>
                     </a>
                     <a 
                         href="{{ route('restaurant.home', $restaurant->slug) }}"
@@ -168,10 +193,10 @@
     // 2. نسخ رمز التتبع
     function copyTrackingCode(code) {
         navigator.clipboard.writeText(code).then(() => {
-            document.getElementById('copy-icon').innerText = '✅';
+            document.getElementById('copy-icon').className = 'fa-solid fa-circle-check text-green-600';
             document.getElementById('copy-text').innerText = 'تم النسخ!';
             setTimeout(() => {
-                document.getElementById('copy-icon').innerText = '📋';
+                document.getElementById('copy-icon').className = 'fa-regular fa-copy';
                 document.getElementById('copy-text').innerText = 'نسخ الرمز';
             }, 2000);
         });

@@ -14,12 +14,19 @@ use App\Models\Restaurant;
 use App\Models\RestaurantTable;
 use App\Services\CartService;
 use App\Services\DeliveryPricingService;
+use App\Services\ReservationAvailabilityService;
 use App\Services\RestaurantTableSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class OrderController extends Controller
 {
@@ -27,7 +34,20 @@ class OrderController extends Controller
         private readonly DeliveryPricingService $deliveryPricing,
         private readonly RestaurantTableSession $tableSession,
         private readonly CartService $cartService,
+        private readonly ReservationAvailabilityService $reservationAvailability,
     ) {}
+
+    public function downloadPaymentReceipt(Request $request, Order $order): BinaryFileResponse
+    {
+        abort_unless($request->user()?->role === 'restaurant_admin', 403);
+        Gate::authorize('view', $order);
+        abort_if(blank($order->payment_receipt), 404);
+
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($order->payment_receipt), 404);
+
+        return response()->download($disk->path($order->payment_receipt));
+    }
 
     public function track(Request $request, string $slug, string $code)
     {
@@ -106,7 +126,7 @@ class OrderController extends Controller
 
     public function checkout($slug)
     {
-        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+        $restaurant = Restaurant::with('theme')->where('slug', $slug)->firstOrFail();
 
         if (! $restaurant->canAcceptOrders()) {
             return redirect()->route('restaurant.menu', $slug)
@@ -181,6 +201,19 @@ class OrderController extends Controller
         $themePath = ThemeHelper::getThemePath($restaurant);
 
         $table = $this->currentTable($restaurant);
+        $isAlbashaBurger = $restaurant->theme?->folder_name === 'albasha-burger';
+        $experimentalOrderFeatures = $restaurant->getExperimentalOrderFeatures();
+        $supportsPrepaidOrders = $restaurant->hasFeature('bank_transfer') && filled($restaurant->bank_details);
+        $supportsTableReservations = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('table_reservations');
+        $supportsScheduledPickup = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('scheduled_pickup');
+        $depositPercentage = (float) $experimentalOrderFeatures['deposit_percentage'];
+        $initialDeliveryType = $table ? 'dine_in' : old('delivery_type', 'delivery');
+        if (
+            ($initialDeliveryType === 'dine_in' && ! $supportsTableReservations)
+            || ($initialDeliveryType === 'takeaway' && ! $supportsScheduledPickup)
+        ) {
+            $initialDeliveryType = 'delivery';
+        }
 
         // ===== استرجاع بيانات العميل المحفوظة سابقاً من الكوكيز =====
         $savedCustomer = [
@@ -198,6 +231,11 @@ class OrderController extends Controller
             'total',
             'slug',
             'table',
+            'supportsTableReservations',
+            'supportsScheduledPickup',
+            'experimentalOrderFeatures',
+            'depositPercentage',
+            'initialDeliveryType',
             'baseSubtotal',
             'baseTax',
             'checkoutItems',
@@ -209,15 +247,50 @@ class OrderController extends Controller
         ));
     }
 
-    /**
-     * حفظ الطلب الجديد
-     */
+    public function tableAvailability(Request $request, string $slug): JsonResponse
+    {
+        $restaurant = Restaurant::with('theme')->where('slug', $slug)->firstOrFail();
+
+        abort_unless(
+            $restaurant->theme?->folder_name === 'albasha-burger'
+                && $restaurant->hasFeature('bank_transfer')
+                && filled($restaurant->bank_details)
+                && $restaurant->experimentalOrderFeatureEnabled('table_reservations'),
+            404,
+        );
+
+        $validated = $request->validate([
+            'arrival_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:now'],
+            'guest_count' => ['required', 'integer', 'between:1,20'],
+            'duration_minutes' => ['required', Rule::in(
+                $restaurant->getExperimentalOrderFeatures()['reservation_duration_options'] ?: [90],
+            )],
+        ]);
+
+        $arrivalAt = Carbon::parse($validated['arrival_at']);
+
+        $tables = $this->reservationAvailability->availableTables(
+            $restaurant,
+            $arrivalAt,
+            (int) $validated['guest_count'],
+            (int) $validated['duration_minutes'],
+        )
+            ->map(fn (RestaurantTable $table): array => [
+                'id' => $table->id,
+                'number' => $table->number,
+                'name' => $table->name,
+                'seats' => $table->seats,
+            ]);
+
+        return response()->json(['tables' => $tables]);
+    }
+
     /**
      * حفظ الطلب الجديد
      */
     public function store(Request $request, $slug)
     {
-        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+        $restaurant = Restaurant::with('theme')->where('slug', $slug)->firstOrFail();
 
         if (! $restaurant->canAcceptOrders()) {
             throw ValidationException::withMessages([
@@ -226,26 +299,130 @@ class OrderController extends Controller
         }
 
         $table = $this->currentTable($restaurant);
+        $experimentalOrderFeatures = $restaurant->getExperimentalOrderFeatures();
+        $isAlbashaBurger = $restaurant->theme?->folder_name === 'albasha-burger';
+        $supportsPrepaidOrders = $restaurant->hasFeature('bank_transfer') && filled($restaurant->bank_details);
+        $supportsTableReservations = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('table_reservations');
+        $supportsScheduledPickup = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('scheduled_pickup');
+        $reservationDurationOptions = $experimentalOrderFeatures['reservation_duration_options'] ?: [90];
+        $request->merge([
+            'delivery_type' => $table ? 'dine_in' : ($request->input('delivery_type') ?: 'delivery'),
+        ]);
 
+        $deliveryType = $table ? 'dine_in' : $request->input('delivery_type', 'delivery');
+        $isDineInReservation = ! $table && $deliveryType === 'dine_in' && $supportsTableReservations;
+        $isScheduledPickup = ! $table && $deliveryType === 'takeaway' && $supportsScheduledPickup;
+        $isDineIn = (bool) $table || $isDineInReservation;
+        $requiresDeliveryLocation = ! $isDineIn && ! $isScheduledPickup;
+        $allowedDeliveryTypes = ['delivery'];
+        if ($table || $supportsTableReservations) {
+            $allowedDeliveryTypes[] = 'dine_in';
+        }
+        if ($supportsScheduledPickup) {
+            $allowedDeliveryTypes[] = 'takeaway';
+        }
+
+        $requiredDeposit = $isDineInReservation || $isScheduledPickup;
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => ['required', 'string', 'max:20', 'regex:/^(09|\+?9639)\d{8}$/'],
             'address' => 'nullable|string|max:1000',
-            'latitude' => [$table ? 'nullable' : 'required', 'numeric', 'between:-90,90'],
-            'longitude' => [$table ? 'nullable' : 'required', 'numeric', 'between:-180,180'],
-            'payment_method' => 'required|in:cash,transfer,bank_transfer',
+            'latitude' => [$requiresDeliveryLocation ? 'required' : 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => [$requiresDeliveryLocation ? 'required' : 'nullable', 'numeric', 'between:-180,180'],
+            'payment_method' => $requiredDeposit ? ['required', Rule::in(['bank_transfer'])] : 'required|in:cash,transfer,bank_transfer',
             'notes' => 'nullable|string',
             'offer_id' => 'nullable|exists:offers,id',
             'coupon_id' => 'nullable|exists:coupons,id',
             'coupon_code' => 'nullable|string',
+            'delivery_type' => ['required', Rule::in($allowedDeliveryTypes)],
+            'restaurant_table_id' => $isDineInReservation
+                ? [
+                    'required',
+                    Rule::exists('restaurant_tables', 'id')
+                        ->where('restaurant_id', $restaurant->id)
+                        ->where('is_active', true),
+                ]
+                : 'prohibited',
+            'dine_in_arrival_at' => [
+                $isDineInReservation ? 'required' : 'prohibited',
+                'date_format:Y-m-d\TH:i',
+                'after:now',
+            ],
+            'dine_in_duration_minutes' => [
+                $isDineInReservation ? 'required' : 'prohibited',
+                Rule::in($reservationDurationOptions),
+            ],
+            'dine_in_guest_count' => [
+                $isDineInReservation ? 'required' : 'prohibited',
+                'integer',
+                'between:1,20',
+            ],
+            'dine_in_seating_preference' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_seating_preference'] ? 'nullable' : 'prohibited',
+                'in:any,indoor,outdoor,window,quiet,family',
+            ],
+            'dine_in_occasion' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_occasion'] ? 'nullable' : 'prohibited',
+                'in:none,birthday,anniversary,family,business,other',
+            ],
+            'dine_in_high_chair_count' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_high_chairs'] ? 'nullable' : 'prohibited',
+                'integer',
+                'between:0,10',
+                'lte:dine_in_guest_count',
+            ],
+            'dine_in_stroller_space' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_stroller_space'] ? 'nullable' : 'prohibited',
+                'boolean',
+            ],
+            'dine_in_accessibility_notes' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_accessibility_notes'] ? 'nullable' : 'prohibited',
+                'string',
+                'max:1000',
+            ],
+            'dine_in_allergy_notes' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_allergy_notes'] ? 'nullable' : 'prohibited',
+                'string',
+                'max:1000',
+            ],
+            'dine_in_dietary_preference' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_dietary_preference'] ? 'nullable' : 'prohibited',
+                'in:none,vegetarian,vegan,gluten_free,other',
+            ],
+            'dine_in_confirmation_call' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_confirmation_call'] ? 'nullable' : 'prohibited',
+                'boolean',
+            ],
+            'dine_in_celebration_notes' => [
+                $isDineInReservation && $experimentalOrderFeatures['reservation_celebration_notes'] ? 'nullable' : 'prohibited',
+                'string',
+                'max:1000',
+            ],
+            'requested_pickup_at' => [
+                $isScheduledPickup ? 'required' : 'prohibited',
+                'date_format:Y-m-d\TH:i',
+                'after:now',
+            ],
+            'payment_receipt' => [
+                $requiredDeposit ? 'required' : 'prohibited',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:5120',
+            ],
         ]);
+
+        if ($requiredDeposit && (! $restaurant->hasFeature('bank_transfer') || blank($restaurant->bank_details))) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'تعذر تفعيل الدفع المسبق لعدم توفر تفاصيل التحويل لدى المطعم.',
+            ]);
+        }
 
         $customerLatitude = $validated['latitude'] ?? null;
         $customerLongitude = $validated['longitude'] ?? null;
         $distanceKm = null;
         $deliveryFee = 0.0;
 
-        if (! $table) {
+        if ($requiresDeliveryLocation) {
             $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
             $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
             $distance = $this->deliveryPricing->distanceInKilometers(
@@ -357,54 +534,134 @@ class OrderController extends Controller
         $tax = round($subtotal * $taxRate / 100, 2);
         $finalAmount = round($subtotal + $tax + $deliveryFee - ($offerDiscount + $couponDiscount), 2);
         $restaurant->refresh();
-
+        $depositAmount = $requiredDeposit
+            ? round($finalAmount * (float) $experimentalOrderFeatures['deposit_percentage'] / 100, 2)
+            : 0;
         if (! $restaurant->canAcceptOrders()) {
             throw ValidationException::withMessages([
                 'availability' => $restaurant->orderUnavailableMessage(),
             ]);
         }
 
-        if ($appliedOfferId && $offer) {
-            $offer->incrementUsage();
-        }
-
-        if ($appliedCouponId && $coupon) {
-            $coupon->incrementUsage();
-        }
-
+        $receiptPath = $requiredDeposit
+            ? $validated['payment_receipt']->store('payment-receipts', 'local')
+            : null;
         $deviceToken = Str::random(40);
-        // إنشاء سجل الطلب
-        $order = Order::create([
-            'restaurant_id' => $restaurant->id,
-            'restaurant_table_id' => $table?->id,
-            'customer_name' => $request->name,
-            'customer_phone' => $request->phone,
-            'delivery_address' => $table ? 'طاولة '.$table->number : ($request->address ?: 'موقع محدد على الخريطة'),
-            'delivery_latitude' => $request->latitude,
-            'delivery_longitude' => $request->longitude,
-            'customer_lat' => $customerLatitude,
-            'customer_lng' => $customerLongitude,
-            'distance_km' => $distanceKm,
-            'delivery_type' => $table ? 'dine_in' : 'delivery',
-            'delivery_city' => $restaurant->city,
-            'delivery_fee' => $deliveryFee,
-            'subtotal' => $subtotal,
-            'tax_amount' => $tax,
-            'discount' => $offerDiscount,
-            'discount_amount' => $offerDiscount,
-            'coupon_discount' => $couponDiscount,
-            'offer_id' => $appliedOfferId,
-            'coupon_id' => $appliedCouponId,
-            'coupon_code' => $appliedCouponCode,
-            'total_amount' => $finalAmount,
-            'final_amount' => $finalAmount,
-            'payment_method' => $request->payment_method,
-            'payment_status' => 'pending',
-            'notes' => $request->notes,
-            'status' => 'pending',
-            'device_token' => $deviceToken,
-            'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
-        ]);
+        try {
+            $order = DB::transaction(function () use (
+                $restaurant,
+                $table,
+                $isDineInReservation,
+                $isScheduledPickup,
+                $validated,
+                $deliveryType,
+                $customerLatitude,
+                $customerLongitude,
+                $distanceKm,
+                $deliveryFee,
+                $subtotal,
+                $tax,
+                $offerDiscount,
+                $couponDiscount,
+                $appliedOfferId,
+                $appliedCouponId,
+                $appliedCouponCode,
+                $finalAmount,
+                $request,
+                $deviceToken,
+                $depositAmount,
+                $receiptPath,
+                $offer,
+                $coupon,
+            ): Order {
+                $lockedRestaurant = Restaurant::query()
+                    ->whereKey($restaurant->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $reservationTable = null;
+
+                if ($isDineInReservation) {
+                    $reservationTable = $this->reservationAvailability->availableTables(
+                        $lockedRestaurant,
+                        Carbon::parse($validated['dine_in_arrival_at']),
+                        (int) $validated['dine_in_guest_count'],
+                        (int) $validated['dine_in_duration_minutes'],
+                    )->firstWhere('id', (int) $validated['restaurant_table_id']);
+
+                    if (! $reservationTable) {
+                        throw ValidationException::withMessages([
+                            'restaurant_table_id' => 'لم تعد هذه الطاولة متاحة في الموعد المحدد. اختر طاولة أخرى أو غيّر وقت الوصول.',
+                        ]);
+                    }
+                }
+
+                if ($appliedOfferId && $offer) {
+                    $offer->incrementUsage();
+                }
+
+                if ($appliedCouponId && $coupon) {
+                    $coupon->incrementUsage();
+                }
+
+                return Order::create([
+                    'restaurant_id' => $restaurant->id,
+                    'restaurant_table_id' => $table?->id ?? $reservationTable?->id,
+                    'customer_name' => $request->name,
+                    'customer_phone' => $request->phone,
+                    'delivery_address' => $table
+                        ? 'طاولة '.$table->number
+                        : ($isDineInReservation
+                            ? 'حجز طاولة '.$reservationTable->number
+                            : ($isScheduledPickup ? 'استلام من المطعم' : ($validated['address'] ?? 'موقع محدد على الخريطة'))),
+                    'delivery_latitude' => $validated['latitude'] ?? null,
+                    'delivery_longitude' => $validated['longitude'] ?? null,
+                    'customer_lat' => $customerLatitude,
+                    'customer_lng' => $customerLongitude,
+                    'distance_km' => $distanceKm,
+                    'delivery_type' => $deliveryType,
+                    'dine_in_arrival_at' => $isDineInReservation ? $validated['dine_in_arrival_at'] : null,
+                    'dine_in_duration_minutes' => $isDineInReservation ? $validated['dine_in_duration_minutes'] : null,
+                    'reservation_status' => $isDineInReservation ? 'pending' : null,
+                    'requested_pickup_at' => $isScheduledPickup ? $validated['requested_pickup_at'] : null,
+                    'deposit_amount' => $depositAmount,
+                    'dine_in_guest_count' => $isDineInReservation ? $validated['dine_in_guest_count'] : null,
+                    'dine_in_seating_preference' => $isDineInReservation ? ($validated['dine_in_seating_preference'] ?? null) : null,
+                    'dine_in_occasion' => $isDineInReservation ? ($validated['dine_in_occasion'] ?? null) : null,
+                    'dine_in_high_chair_count' => $isDineInReservation ? ($validated['dine_in_high_chair_count'] ?? null) : null,
+                    'dine_in_stroller_space' => $isDineInReservation && ($validated['dine_in_stroller_space'] ?? false),
+                    'dine_in_accessibility_notes' => $isDineInReservation ? ($validated['dine_in_accessibility_notes'] ?? null) : null,
+                    'dine_in_allergy_notes' => $isDineInReservation ? ($validated['dine_in_allergy_notes'] ?? null) : null,
+                    'dine_in_dietary_preference' => $isDineInReservation ? ($validated['dine_in_dietary_preference'] ?? null) : null,
+                    'dine_in_confirmation_call' => $isDineInReservation && ($validated['dine_in_confirmation_call'] ?? false),
+                    'dine_in_celebration_notes' => $isDineInReservation ? ($validated['dine_in_celebration_notes'] ?? null) : null,
+                    'delivery_city' => $restaurant->city,
+                    'delivery_fee' => $deliveryFee,
+                    'subtotal' => $subtotal,
+                    'tax_amount' => $tax,
+                    'discount' => $offerDiscount,
+                    'discount_amount' => $offerDiscount,
+                    'coupon_discount' => $couponDiscount,
+                    'offer_id' => $appliedOfferId,
+                    'coupon_id' => $appliedCouponId,
+                    'coupon_code' => $appliedCouponCode,
+                    'total_amount' => $finalAmount,
+                    'final_amount' => $finalAmount,
+                    'payment_method' => $validated['payment_method'],
+                    'payment_status' => 'pending',
+                    'payment_receipt' => $receiptPath,
+                    'notes' => $validated['notes'] ?? null,
+                    'status' => 'pending',
+                    'device_token' => $deviceToken,
+                    'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            if ($receiptPath) {
+                Storage::disk('local')->delete($receiptPath);
+            }
+
+            throw $exception;
+        }
 
         // ===== حفظ بيانات الزبون في الكوكيز للزيارات القادمة (لمدة 30 يوماً) =====
         Cookie::queue('customer_name', $request->name, 60 * 24 * 30);
@@ -452,7 +709,9 @@ class OrderController extends Controller
         $this->cartService->forget($restaurant);
         $this->tableSession->forget();
 
-        event(new OrderCreated($order));
+        if (! $requiredDeposit) {
+            event(new OrderCreated($order));
+        }
 
         return redirect()->route('order.success', [$slug, $order->tracking_code]);
     }

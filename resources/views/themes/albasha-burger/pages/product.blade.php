@@ -28,7 +28,7 @@
                         @endif
                     @else
                         <div class="flex h-96 w-full items-center justify-center rounded-3xl bg-gray-200 text-6xl">
-                            🍽️
+                            <i class="fa-solid fa-utensils text-gray-400" aria-hidden="true"></i>
                         </div>
                     @endif
                 </div>
@@ -114,7 +114,7 @@
                         <template x-if="priceType === 'variant' && variants.length > 0">
                             <div class="mb-6">
                                 <label class="block text-sm font-bold text-gray-700 mb-3">اختر الوزن / الحجم المطلوب
-                                    ⚖️</label>
+                                    <i class="fa-solid fa-scale-balanced ml-1" aria-hidden="true"></i></label>
                                 <div class="grid grid-cols-3 gap-3">
                                     <template x-for="(variant, index) in variants" :key="index">
                                         <button type="button" @click="selectedVariantIndex = index"
@@ -135,7 +135,7 @@
                         <template x-if="priceType === 'open_price'">
                             <div class="mb-6 bg-gray-100/70 p-4 rounded-2xl border border-gray-200">
                                 <label class="block text-sm font-bold text-gray-800 mb-2">حدد قيمة الطلب (المبلغ المطلوب)
-                                    💰</label>
+                                    <i class="fa-solid fa-coins ml-1" aria-hidden="true"></i></label>
 
                                 <!-- أزرار سريعة متناسبة ديناميكياً بين الحد الأدنى والأقصى -->
                                 <div class="flex flex-wrap gap-2 mb-3">
@@ -222,7 +222,7 @@
                     <div class="flex items-center justify-center gap-2">
                         <div class="flex text-yellow-400 text-2xl">
                             @for ($i = 1; $i <= 5; $i++)
-                                <span>{{ $i <= round($reviewAverage) ? '⭐' : '☆' }}</span>
+                                <i class="{{ $i <= round($reviewAverage) ? 'fa-solid' : 'fa-regular' }} fa-star" aria-hidden="true"></i>
                             @endfor
                         </div>
                         <span class="text-2xl font-bold text-gray-800">{{ number_format($reviewAverage, 1) }}</span>
@@ -235,7 +235,7 @@
             <div class="text-center mb-8">
                 <button onclick="openReviewModal()"
                     class="btn-primary px-8 py-3 rounded-xl font-bold hover:shadow-xl transition inline-flex items-center gap-2">
-                    <span>⭐</span>
+                    <i class="fa-solid fa-star" aria-hidden="true"></i>
                     <span>أضف تقييمك</span>
                 </button>
             </div>
@@ -257,7 +257,7 @@
                             </div>
                             <div class="flex text-yellow-400">
                                 @for ($i = 1; $i <= 5; $i++)
-                                    <span>{{ $i <= $review->rating ? '⭐' : '☆' }}</span>
+                                    <i class="{{ $i <= $review->rating ? 'fa-solid' : 'fa-regular' }} fa-star" aria-hidden="true"></i>
                                 @endfor
                             </div>
                         </div>
@@ -278,7 +278,7 @@
                     </div>
                 @empty
                     <div class="text-center py-12 bg-gray-50 rounded-2xl">
-                        <div class="text-6xl mb-4">💬</div>
+                        <i class="fa-solid fa-comments mb-4 text-6xl text-gray-300" aria-hidden="true"></i>
                         <h3 class="text-xl font-bold text-gray-800 mb-2">لا توجد تقييمات لهذا المنتج بعد</h3>
                         <p class="text-gray-500">كن أول من يقيّم هذا المنتج!</p>
                     </div>
@@ -311,7 +311,7 @@
                                     <img src="{{ media_url($relatedProduct->image) }}" alt="{{ $relatedProduct->name }}"
                                         loading="lazy" decoding="async" class="h-40 w-full object-cover">
                                 @else
-                                    <div class="flex h-40 items-center justify-center bg-gray-100 text-4xl">🍽️</div>
+                                    <div class="flex h-40 items-center justify-center bg-gray-100 text-4xl text-gray-400"><i class="fa-solid fa-utensils" aria-hidden="true"></i></div>
                                 @endif
                             </a>
                             <div class="p-4">
@@ -355,7 +355,7 @@
             <!-- الرأس -->
             <div class="sticky top-0 bg-white border-b p-6 flex justify-between items-center rounded-t-3xl">
                 <h3 id="review-modal-title" class="text-2xl font-black text-gray-800">قيّم هذا المنتج</h3>
-                <button onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600 text-3xl">×</button>
+                <button type="button" aria-label="إغلاق نافذة التقييم" onclick="closeReviewModal()" class="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i></button>
             </div>
 
             <!-- المحتوى -->
@@ -366,7 +366,7 @@
                     <div class="text-center mb-6">
                         <div
                             class="w-16 h-16 bg-primary opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span class="text-3xl">🔍</span>
+                            <i class="fa-solid fa-magnifying-glass text-3xl text-primary" aria-hidden="true"></i>
                         </div>
                         <h4 class="text-xl font-bold text-gray-800 mb-2">أدخل رمز طلبك</h4>
                         <p class="text-gray-500 text-sm">للتحقق من أنك اشتريت هذا المنتج فعلاً</p>
@@ -390,7 +390,7 @@
 
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
                         <div class="flex items-center gap-2 text-green-700">
-                            <span class="text-2xl">✅</span>
+                            <i class="fa-solid fa-circle-check text-2xl" aria-hidden="true"></i>
                             <span class="font-bold">تم التحقق بنجاح! يمكنك الآن تقييم المنتج</span>
                         </div>
                     </div>
@@ -405,16 +405,16 @@
                         <div id="rating-stars" x-data="{ rating: 0, hoveredRating: 0 }">
                             <label class="block text-lg font-bold text-gray-800 mb-3">كيف كان هذا المنتج؟</label>
                             <input type="hidden" name="rating" :value="rating">
-                            <div class="flex justify-center gap-2" @mouseleave="hoveredRating = 0">
+                            <div class="flex justify-center gap-2 text-5xl" @mouseleave="hoveredRating = 0">
                                 @for ($i = 1; $i <= 5; $i++)
                                     <button type="button" @mouseenter="hoveredRating = {{ $i }}"
                                         @focus="hoveredRating = {{ $i }}" @blur="hoveredRating = 0"
                                         @click="rating = {{ $i }}"
                                         :aria-pressed="rating === {{ $i }}"
                                         aria-label="{{ $i }} نجوم"
-                                        class="cursor-pointer text-5xl leading-none transition"
+                                        class="cursor-pointer leading-none transition"
                                         :class="(hoveredRating || rating) >= {{ $i }} ? 'text-yellow-400' :
-                                            'text-gray-300'">★</button>
+                                            'text-gray-300'"><i class="fa-solid fa-star" aria-hidden="true"></i></button>
                                 @endfor
                             </div>
                         </div>
@@ -434,7 +434,7 @@
                                 id="upload-area">
                                 <input type="file" name="images[]" multiple accept="image/*" class="hidden"
                                     id="image-input">
-                                <div class="text-4xl mb-2">📷</div>
+                                <i class="fa-solid fa-camera mb-2 text-4xl text-gray-400" aria-hidden="true"></i>
                                 <p class="text-gray-600 font-bold">اضغط لاختيار الصور</p>
                                 <p class="text-sm text-gray-400 mt-1">PNG, JPG, GIF حتى 2MB لكل صورة</p>
                             </div>
@@ -445,7 +445,7 @@
                         <div class="flex gap-3 mt-6">
                             <button type="submit" id="submit-review-btn"
                                 class="flex-1 btn-primary py-3 rounded-xl font-bold hover:shadow-lg transition">
-                                إرسال التقييم ✅
+                                إرسال التقييم <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>
                             </button>
                             <button type="button" onclick="backToStep1()"
                                 class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold transition">
@@ -517,7 +517,7 @@
             }
 
             verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<span class="animate-spin">⏳</span> جاري التحقق...';
+            verifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> جاري التحقق...';
             errorDiv.classList.add('hidden');
 
             try {
@@ -586,7 +586,7 @@
 
             const submitBtn = document.getElementById('submit-review-btn');
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="animate-spin">⏳</span> جاري الإرسال...';
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> جاري الإرسال...';
 
             const formData = new FormData(this);
 
@@ -606,7 +606,7 @@
                 alert(error.response?.data?.message || 'حدث خطأ، حاول مرة أخرى');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = 'إرسال التقييم ✅';
+                submitBtn.innerHTML = 'إرسال التقييم <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>';
             }
         });
 

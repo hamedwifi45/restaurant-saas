@@ -3,9 +3,12 @@
 namespace App\Filament\Restaurant\Resources\Orders\Schemas;
 
 use App\Models\User;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
 class OrderForm
@@ -45,6 +48,60 @@ class OrderForm
                     ->label('رقم الطاولة')
                     ->numeric()
                     ->disabled(),
+                DateTimePicker::make('dine_in_arrival_at')
+                    ->label('موعد الوصول للمطعم'),
+                TextInput::make('dine_in_guest_count')
+                    ->label('عدد الضيوف')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(20),
+                Select::make('dine_in_seating_preference')
+                    ->label('تفضيل الجلسة')
+                    ->options([
+                        'any' => 'بدون تفضيل',
+                        'indoor' => 'داخلية',
+                        'outdoor' => 'خارجية',
+                        'window' => 'بجانب النافذة',
+                        'quiet' => 'مكان هادئ',
+                        'family' => 'جلسة عائلية',
+                    ]),
+                Select::make('dine_in_occasion')
+                    ->label('المناسبة')
+                    ->options([
+                        'none' => 'زيارة عادية',
+                        'birthday' => 'عيد ميلاد',
+                        'anniversary' => 'ذكرى سنوية',
+                        'family' => 'لقاء عائلي',
+                        'business' => 'اجتماع عمل',
+                        'other' => 'أخرى',
+                    ]),
+                TextInput::make('dine_in_high_chair_count')
+                    ->label('عدد كراسي الأطفال')
+                    ->numeric()
+                    ->minValue(0)
+                    ->maxValue(10),
+                Toggle::make('dine_in_stroller_space')
+                    ->label('مساحة لعربة أطفال'),
+                Textarea::make('dine_in_accessibility_notes')
+                    ->label('متطلبات الوصول أو الحركة')
+                    ->columnSpanFull(),
+                Textarea::make('dine_in_allergy_notes')
+                    ->label('الحساسية والمكونات الواجب تجنبها')
+                    ->columnSpanFull(),
+                Select::make('dine_in_dietary_preference')
+                    ->label('التفضيل الغذائي')
+                    ->options([
+                        'none' => 'لا يوجد',
+                        'vegetarian' => 'نباتي',
+                        'vegan' => 'نباتي صرف',
+                        'gluten_free' => 'خالٍ من الغلوتين',
+                        'other' => 'أخرى',
+                    ]),
+                Toggle::make('dine_in_confirmation_call')
+                    ->label('الاتصال لتأكيد الحجز'),
+                Textarea::make('dine_in_celebration_notes')
+                    ->label('تجهيزات المناسبة')
+                    ->columnSpanFull(),
                 Textarea::make('delivery_address')
                     ->label('عنوان التوصيل')
                     ->columnSpanFull(),
@@ -68,12 +125,30 @@ class OrderForm
                     ->label('الإجمالي')
                     ->required()
                     ->numeric(),
-                TextInput::make('payment_status')
+                TextInput::make('requested_pickup_at')
+                    ->label('موعد الاستلام')
+                    ->disabled(),
+                TextInput::make('deposit_amount')
+                    ->label('العربون')
+                    ->numeric()
+                    ->disabled(),
+                Select::make('payment_status')
                     ->label('حالة الدفع')
-                    ->required()
-                    ->default('pending'),
-                TextInput::make('payment_receipt')
-                    ->label('إيصال الدفع'),
+                    ->options([
+                        'pending' => 'بانتظار مراجعة الإيصال',
+                        'deposit_verified' => 'تم تأكيد العربون',
+                        'verified' => 'مدفوع بالكامل',
+                        'rejected' => 'إيصال مرفوض',
+                    ])
+                    ->required(),
+                FileUpload::make('payment_receipt')
+                    ->label('إيصال الدفع المسبق')
+                    ->disk('local')
+                    ->directory('payment-receipts')
+                    ->visibility('private')
+                    ->openable()
+                    ->downloadable()
+                    ->disabled(),
                 TextInput::make('status')
                     ->label('الحالة')
                     ->required()

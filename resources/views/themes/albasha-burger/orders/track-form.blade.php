@@ -7,7 +7,7 @@
         <div class="bg-white rounded-3xl shadow-2xl p-10 text-center">
             
             <div class="w-20 h-20 bg-primary opacity-10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span class="text-4xl">🔍</span>
+                <i class="fa-solid fa-magnifying-glass text-4xl text-primary" aria-hidden="true"></i>
             </div>
             
             <h1 class="text-3xl font-black text-gray-800 mb-3">تتبع طلبك</h1>
@@ -15,7 +15,7 @@
 
             @if(session('error'))
                 <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
-                    <span>❌</span>
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                     <span>{{ session('error') }}</span>
                 </div>
             @endif
@@ -38,7 +38,7 @@
                     type="submit" 
                     class="w-full btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition"
                 >
-                    تتبع الطلب 🚚
+                    تتبع الطلب <i class="fa-solid fa-truck-fast mr-1" aria-hidden="true"></i>
                 </button>
             </form>
 
@@ -49,7 +49,7 @@
 
             <div class="mt-6">
                 <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-500 hover:text-primary text-sm font-medium transition">
-                    ← العودة للصفحة الرئيسية
+                    <i class="fa-solid fa-arrow-right ml-1" aria-hidden="true"></i> العودة للصفحة الرئيسية
                 </a>
             </div>
 

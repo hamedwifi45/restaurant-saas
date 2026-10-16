@@ -64,7 +64,7 @@
             <div class="container mx-auto px-4">
                 <div class="flex items-center justify-between flex-wrap gap-4">
                     <div class="flex items-center gap-4">
-                        <div class="text-5xl">🔥</div>
+                        <i class="fa-solid fa-fire text-5xl" aria-hidden="true"></i>
                         <div>
                             <h3 class="text-2xl font-black">عروض حصرية!</h3>
                             <p class="text-white text-opacity-90">اكتشف أحدث العروض والخصومات</p>
@@ -85,7 +85,7 @@
         <!-- العنوان الرئيسي -->
         <div class="text-center mb-14">
             <span class="inline-block px-4 py-1.5 bg-primary/10 text-primary font-bold text-sm rounded-full mb-3 tracking-wide">
-                ✨ اختر ما يناسبك
+                <i class="fa-solid fa-wand-magic-sparkles ml-1" aria-hidden="true"></i> اختر ما يناسبك
             </span>
             <h2 class="text-3xl md:text-5xl mb-8 font-black text-gray-900 tracking-tight">
                 تصفح الفئات
@@ -94,7 +94,7 @@
 
         @if($categories->isEmpty())
             <div class="max-w-md mx-auto text-center py-12 bg-white rounded-3xl shadow-sm border border-gray-100">
-                <span class="text-5xl mb-4 block">🍽️</span>
+                <i class="fa-solid fa-utensils mb-4 block text-5xl text-gray-300" aria-hidden="true"></i>
                 <p class="text-gray-500 font-medium">لا توجد فئات متاحة حالياً</p>
             </div>
         @else
@@ -122,7 +122,7 @@
                         @else
                             <!-- خلفية عصرية افتراضية في حال عدم وجود صورة -->
                             <div class="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 flex items-center justify-center">
-                                <span class="text-6xl group-hover:scale-125 transition-transform duration-500">🍽️</span>
+                                <i class="fa-solid fa-utensils text-6xl transition-transform duration-500 group-hover:scale-125" aria-hidden="true"></i>
                             </div>
                         @endif
 
@@ -149,9 +149,7 @@
                         <!-- شارة تفاعلية عند تحريك الماوس أعلى البطاقة -->
                         <div class="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <span class="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-lg">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                </svg>
+                                <i class="fa-solid fa-plus text-sm" aria-hidden="true"></i>
                             </span>
                         </div>
                     </a>
@@ -171,7 +169,7 @@
                 </div>
                 <a href="{{ route('restaurant.menu', $restaurant->slug) }}"
                     class="btn-primary px-6 py-2 text-sm font-bold hidden sm:inline-block">
-                    عرض الكل ➔
+                    عرض الكل <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i>
                 </a>
             </div>
 
@@ -234,25 +232,25 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="text-center p-6 bg-gray-50 rounded-xl hover:shadow-lg transition">
-                    <div class="text-5xl mb-4">🚀</div>
+                    <i class="fa-solid fa-truck-fast mb-4 text-5xl text-primary" aria-hidden="true"></i>
                     <h3 class="text-xl font-bold mb-2 text-gray-800">توصيل سريع</h3>
                     <p class="text-gray-600">نوصل طلبك في أقل من {{ $restaurant->estimated_delivery_time ?? '٣٠' }} دقيقة إلى باب منزلك</p>
                 </div>
 
                 <div class="text-center p-6 bg-gray-50 rounded-xl hover:shadow-lg transition">
-                    <div class="text-5xl mb-4">🥬</div>
+                    <i class="fa-solid fa-leaf mb-4 text-5xl text-primary" aria-hidden="true"></i>
                     <h3 class="text-xl font-bold mb-2 text-gray-800">طعام طازج</h3>
                     <p class="text-gray-600">نستخدم مكونات طازجة ١٠٠٪ يومياً لضمان الجودة</p>
                 </div>
 
                 <div class="text-center p-6 bg-gray-50 rounded-xl hover:shadow-lg transition">
-                    <div class="text-5xl mb-4">📞</div>
+                    <i class="fa-solid fa-headset mb-4 text-5xl text-primary" aria-hidden="true"></i>
                     <h3 class="text-xl font-bold mb-2 text-gray-800">دعم ٢٤/٧</h3>
                     <p class="text-gray-600">فريقنا جاهز لخدمتك على مدار الساعة طوال الأسبوع</p>
                 </div>
 
                 <div class="text-center p-6 bg-gray-50 rounded-xl hover:shadow-lg transition">
-                    <div class="text-5xl mb-4">💳</div>
+                    <i class="fa-solid fa-credit-card mb-4 text-5xl text-primary" aria-hidden="true"></i>
                     <h3 class="text-xl font-bold mb-2 text-gray-800">دفع سهل</h3>
                     <p class="text-gray-600">طرق دفع متعددة وآمنة تناسب جميع العملاء</p>
                 </div>
@@ -278,19 +276,19 @@
 
                     <div class="grid grid-cols-2 gap-4">
                         <div class="flex items-center gap-2">
-                            <span class="text-primary text-2xl">✓</span>
+                            <i class="fa-solid fa-check text-2xl text-primary" aria-hidden="true"></i>
                             <span class="font-medium">مكونات طازجة</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-primary text-2xl">✓</span>
+                            <i class="fa-solid fa-check text-2xl text-primary" aria-hidden="true"></i>
                             <span class="font-medium">طهاة محترفون</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-primary text-2xl">✓</span>
+                            <i class="fa-solid fa-check text-2xl text-primary" aria-hidden="true"></i>
                             <span class="font-medium">جودة عالية</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-primary text-2xl">✓</span>
+                            <i class="fa-solid fa-check text-2xl text-primary" aria-hidden="true"></i>
                             <span class="font-medium">خدمة ممتازة</span>
                         </div>
                     </div>
@@ -314,7 +312,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
                 @if($restaurant->phone)
                     <div class="text-center p-6 bg-gray-50 rounded-xl">
-                        <div class="text-5xl mb-4">📞</div>
+                        <i class="fa-solid fa-phone mb-4 text-5xl text-primary" aria-hidden="true"></i>
                         <h3 class="font-bold mb-2 text-gray-800">اتصل بنا</h3>
                         <p class="text-gray-600">{{ $restaurant->phone }}</p>
                     </div>
@@ -322,7 +320,7 @@
 
                 @if($restaurant->email)
                     <div class="text-center p-6 bg-gray-50 rounded-xl">
-                        <div class="text-5xl mb-4">📧</div>
+                        <i class="fa-solid fa-envelope mb-4 text-5xl text-primary" aria-hidden="true"></i>
                         <h3 class="font-bold mb-2 text-gray-800">البريد الإلكتروني</h3>
                         <p class="text-gray-600">{{ $restaurant->email }}</p>
                     </div>
@@ -330,7 +328,7 @@
 
                 @if($restaurant->address)
                     <div class="text-center p-6 bg-gray-50 rounded-xl">
-                        <div class="text-5xl mb-4">📍</div>
+                        <i class="fa-solid fa-location-dot mb-4 text-5xl text-primary" aria-hidden="true"></i>
                         <h3 class="font-bold mb-2 text-gray-800">العنوان</h3>
                         <p class="text-gray-600">{{ $restaurant->address }}</p>
                     </div>

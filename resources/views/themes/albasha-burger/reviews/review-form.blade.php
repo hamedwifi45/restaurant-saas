@@ -9,7 +9,7 @@
             <!-- الرأس -->
             <div class="bg-gradient-to-br from-primary to-orange-600 p-8 text-center text-white">
                 <div class="w-20 h-20 bg-white opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span class="text-5xl">⭐</span>
+                    <i class="fa-solid fa-star text-5xl" aria-hidden="true"></i>
                 </div>
                 <h1 class="text-3xl font-black mb-2">قيّم تجربتك</h1>
                 <p class="text-white text-opacity-90">رأيك يساعدنا على التحسين</p>
@@ -37,7 +37,7 @@
                             @for($i = 1; $i <= 5; $i++)
                                 <label class="cursor-pointer">
                                     <input type="radio" name="rating" value="{{ $i }}" class="hidden" required>
-                                    <span class="text-5xl text-gray-300 hover:text-yellow-400 transition" data-rating="{{ $i }}">⭐</span>
+                                    <i class="fa-solid fa-star text-5xl text-gray-300 transition hover:text-yellow-400" data-rating="{{ $i }}" aria-hidden="true"></i>
                                 </label>
                             @endfor
                         </div>
@@ -67,7 +67,7 @@
                                 class="hidden"
                                 id="image-input"
                             >
-                            <div class="text-4xl mb-2">📷</div>
+                            <i class="fa-solid fa-camera mb-2 text-4xl text-gray-400" aria-hidden="true"></i>
                             <p class="text-gray-600 font-bold">اضغط لاختيار الصور</p>
                             <p class="text-sm text-gray-400 mt-1">PNG, JPG, GIF حتى 2MB لكل صورة</p>
                         </div>
@@ -82,7 +82,7 @@
                             type="submit" 
                             class="flex-1 btn-primary py-4 rounded-xl font-bold text-lg hover:shadow-xl transition"
                         >
-                            إرسال التقييم ✅
+                            إرسال التقييم <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>
                         </button>
                         <a 
                             href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
@@ -101,7 +101,7 @@
 
 <script>
     // 1. تفاعل النجوم
-    const stars = document.querySelectorAll('#rating-stars label span');
+    const stars = document.querySelectorAll('#rating-stars label .fa-star');
     const radios = document.querySelectorAll('#rating-stars input[type="radio"]');
     
     stars.forEach(star => {

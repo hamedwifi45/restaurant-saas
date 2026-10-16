@@ -19,7 +19,7 @@
         @if($offers->isEmpty())
             <!-- حالة عدم وجود عروض -->
             <div class="text-center py-20 bg-white rounded-2xl shadow-lg">
-                <div class="text-8xl mb-6">🎁</div>
+                <i class="fa-solid fa-tags mb-6 text-8xl text-primary" aria-hidden="true"></i>
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">لا توجد عروض حالياً</h2>
                 <p class="text-gray-600 mb-8">تابعنا لمعرفة أحدث العروض والخصومات</p>
                 <a href="{{ route('restaurant.menu', $restaurant->slug) }}" 
@@ -41,7 +41,7 @@
                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                             @else
                                 <div class="w-full h-full bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
-                                    <span class="text-6xl">🎉</span>
+                                    <i class="fa-solid fa-fire text-6xl text-white" aria-hidden="true"></i>
                                 </div>
                             @endif
 
@@ -74,21 +74,21 @@
                             <div class="space-y-2 mb-4">
                                 @if($offer->min_order_amount > 0)
                                     <div class="flex items-center gap-2 text-sm text-gray-600">
-                                        <span>💰</span>
+                                        <i class="fa-solid fa-coins text-primary" aria-hidden="true"></i>
                                         <span>الحد الأدنى للطلب: {{ number_format($offer->min_order_amount, 2) }} ل.س</span>
                                     </div>
                                 @endif
 
                                 @if($offer->max_uses)
                                     <div class="flex items-center gap-2 text-sm text-gray-600">
-                                        <span>🎯</span>
+                                        <i class="fa-solid fa-bullseye text-primary" aria-hidden="true"></i>
                                         <span>متبقي: {{ $offer->max_uses - $offer->used_count }} استخدام</span>
                                     </div>
                                 @endif
 
                                 @if(!$offer->apply_to_all)
                                     <div class="flex items-center gap-2 text-sm text-primary font-bold">
-                                        <span>⭐</span>
+                                        <i class="fa-solid fa-star text-primary" aria-hidden="true"></i>
                                         <span>منتجات محددة فقط</span>
                                     </div>
                                 @endif
@@ -97,7 +97,7 @@
                             <!-- زر اطلب الآن -->
                             <a href="{{ route('restaurant.menu', $restaurant->slug) }}" 
                                class="block w-full btn-primary py-3 rounded-xl font-bold text-center hover:shadow-lg transition">
-                                اطلب الآن 🛒
+                                اطلب الآن <i class="fa-solid fa-bag-shopping mr-1" aria-hidden="true"></i>
                             </a>
                         </div>
                     </div>

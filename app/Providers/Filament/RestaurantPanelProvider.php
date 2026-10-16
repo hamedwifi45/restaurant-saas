@@ -4,7 +4,9 @@ namespace App\Providers\Filament;
 
 use App\Filament\Restaurant\Pages\FinancialAnalytics;
 use App\Filament\Restaurant\Pages\RestaurantDashboard;
+use App\Filament\Restaurant\Pages\RestaurantOrderExperiments;
 use App\Filament\Restaurant\Pages\RestaurantProfileSettings;
+use App\Filament\Restaurant\Pages\RestaurantReservations;
 use App\Filament\Restaurant\Pages\RestaurantThemeSettings;
 use App\Filament\Restaurant\Pages\StopImpersonation;
 use App\Filament\Restaurant\Resources\Categories\CategoryResource;
@@ -101,6 +103,8 @@ class RestaurantPanelProvider extends PanelProvider
                 RestaurantDashboard::class,
                 FinancialAnalytics::class,
                 RestaurantProfileSettings::class,
+                RestaurantOrderExperiments::class,
+                RestaurantReservations::class,
                 RestaurantThemeSettings::class,
                 StopImpersonation::class,
             ])

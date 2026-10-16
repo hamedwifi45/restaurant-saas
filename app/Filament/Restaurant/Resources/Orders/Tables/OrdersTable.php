@@ -40,6 +40,20 @@ class OrdersTable
                 TextColumn::make('restaurantTable.number')
                     ->label('الطاولة')
                     ->searchable(),
+                TextColumn::make('dine_in_arrival_at')
+                    ->label('موعد الوصول')
+                    ->dateTime()
+                    ->placeholder('—')
+                    ->sortable(),
+                TextColumn::make('requested_pickup_at')
+                    ->label('موعد الاستلام')
+                    ->dateTime()
+                    ->placeholder('—')
+                    ->sortable(),
+                TextColumn::make('dine_in_guest_count')
+                    ->label('الضيوف')
+                    ->placeholder('—')
+                    ->sortable(),
                 TextColumn::make('delivery_city')
                     ->label('المدينة')
                     ->searchable(),
@@ -79,10 +93,23 @@ class OrdersTable
                     ->sortable(),
                 TextColumn::make('payment_status')
                     ->label('حالة الدفع')
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'deposit_verified' => 'تم تأكيد العربون',
+                        'verified' => 'مدفوع بالكامل',
+                        'rejected' => 'إيصال مرفوض',
+                        default => 'بانتظار مراجعة الإيصال',
+                    })
                     ->searchable(),
                 TextColumn::make('payment_receipt')
                     ->label('إيصال الدفع')
-                    ->searchable(),
+                    ->state(fn (Order $record): ?string => filled($record->payment_receipt) ? 'مرفق' : null)
+                    ->badge()
+                    ->placeholder('—'),
+                TextColumn::make('deposit_amount')
+                    ->label('العربون')
+                    ->numeric()
+                    ->placeholder('—')
+                    ->sortable(),
                 TextColumn::make('status')
                     ->label('الحالة')
                     ->searchable(),

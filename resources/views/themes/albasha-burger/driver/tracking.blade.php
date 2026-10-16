@@ -539,12 +539,15 @@
             overflow: hidden;
             border: 3px solid var(--primary-light);
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-light);
         }
 
-        .driver-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .driver-avatar i {
+            color: var(--primary-color);
+            font-size: 26px;
         }
 
         .driver-info {
@@ -972,10 +975,9 @@
             transition: transform 0.3s ease;
         }
 
-        .marker-driver svg {
-            width: 24px;
-            height: 24px;
-            fill: white;
+        .marker-driver i {
+            color: white;
+            font-size: 22px;
         }
 
         @keyframes marker-pulse {
@@ -1282,7 +1284,7 @@
                 <div class="timeline-steps" id="timelineSteps">
                     <div class="timeline-step {{ in_array($order->status, ['ready', 'on_way', 'delivered'], true) ? 'completed' : 'pending' }}"
                         role="listitem">
-                        <div class="step-indicator">✓</div>
+                        <div class="step-indicator"><i class="fa-solid fa-check" aria-hidden="true"></i></div>
                         <div class="step-content">
                             <div class="step-title">تم تأكيد الطلب</div>
                             <div class="step-time" id="step1Time">
@@ -1291,7 +1293,7 @@
                     </div>
                     <div class="timeline-step {{ in_array($order->status, ['on_way', 'delivered'], true) ? 'completed' : 'pending' }}"
                         role="listitem">
-                        <div class="step-indicator">✓</div>
+                        <div class="step-indicator"><i class="fa-solid fa-check" aria-hidden="true"></i></div>
                         <div class="step-content">
                             <div class="step-title">قيد التحضير</div>
                             <div class="step-time" id="step2Time">
@@ -1336,18 +1338,25 @@
                 <div class="driver-header">
                     <div class="driver-avatar">
                         <!-- PHP: صورة المندوب -->
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='35' r='20' fill='%233B82F6'/%3E%3Cellipse cx='50' cy='85' rx='30' ry='25' fill='%233B82F6'/%3E%3C/svg%3E"
-                            alt="صورة المندوب" loading="lazy" id="driverAvatar">
+                        <i class="fa-solid fa-user text-2xl text-blue-600" id="driverAvatar" aria-label="صورة المندوب"></i>
                     </div>
                     <div class="driver-info">
                         <!-- PHP: اسم المندوب -->
                         <div class="driver-name" id="driverName">{{ $order->driverUser?->name ?? 'المندوب' }}</div>
                         <div class="driver-rating">
                             @if(($order->driver?->rating_count ?? 0) > 0)
-                                <span class="stars" aria-label="تقييم المندوب {{ number_format($order->driver->rating, 1) }} من 5">{{ str_repeat('★', (int) round($order->driver->rating)) }}</span>
+                                <span class="stars" aria-label="تقييم المندوب {{ number_format($order->driver->rating, 1) }} من 5">
+                                    @for ($ratingStar = 1; $ratingStar <= 5; $ratingStar++)
+                                        <i class="{{ $ratingStar <= round($order->driver->rating) ? 'fa-solid' : 'fa-regular' }} fa-star" aria-hidden="true"></i>
+                                    @endfor
+                                </span>
                                 <span class="rating-value" id="driverRating">{{ number_format($order->driver->rating, 1) }} / 5</span>
                             @else
-                                <span class="stars" aria-label="لا توجد تقييمات بعد">☆☆☆☆☆</span>
+                                <span class="stars" aria-label="لا توجد تقييمات بعد">
+                                    @for ($ratingStar = 0; $ratingStar < 5; $ratingStar++)
+                                        <i class="fa-regular fa-star" aria-hidden="true"></i>
+                                    @endfor
+                                </span>
                                 <span class="rating-value" id="driverRating">—</span>
                             @endif
                         </div>
@@ -1358,21 +1367,21 @@
                     <!-- PHP: رقم الهاتف -->
                     <a href="tel:{{ $order->driver?->phone }}" class="driver-detail-item"
                         aria-label="اتصال بالمندوب">
-                        <span class="detail-icon">هاتف</span>
+                        <span class="detail-icon"><i class="fa-solid fa-phone" aria-hidden="true"></i></span>
                         <span id="driverPhone">{{ $order->driver?->phone ?? '—' }}</span>
                     </a>
                     <!-- PHP: نوع المركبة -->
                     <div class="driver-detail-item">
-                        <span class="detail-icon">مركبة</span>
+                        <span class="detail-icon"><i class="fa-solid fa-motorcycle" aria-hidden="true"></i></span>
                         <span id="driverVehicle">{{ $order->driver?->vehicle_type ?? 'غير محدد' }}</span>
                     </div>
                     <!-- PHP: رقم اللوحة -->
                     <div class="driver-detail-item driver-plate-item">
-                        <span class="detail-icon">لوحة</span>
+                        <span class="detail-icon"><i class="fa-solid fa-id-card" aria-hidden="true"></i></span>
                         <span class="driver-plate-badge" id="driverPlate">{{ $order->driver?->plate_number ?? 'بدون لوحة' }}</span>
                     </div>
                     <div class="driver-detail-item">
-                        <span class="detail-icon">طلب</span>
+                        <span class="detail-icon"><i class="fa-solid fa-box" aria-hidden="true"></i></span>
                         <span id="driverVehicleModel">موديل المركبة: {{ $order->driver?->vehicle_model ?: 'غير محدد' }}</span>
                     </div>
                 </div>
@@ -1454,7 +1463,7 @@
                         @endif
                         <button class="btn btn-success btn-full" id="btnDelivered" onclick="handleDelivered()"
                             {{ $order->status !== 'on_way' ? 'disabled' : '' }}>
-                            ✓ تم التسليم
+                            <i class="fa-solid fa-check ml-1" aria-hidden="true"></i> تم التسليم
                         </button>
                     </div>
                 @endif
@@ -1531,7 +1540,7 @@
         function createDriverArrowIcon() {
             return L.divIcon({
                 className: 'custom-marker',
-                html: '<div class="marker-driver"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4.5 22 12 17.5 19.5 22 12 2Z"/></svg></div>',
+                html: '<div class="marker-driver"><i class="fa-solid fa-motorcycle" aria-hidden="true"></i></div>',
                 iconSize: [44, 44],
                 iconAnchor: [22, 22],
                 popupAnchor: [0, -44]
@@ -2068,22 +2077,22 @@
             const container = document.getElementById('toastContainer');
             if (!container) return;
             const icons = {
-                success: 'تم',
-                error: 'خطأ',
-                warning: 'تنبيه',
-                info: 'معلومة'
+                success: 'fa-circle-check',
+                error: 'fa-circle-xmark',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
             };
 
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
             toast.setAttribute('role', 'alert');
             toast.innerHTML = `
-                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}" aria-hidden="true"></i></span>
                 <div class="toast-content">
                     <div class="toast-title">${title}</div>
                     <div class="toast-message">${message}</div>
                 </div>
-                <button class="toast-close" aria-label="إغلاق" onclick="this.parentElement.remove()">×</button>
+                <button class="toast-close" aria-label="إغلاق" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             `;
 
             container.appendChild(toast);
@@ -2230,7 +2239,7 @@
                 const btnDelivered = document.getElementById('btnDelivered');
                 if (btnDelivered) {
                     btnDelivered.disabled = true;
-                    btnDelivered.textContent = '✓ تم التسليم';
+                    btnDelivered.innerHTML = '<i class="fa-solid fa-check ml-1" aria-hidden="true"></i> تم التسليم';
                 }
 
                 async function handleArrived() {

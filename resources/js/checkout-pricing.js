@@ -6,7 +6,7 @@ function registerCheckoutPricingComponent() {
         customerAddress: '',
         customerLat: '',
         customerLng: '',
-        deliveryType: configuration.isDineIn ? 'dine_in' : 'delivery',
+        deliveryType: configuration.deliveryType || (configuration.isDineIn ? 'dine_in' : 'delivery'),
         processing: false,
         distance: null,
         extraKilometers: 0,
@@ -22,6 +22,8 @@ function registerCheckoutPricingComponent() {
         init() {
             const form = this.$root.matches('form') ? this.$root : this.$root.querySelector('form');
             window.checkoutPricingState = this;
+            this.deliveryType = configuration.isDineIn ? 'dine_in' : this.deliveryType;
+            this.isDineIn = this.deliveryType === 'dine_in';
 
             // الاستماع لحدث تحديث موقع الخريطة الجغرافي
             window.addEventListener('customer-location-updated', (event) => {
@@ -145,6 +147,13 @@ function registerCheckoutPricingComponent() {
             this.recalculate();
         },
 
+        setDeliveryType(deliveryType) {
+            this.deliveryType = deliveryType;
+            this.isDineIn = deliveryType === 'dine_in';
+            this.recalculate();
+            window.dispatchEvent(new Event('checkout-delivery-mode-changed'));
+        },
+
         recalculate() {
             this.syncCustomerFields();
             const latitude = Number(this.customerLat);
@@ -156,14 +165,14 @@ function registerCheckoutPricingComponent() {
             const hasRestaurantLocation = configuration.restaurantLatitude !== null
                 && configuration.restaurantLongitude !== null
                 && Number.isFinite(restaurantLatitude) && Number.isFinite(restaurantLongitude);
-            const isDineIn = configuration.isDineIn || this.deliveryType === 'dine_in';
+            const isDineIn = this.deliveryType === 'dine_in';
 
             this.isOutOfRange = false;
             this.warningMessage = '';
             this.distance = null;
             this.extraKilometers = 0;
 
-            if (isDineIn) {
+            if (isDineIn || this.deliveryType === 'takeaway') {
                 this.deliveryFee = 0;
             } else if (hasCustomerLocation && hasRestaurantLocation) {
                 const latitudeDifference = this.toRadians(latitude - restaurantLatitude);

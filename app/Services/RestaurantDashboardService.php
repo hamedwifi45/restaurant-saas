@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Restaurant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class RestaurantDashboardService
@@ -18,8 +19,12 @@ class RestaurantDashboardService
 
         $orders = $restaurant->orders();
         $todayOrders = (clone $orders)->whereDate('created_at', today());
-        $salesToday = (float) (clone $todayOrders)->sum('total_amount');
-        $todayOrderCount = (clone $todayOrders)->count();
+        $salesEligibleToday = (clone $todayOrders)->where(function (Builder $query): void {
+            $query->where('deposit_amount', '<=', 0)
+                ->orWhere('payment_status', 'verified');
+        });
+        $salesToday = (float) (clone $salesEligibleToday)->sum('total_amount');
+        $todayOrderCount = (clone $salesEligibleToday)->count();
 
         return [
             'success' => true,

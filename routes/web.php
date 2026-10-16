@@ -58,6 +58,8 @@ Route::middleware(['auth'])->group(function () {
     // API لوحة تحكم المطعم والطاولات
     Route::prefix('restaurant')->group(function () {
         Route::get('/tables/{table}/qr', [RestaurantTableController::class, 'qr'])->name('restaurant.table.qr');
+        Route::get('/orders/{order}/payment-receipt', [OrderController::class, 'downloadPaymentReceipt'])
+            ->name('restaurant.orders.payment-receipt');
         Route::post('/{slug}/orders/availability', [RestaurantOrderAvailabilityController::class, 'update'])
             ->name('restaurant.orders.availability');
 
@@ -121,6 +123,9 @@ Route::prefix('{slug}')->group(function () {
 
     // الطلب والدفع (Checkout & Orders)
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout/table-availability', [OrderController::class, 'tableAvailability'])
+        ->middleware('throttle:30,1')
+        ->name('checkout.table-availability');
     Route::post('/checkout', [OrderController::class, 'store'])->middleware('throttle:10,1')->name('checkout.store');
     Route::get('/order/success/{code}', [OrderController::class, 'success'])->name('order.success');
     Route::post('/apply-offer', [OrderController::class, 'applyOffer'])->name('offer.apply');

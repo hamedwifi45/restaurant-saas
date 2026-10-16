@@ -21,6 +21,8 @@
                         class="font-mono font-bold text-primary text-lg">{{ $order->tracking_code }}</span></p>
             </div>
 
+            <x-dine-in-reservation-details :order="$order" />
+
             <div
                 data-order-cancellation
                 class="{{ $order->status === 'cancelled' ? '' : 'hidden' }} mb-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-right font-bold text-red-800"
@@ -34,7 +36,7 @@
             @if(in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
                 <a href="{{ route('driver.order.tracking', ['slug' => $restaurant->slug, 'order' => $order->tracking_code, 'token' => $order->device_token]) }}"
                     class="mb-8 block rounded-2xl bg-primary px-6 py-5 text-center text-lg font-black text-white shadow-lg transition hover:brightness-110">
-                    تتبع المندوب مباشر 🚴‍♂️
+                    تتبع المندوب مباشر <i class="fa-solid fa-motorcycle mr-1" aria-hidden="true"></i>
                 </a>
             @elseif($order->delivery_latitude && $order->delivery_longitude)
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-lg">
@@ -60,7 +62,7 @@
                         <!-- الخطوة 1 -->
                         <div class="flex flex-col items-center gap-3 relative z-10">
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 bg-primary text-white shadow-lg scale-110">
-                                ✓
+                                <i class="fa-solid fa-check" aria-hidden="true"></i>
                             </div>
                             <span class="text-sm font-bold text-gray-800">تم الاستلام</span>
                         </div>
@@ -78,7 +80,7 @@
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
                                 ٣
                             </div>
-                            <span class="text-sm font-bold {{ in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit', 'delivered']) ? 'text-gray-800' : 'text-gray-400' }}">في الطريق إليك</span>
+                            <span class="text-sm font-bold {{ (in_array($order->delivery_type, ['dine_in', 'takeaway'], true) ? in_array($order->status, ['ready', 'delivered']) : in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit', 'delivered'])) ? 'text-gray-800' : 'text-gray-400' }}">{{ in_array($order->delivery_type, ['dine_in', 'takeaway'], true) ? 'جاهز للاستلام' : 'في الطريق إليك' }}</span>
                         </div>
 
                         <!-- الخطوة 4 -->
@@ -86,7 +88,7 @@
                             <div class="w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-500 {{ $order->status === 'delivered' ? 'bg-primary text-white shadow-lg scale-110' : 'bg-white text-gray-300 border-2 border-gray-200' }}">
                                 ٤
                             </div>
-                            <span class="text-sm font-bold {{ $order->status === 'delivered' ? 'text-gray-800' : 'text-gray-400' }}">تم التوصيل</span>
+                            <span class="text-sm font-bold {{ $order->status === 'delivered' ? 'text-gray-800' : 'text-gray-400' }}">{{ in_array($order->delivery_type, ['dine_in', 'takeaway'], true) ? 'تم استلام الطلب' : 'تم التوصيل' }}</span>
                         </div>
                     </div>
                 </div>
@@ -97,7 +99,11 @@
                     <!-- معلومات العميل -->
                     <div class="p-8 border-b md:border-b-0 md:border-l border-gray-100">
                         <h3 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                            معلومات التوصيل
+                            {{ match ($order->delivery_type) {
+                                'dine_in' => 'معلومات الزيارة',
+                                'takeaway' => 'معلومات الاستلام',
+                                default => 'معلومات التوصيل',
+                            } }}
                         </h3>
                         <ul class="space-y-4 text-gray-600">
                             <li class="flex items-start gap-3">
@@ -114,8 +120,8 @@
                             </li>
                             <li class="flex items-start gap-3">
                                 <div>
-                                    <span class="block text-xs text-gray-400">العنوان</span>
-                                    <span class="font-bold text-gray-800">{{ $order->delivery_address }}</span>
+                                    <span class="block text-xs text-gray-400">{{ $order->delivery_type === 'dine_in' ? 'نوع الطلب' : ($order->delivery_type === 'takeaway' ? 'مكان الاستلام' : 'العنوان') }}</span>
+                                    <span class="font-bold text-gray-800">{{ $order->delivery_type === 'dine_in' ? 'طلب داخل المطعم' : $order->delivery_address }}</span>
                                 </div>
                             </li>
                         </ul>
@@ -156,6 +162,17 @@
                                 <span>طريقة الدفع:</span>
                                 <span class="font-bold">{{ $order->payment_method === 'cash' ? 'نقدي عند الاستلام' : 'تحويل بنكي' }}</span>
                             </div>
+                            @if($order->deposit_amount > 0)
+                                <div class="flex justify-between text-gray-600">
+                                    <span>العربون</span>
+                                    <span class="font-bold">{{ number_format((float) $order->deposit_amount, 2) }} ل.س · {{ match ($order->payment_status) {
+                                        'deposit_verified' => 'تم تأكيده',
+                                        'verified' => 'مدفوع بالكامل',
+                                        'rejected' => 'مرفوض',
+                                        default => 'بانتظار المراجعة',
+                                    } }}</span>
+                                </div>
+                            @endif
 
                             <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
                                 <span class="font-black text-gray-800">الإجمالي النهائي:</span>

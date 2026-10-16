@@ -56,6 +56,7 @@ class RestaurantProfileSettings extends Page implements HasForms
         'base_delivery_fee',
         'base_delivery_km',
         'per_km_delivery_fee',
+        'bank_details',
         'opening_time',
         'closing_time',
         'whatsapp_number',
@@ -120,6 +121,11 @@ class RestaurantProfileSettings extends Page implements HasForms
                         TextInput::make('currency_symbol')->label('رمز العملة')->required()->maxLength(12),
                         TextInput::make('tax_percentage')->label('نسبة الضريبة')->numeric()->minValue(0)->maxValue(100)->suffix('%'),
                         TextInput::make('delivery_fee')->label('رسوم التوصيل')->numeric()->minValue(0),
+                        Textarea::make('bank_details')
+                            ->label('تفاصيل الدفع المسبق والتحويل')
+                            ->helperText('تظهر هذه المعلومات للعميل عند اختيار حجز الطاولة أو الاستلام بموعد.')
+                            ->rows(3)
+                            ->columnSpanFull(),
                         TimePicker::make('opening_time')
                             ->label('وقت الافتتاح')
                             ->seconds(false)

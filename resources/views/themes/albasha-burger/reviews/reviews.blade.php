@@ -10,7 +10,7 @@
             <div class="flex items-center justify-center gap-2">
                 <div class="flex text-yellow-400 text-2xl">
                     @for($i = 1; $i <= 5; $i++)
-                        <span>{{ $i <= round($restaurant->average_rating) ? '⭐' : '☆' }}</span>
+                        <i class="{{ $i <= round($restaurant->average_rating) ? 'fa-solid' : 'fa-regular' }} fa-star" aria-hidden="true"></i>
                     @endfor
                 </div>
                 <span class="text-2xl font-bold text-gray-800">{{ $restaurant->average_rating }}</span>
@@ -36,7 +36,7 @@
                         </div>
                         <div class="flex text-yellow-400">
                             @for($i = 1; $i <= 5; $i++)
-                                <span>{{ $i <= $review->rating ? '⭐' : '☆' }}</span>
+                                <i class="{{ $i <= $review->rating ? 'fa-solid' : 'fa-regular' }} fa-star" aria-hidden="true"></i>
                             @endfor
                         </div>
                     </div>
@@ -63,7 +63,7 @@
                 </div>
             @empty
                 <div class="text-center py-12 bg-white rounded-2xl">
-                    <div class="text-6xl mb-4">💬</div>
+                    <i class="fa-solid fa-comments mb-4 text-6xl text-gray-300" aria-hidden="true"></i>
                     <h3 class="text-xl font-bold text-gray-800 mb-2">لا توجد تقييمات بعد</h3>
                     <p class="text-gray-500">كن أول من يقيّم هذا المطعم!</p>
                 </div>

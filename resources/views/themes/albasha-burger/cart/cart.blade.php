@@ -4,7 +4,7 @@
 
 <section class="py-16 bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4">
-        <h1 class="text-4xl font-black text-center mb-12 text-gray-800">سلة التسوق 🛒</h1>
+        <h1 class="mb-12 text-center text-4xl font-black text-gray-800">سلة التسوق <i class="fa-solid fa-bag-shopping mr-2 text-primary" aria-hidden="true"></i></h1>
 
         @if(session('success'))
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -15,7 +15,7 @@
         @if(empty($products))
             <!-- حالة السلة الفارغة -->
             <div class="text-center py-20 bg-white rounded-2xl shadow-lg">
-                <div class="text-8xl mb-6">🛒</div>
+                <i class="fa-solid fa-bag-shopping mb-6 text-8xl text-gray-300" aria-hidden="true"></i>
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">السلة فارغة</h2>
                 <p class="text-gray-600 mb-8">ابدأ بإضافة منتجات لذيذة إلى سلتك</p>
                 <a href="{{ route('restaurant.menu', $restaurant->slug ?? 'abboudi-mongolian') }}" 
@@ -46,7 +46,7 @@
                                          alt="{{ $item['product']->name }}" loading="lazy" decoding="async"
                                          class="w-full h-full object-cover rounded-xl">
                                 @else
-                                    <div class="w-full h-full bg-gray-200 rounded-xl flex items-center justify-center text-2xl">🍽️</div>
+                                    <div class="flex h-full w-full items-center justify-center rounded-xl bg-gray-200 text-2xl text-gray-400"><i class="fa-solid fa-utensils" aria-hidden="true"></i></div>
                                 @endif
                             </div>
 
@@ -78,7 +78,7 @@
                                     @csrf
                                     <input type="hidden" name="cart_key" value="{{ $item['cart_key'] }}">
                                     <button type="submit" class="text-red-500 hover:text-red-700 p-2">
-                                        🗑️
+                                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                                     </button>
                                 </form>
                             </div>
@@ -101,7 +101,7 @@
 
                             <!-- تنويه ذكي وواضح للزبون -->
                             <div class="text-xs text-gray-600 bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
-                                <span>📍</span>
+                                <i class="fa-solid fa-location-dot mt-0.5 text-primary" aria-hidden="true"></i>
                                 <span>تُحسب أجرة التوصيل في الخطوة التالية بناءً على موقعك وبعدك عن المطعم.</span>
                             </div>
 

@@ -37,7 +37,7 @@ class DemoDataSeeder extends Seeder
             ['slug' => 'burger-theme'],
             [
                 'name' => 'برجر كلاسيك',
-                'folder_name' => 'burger-theme',
+                'folder_name' => 'albasha-burger',
                 'is_default' => true,
                 'is_active' => true,
                 'version' => '1.0.0',
@@ -77,6 +77,14 @@ class DemoDataSeeder extends Seeder
                 'theme_id' => $theme->id,
                 'plan' => 'pro',
                 'is_active' => true,
+                'bank_details' => 'بيانات تحويل تجريبية لمراجعة حجوزات الطاولات.',
+                'experimental_order_features' => [
+                    ...Restaurant::EXPERIMENTAL_ORDER_FEATURE_DEFAULTS,
+                    'table_reservations' => true,
+                    'deposit_percentage' => 20,
+                    'reservation_duration_options' => [60, 90, 120],
+                    'risk_acknowledged' => true,
+                ],
             ]
         );
 
@@ -145,9 +153,30 @@ class DemoDataSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+        $reservationTables = collect([
+            RestaurantTable::query()->firstOrCreate(
+                ['restaurant_id' => $proRestaurant->id, 'number' => 'DEMO-02'],
+                [
+                    'name' => 'طاولة الحجز التجريبية',
+                    'seats' => 4,
+                    'qr_token' => Str::random(24),
+                    'is_active' => true,
+                ]
+            ),
+            RestaurantTable::query()->firstOrCreate(
+                ['restaurant_id' => $proRestaurant->id, 'number' => 'DEMO-03'],
+                [
+                    'name' => 'طاولة الحجز الداخلية ٣',
+                    'seats' => 6,
+                    'qr_token' => Str::random(24),
+                    'is_active' => true,
+                ]
+            ),
+        ]);
 
         $this->seedOrders($starterRestaurant, $starterProducts, null, 4, 'DEMO-STARTER');
         $this->seedOrders($proRestaurant, $proProducts, $table, 120, 'DEMO-PRO');
+        $this->seedReservations($proRestaurant, $proProducts, $reservationTables);
         $this->seedExpenses($proRestaurant);
     }
 
@@ -299,6 +328,105 @@ class DemoDataSeeder extends Seeder
                     ]
                 );
             }
+        }
+    }
+
+    /**
+     * @param  Collection<int, Product>  $products
+     * @param  Collection<int, RestaurantTable>  $tables
+     */
+    private function seedReservations(Restaurant $restaurant, Collection $products, Collection $tables): void
+    {
+        $firstTable = $tables[0];
+        $secondTable = $tables[1];
+        $firstAppointment = now()->addDay()->setTime(12, 0);
+        $reservations = [
+            [
+                'tracking_code' => 'DEMO-RES-0001',
+                'table' => $firstTable,
+                'arrival_at' => $firstAppointment,
+                'duration' => 120,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'order_status' => 'pending',
+                'customer_name' => 'سارة الخطيب',
+                'customer_phone' => '0930123456',
+            ],
+            [
+                'tracking_code' => 'DEMO-RES-0002',
+                'table' => $firstTable,
+                'arrival_at' => $firstAppointment->copy()->addHours(4),
+                'duration' => 90,
+                'status' => 'confirmed',
+                'payment_status' => 'deposit_verified',
+                'order_status' => 'pending',
+                'customer_name' => 'عمر الحمصي',
+                'customer_phone' => '0944112233',
+            ],
+            [
+                'tracking_code' => 'DEMO-RES-0003',
+                'table' => $secondTable,
+                'arrival_at' => now()->addDays(2)->setTime(19, 0),
+                'duration' => 120,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'order_status' => 'pending',
+                'customer_name' => 'لينا العلي',
+                'customer_phone' => '0955123400',
+            ],
+            [
+                'tracking_code' => 'DEMO-RES-0004',
+                'table' => $secondTable,
+                'arrival_at' => now()->addDays(3)->setTime(20, 0),
+                'duration' => 90,
+                'status' => 'rejected',
+                'payment_status' => 'rejected',
+                'order_status' => 'cancelled',
+                'customer_name' => 'كريم مراد',
+                'customer_phone' => '0966234511',
+            ],
+        ];
+
+        foreach ($reservations as $index => $reservation) {
+            $product = $products[$index % $products->count()];
+            $amount = (float) $product->price;
+            $order = Order::query()->updateOrCreate(
+                ['tracking_code' => $reservation['tracking_code']],
+                [
+                    'restaurant_id' => $restaurant->id,
+                    'restaurant_table_id' => $reservation['table']->id,
+                    'customer_name' => $reservation['customer_name'],
+                    'customer_phone' => $reservation['customer_phone'],
+                    'delivery_type' => 'dine_in',
+                    'delivery_address' => 'حجز طاولة '.$reservation['table']->number,
+                    'delivery_city' => $restaurant->city,
+                    'delivery_fee' => 0,
+                    'subtotal' => $amount,
+                    'tax_amount' => 0,
+                    'total_amount' => $amount,
+                    'final_amount' => $amount,
+                    'deposit_amount' => round($amount * 0.2, 2),
+                    'payment_method' => 'bank_transfer',
+                    'payment_status' => $reservation['payment_status'],
+                    'dine_in_arrival_at' => $reservation['arrival_at'],
+                    'dine_in_duration_minutes' => $reservation['duration'],
+                    'dine_in_guest_count' => min(4, $reservation['table']->seats),
+                    'reservation_status' => $reservation['status'],
+                    'status' => $reservation['order_status'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            );
+
+            Order_item::query()->updateOrCreate(
+                ['order_id' => $order->id, 'product_id' => $product->id],
+                [
+                    'product_name' => $product->name,
+                    'quantity' => 1,
+                    'price' => $amount,
+                    'total' => $amount,
+                ],
+            );
         }
     }
 

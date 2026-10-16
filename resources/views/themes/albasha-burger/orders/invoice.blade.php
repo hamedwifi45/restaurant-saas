@@ -7,11 +7,11 @@
     <div class="container mx-auto px-4 flex justify-between items-center">
         <a href="{{ route('order.track', ['slug' => $restaurant->slug, 'code' => $order->tracking_code, 'token' => $order->device_token]) }}"
            class="text-primary hover:underline font-bold">
-            ← العودة لتتبع الطلب
+            <i class="fa-solid fa-arrow-right ml-1" aria-hidden="true"></i> العودة لتتبع الطلب
         </a>
         <button onclick="window.print()" 
                 class="btn-primary px-6 py-2 rounded-lg font-bold hover:shadow-lg transition flex items-center gap-2">
-            <span>🖨️</span>
+            <i class="fa-solid fa-print" aria-hidden="true"></i>
             <span>طباعة الفاتورة</span>
         </button>
     </div>
@@ -35,7 +35,7 @@
                         <p class="text-gray-600 mt-2">{{ $restaurant->address }}</p>
                     @endif
                     @if($restaurant->phone)
-                        <p class="text-gray-600">📞 {{ $restaurant->phone }}</p>
+                        <p class="text-gray-600"><i class="fa-solid fa-phone ml-1" aria-hidden="true"></i> {{ $restaurant->phone }}</p>
                     @endif
                 </div>
                 <div class="text-left">
@@ -60,11 +60,13 @@
                     <p class="font-bold text-gray-800">{{ $order->customer_phone }}</p>
                 </div>
                 <div class="md:col-span-2">
-                    <p class="text-sm text-gray-500">عنوان التوصيل</p>
-                    <p class="font-bold text-gray-800">{{ $order->delivery_address }}</p>
+                    <p class="text-sm text-gray-500">{{ $order->delivery_type === 'dine_in' ? 'نوع الطلب' : 'عنوان التوصيل' }}</p>
+                    <p class="font-bold text-gray-800">{{ $order->delivery_type === 'dine_in' ? 'تناول داخل المطعم' : $order->delivery_address }}</p>
                 </div>
             </div>
         </div>
+
+        <x-dine-in-reservation-details :order="$order" />
 
         <!-- جدول المنتجات -->
         <div class="mb-8">
@@ -110,9 +112,9 @@
                     <div class="flex justify-between text-green-600">
                         <span>
                             @if($order->offer)
-                                🎉 خصم العرض ({{ $order->offer->title }}):
+                                <i class="fa-solid fa-tags ml-1" aria-hidden="true"></i> خصم العرض ({{ $order->offer->title }}):
                             @else
-                                🎉 خصم العرض:
+                                <i class="fa-solid fa-tags ml-1" aria-hidden="true"></i> خصم العرض:
                             @endif
                         </span>
                         <span class="font-bold">- {{ number_format($order->discount, 2) }} ل.س</span>
@@ -122,7 +124,7 @@
                 @if($order->coupon_discount > 0)
                     <div class="flex justify-between text-blue-600">
                         <span>
-                            🎫 خصم الكوبون 
+                            <i class="fa-solid fa-ticket ml-1" aria-hidden="true"></i> خصم الكوبون
                             @if($order->coupon_code)
                                 ({{ $order->coupon_code }})
                             @endif
@@ -155,15 +157,20 @@
                 <h3 class="text-lg font-bold text-gray-800 mb-3">طريقة الدفع</h3>
                 <p class="text-gray-700">
                     @if($order->payment_method === 'cash')
-                        💵 دفع عند الاستلام
-                    {{-- @elseif($order->payment_method === 'transfer')
-                        🏦 تحويل بنكي --}}
+                        <i class="fa-solid fa-money-bill-wave ml-1" aria-hidden="true"></i> دفع عند الاستلام
+                    @elseif($order->payment_method === 'bank_transfer')
+                        <i class="fa-solid fa-building-columns ml-1" aria-hidden="true"></i> تحويل بنكي مسبق
                     @endif
                 </p>
                 <p class="text-sm text-gray-500 mt-2">
-                    حالة الدفع: 
-                    <span class="font-bold {{ $order->payment_status === 'paid' ? 'text-green-600' : 'text-orange-500' }}">
-                        {{ $order->payment_status === 'paid' ? 'مدفوع' : 'قيد الانتظار' }}
+                    حالة الدفع:
+                    <span class="font-bold {{ in_array($order->payment_status, ['deposit_verified', 'verified'], true) ? 'text-green-600' : 'text-orange-500' }}">
+                        {{ match ($order->payment_status) {
+                            'deposit_verified' => 'تم تأكيد العربون',
+                            'verified' => 'مدفوع بالكامل',
+                            'rejected' => 'الإيصال مرفوض',
+                            default => 'بانتظار مراجعة الإيصال',
+                        } }}
                     </span>
                 </p>
             </div>
@@ -173,19 +180,19 @@
                 <p class="text-gray-700">
                     @switch($order->status)
                         @case('pending')
-                            ⏳ قيد الانتظار
+                            <i class="fa-regular fa-clock ml-1" aria-hidden="true"></i> قيد الانتظار
                             @break
                         @case('preparing')
-                            🍳 جاري التحضير
+                            <i class="fa-solid fa-fire-burner ml-1" aria-hidden="true"></i> جاري التحضير
                             @break
                         @case('on_way')
-                            🛵 في الطريق
+                            <i class="fa-solid fa-motorcycle ml-1" aria-hidden="true"></i> في الطريق
                             @break
                         @case('delivered')
-                            ✅ تم التوصيل
+                            <i class="fa-solid fa-circle-check ml-1" aria-hidden="true"></i> تم التوصيل
                             @break
                         @case('cancelled')
-                            ❌ ملغي
+                            <i class="fa-solid fa-circle-xmark ml-1" aria-hidden="true"></i> ملغي
                             @break
                     @endswitch
                 </p>
@@ -203,7 +210,7 @@
                 <p class="mt-4">
                     <a href="{{ route('review.create', [$restaurant->slug, $order->tracking_code]) }}" 
                        class="text-primary hover:underline font-bold">
-                        ⭐ قيّم تجربتك الآن
+                        <i class="fa-solid fa-star ml-1" aria-hidden="true"></i> قيّم تجربتك الآن
                     </a>
                 </p>
             @endif

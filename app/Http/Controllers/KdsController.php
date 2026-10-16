@@ -6,6 +6,7 @@ use App\Events\OrderReadyForDelivery;
 use App\Helpers\ThemeHelper;
 use App\Models\Order;
 use App\Models\Restaurant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -24,6 +25,14 @@ class KdsController extends Controller
         $orderCollection = Order::with(['items', 'restaurantTable', 'driver'])
             ->where('restaurant_id', $restaurant->id)
             ->whereIn('status', ['pending', 'preparing'])
+            ->where(function (Builder $query): void {
+                $query->where('deposit_amount', '<=', 0)
+                    ->orWhereIn('payment_status', ['deposit_verified', 'verified']);
+            })
+            ->where(function (Builder $query): void {
+                $query->whereNull('dine_in_arrival_at')
+                    ->orWhere('reservation_status', 'confirmed');
+            })
             ->get();
 
         $kdsOrders = $orderCollection->map(static fn (Order $order): array => [
@@ -35,6 +44,14 @@ class KdsController extends Controller
             'customer_lng' => $order->customer_lng ?? $order->delivery_longitude,
             'distance_km' => $order->distance_km,
             'table' => $order->restaurantTable?->number,
+            'dine_in_arrival_at' => $order->dine_in_arrival_at?->toIso8601String(),
+            'dine_in_duration_minutes' => $order->dine_in_duration_minutes,
+            'requested_pickup_at' => $order->requested_pickup_at?->toIso8601String(),
+            'deposit_amount' => (float) $order->deposit_amount,
+            'payment_status' => $order->payment_status,
+            'dine_in_guest_count' => $order->dine_in_guest_count,
+            'dine_in_allergy_notes' => $order->dine_in_allergy_notes,
+            'dine_in_confirmation_call' => $order->dine_in_confirmation_call,
             'items' => $order->items->map(static fn ($item): array => [
                 'product_name' => $item->product_name,
                 'name' => $item->name,

@@ -193,7 +193,7 @@
 
     
     <!-- ==================== Header & Navigation ==================== -->
-    <header class="{{ theme_setting('header_style', 'sticky') === 'transparent' ? 'bg-transparent text-white absolute top-0 left-0 w-full z-40' : 'bg-white shadow-sm sticky top-0 z-40 transition-all duration-300' }}" id="main-header">
+    <header class="{{ theme_setting('header_style', 'sticky') === 'transparent' ? 'bg-transparent text-white absolute inset-x-0 top-0 z-40' : 'sticky top-0 z-40 border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur-md transition-all duration-300' }}" id="main-header">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 
@@ -204,7 +204,7 @@
                              alt="{{ $restaurant->name }}" 
                              class="w-12 h-12 rounded-full object-cover border-2 border-gray-100 group-hover:border-primary transition shadow-sm">
                     @else
-                        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl shadow-sm">🍔</div>
+                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl text-primary shadow-sm" aria-hidden="true"><i class="fa-solid fa-burger"></i></div>
                     @endif
                     <div>
                         <h1 class="text-xl md:text-2xl font-black text-gray-800 leading-tight group-hover:text-primary transition">
@@ -215,11 +215,19 @@
                 </a>
 
                 <!-- Desktop Navigation -->
-                <nav class="hidden lg:flex items-center gap-8">
-                    <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">الرئيسية</a>
-                    <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">القائمة</a>
-                    <a href="{{ route('offers.index', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">العروض 🔥</a>
-                    <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-600 hover:text-primary font-bold transition relative after:content-[''] after:absolute after:-bottom-1 after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full">تتبع الطلب</a>
+                <nav class="hidden items-center gap-1 rounded-full bg-gray-50/90 p-1.5 lg:flex" aria-label="التنقل الرئيسي">
+                    <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-gray-600 transition hover:bg-white hover:text-primary hover:shadow-sm">
+                        <i class="fa-solid fa-house text-xs" aria-hidden="true"></i> الرئيسية
+                    </a>
+                    <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-gray-600 transition hover:bg-white hover:text-primary hover:shadow-sm">
+                        <i class="fa-solid fa-utensils text-xs" aria-hidden="true"></i> القائمة
+                    </a>
+                    <a href="{{ route('offers.index', $restaurant->slug) }}" class="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-gray-600 transition hover:bg-white hover:text-primary hover:shadow-sm">
+                        <i class="fa-solid fa-fire text-xs" aria-hidden="true"></i> العروض
+                    </a>
+                    <a href="{{ route('order.track.form', $restaurant->slug) }}" class="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-gray-600 transition hover:bg-white hover:text-primary hover:shadow-sm">
+                        <i class="fa-solid fa-location-dot text-xs" aria-hidden="true"></i> تتبع الطلب
+                    </a>
                 </nav>
 
                 <!-- Cart & Actions -->
@@ -227,8 +235,8 @@
                     
                     <!-- Quick Cart Preview (Dropdown) -->
                     <div class="relative group">
-                        <button class="btn-primary px-4 md:px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg relative hover:shadow-xl transition">
-                            <span class="text-xl">🛒</span>
+                        <button type="button" aria-label="السلة، {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'quantity')) }} عناصر" class="btn-primary px-4 md:px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg relative hover:shadow-xl transition">
+                            <i class="fa-solid fa-bag-shopping text-lg" aria-hidden="true"></i>
                             <span class="font-bold hidden sm:inline">السلة</span>
                             <span id="cart-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                                 {{ array_sum(array_column(session('cart_'.$restaurant->id, []), 'quantity')) }}
@@ -276,7 +284,7 @@
                                     @endif
                                 @empty
                                     <div class="text-center py-8 px-4">
-                                        <div class="text-4xl mb-2">🍽️</div>
+                                        <div class="mb-2 text-4xl text-gray-300" aria-hidden="true"><i class="fa-solid fa-utensils"></i></div>
                                         <p class="text-gray-500 text-sm font-medium">السلة فارغة حالياً</p>
                                         <p class="text-gray-400 text-xs mt-1">ابدأ بإضافة منتجات لذيذة</p>
                                     </div>
@@ -291,33 +299,35 @@
                                     </span>
                                 </div>
                                 <a href="{{ route('cart.index', $restaurant->slug) }}" class="block w-full btn-primary text-center py-2.5 rounded-xl text-sm font-bold hover:shadow-md transition">
-                                    إتمام الطلب ➔
+                                    إتمام الطلب <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i>
                                 </a>
                             </div>
                         </div>
                     </div>
 
                     <!-- Mobile Menu Button -->
-                    <button class="lg:hidden text-gray-600 text-2xl focus:outline-none p-2 hover:bg-gray-100 rounded-lg transition" onclick="toggleMobileMenu()">
-                        ☰
+                    <button type="button" id="mobile-menu-toggle" aria-label="فتح القائمة" aria-controls="mobile-menu" aria-expanded="false" class="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary lg:hidden" onclick="toggleMobileMenu()">
+                        <i class="fa-solid fa-bars text-xl" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Mobile Menu (Off-canvas) -->
-        <div id="mobile-menu" class="fixed inset-0 bg-black/50 z-50 hidden" onclick="toggleMobileMenu()">
-            <div class="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl p-6 flex flex-col" onclick="event.stopPropagation()">
-                <div class="flex justify-between items-center mb-8 border-b pb-4">
+        <div id="mobile-menu" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm" aria-hidden="true" onclick="if (event.target === this) toggleMobileMenu()">
+            <div data-mobile-menu-panel role="dialog" aria-modal="true" aria-label="القائمة الرئيسية" class="absolute right-0 top-0 flex h-full w-[min(20rem,88vw)] flex-col bg-white p-6 shadow-2xl" onclick="event.stopPropagation()">
+                <div class="mb-8 flex items-center justify-between border-b border-gray-100 pb-4">
                     <h2 class="text-xl font-black text-gray-800">القائمة</h2>
-                    <button onclick="toggleMobileMenu()" class="text-gray-500 hover:text-red-500 text-2xl transition">✕</button>
+                    <button type="button" aria-label="إغلاق القائمة" onclick="toggleMobileMenu()" class="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-red-50 hover:text-red-500">
+                        <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
+                    </button>
                 </div>
                 <div class="flex flex-col gap-4 flex-1">
-                    <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary hover:bg-gray-50 p-3 rounded-lg transition flex items-center gap-3"><span>🏠</span> الرئيسية</a>
-                    <a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary hover:bg-gray-50 p-3 rounded-lg transition flex items-center gap-3"><span>📜</span> القائمة</a>
-                    <a href="{{ route('offers.index', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary hover:bg-gray-50 p-3 rounded-lg transition flex items-center gap-3"><span>🔥</span> العروض</a>
-                    <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary hover:bg-gray-50 p-3 rounded-lg transition flex items-center gap-3"><span>🚚</span> تتبع الطلب</a>
-                    <a href="{{ route('order.track.form', $restaurant->slug) }}" class="text-gray-700 font-bold hover:text-primary hover:bg-gray-50 p-3 rounded-lg transition flex items-center gap-3"><span>📄</span> فاتورتي</a>
+                    <a href="{{ route('restaurant.home', $restaurant->slug) }}" onclick="toggleMobileMenu()" class="flex items-center gap-3 rounded-xl p-3 font-bold text-gray-700 transition hover:bg-gray-50 hover:text-primary"><i class="fa-solid fa-house w-5 text-center text-primary" aria-hidden="true"></i> الرئيسية</a>
+                    <a href="{{ route('restaurant.menu', $restaurant->slug) }}" onclick="toggleMobileMenu()" class="flex items-center gap-3 rounded-xl p-3 font-bold text-gray-700 transition hover:bg-gray-50 hover:text-primary"><i class="fa-solid fa-utensils w-5 text-center text-primary" aria-hidden="true"></i> القائمة</a>
+                    <a href="{{ route('offers.index', $restaurant->slug) }}" onclick="toggleMobileMenu()" class="flex items-center gap-3 rounded-xl p-3 font-bold text-gray-700 transition hover:bg-gray-50 hover:text-primary"><i class="fa-solid fa-fire w-5 text-center text-primary" aria-hidden="true"></i> العروض</a>
+                    <a href="{{ route('order.track.form', $restaurant->slug) }}" onclick="toggleMobileMenu()" class="flex items-center gap-3 rounded-xl p-3 font-bold text-gray-700 transition hover:bg-gray-50 hover:text-primary"><i class="fa-solid fa-location-dot w-5 text-center text-primary" aria-hidden="true"></i> تتبع الطلب</a>
+                    <a href="{{ route('cart.index', $restaurant->slug) }}" onclick="toggleMobileMenu()" class="flex items-center gap-3 rounded-xl p-3 font-bold text-gray-700 transition hover:bg-gray-50 hover:text-primary"><i class="fa-solid fa-bag-shopping w-5 text-center text-primary" aria-hidden="true"></i> سلة التسوق</a>
                 </div>
                 <div class="mt-auto pt-4 border-t text-center text-xs text-gray-400">
                     © {{ date('Y') }} {{ $restaurant->name }}
@@ -350,7 +360,7 @@
                         @if($restaurant->logo)
                             <img src="{{ media_url($restaurant->logo) }}" class="w-12 h-12 rounded-full object-cover border border-gray-700">
                         @else
-                            <div class="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-2xl">🍔</div>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-xl text-primary" aria-hidden="true"><i class="fa-solid fa-burger"></i></div>
                         @endif
                         <h3 class="text-2xl font-black">{{ $restaurant->name }}</h3>
                     </div>
@@ -358,9 +368,9 @@
                         {{ $restaurant->description ?? 'نقدم أشهى الأطباق بمكونات طازجة وجودة عالية لنضمن لك تجربة طعام لا تُنسى. اطلب الآن واستمتع بالطعم الأصلي.' }}
                     </p>
                     <div class="flex gap-3">
-                        <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-primary transition transform hover:scale-110">📘</a>
-                        <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-primary transition transform hover:scale-110">📸</a>
-                        <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-primary transition transform hover:scale-110">🐦</a>
+                        <a href="#" aria-label="فيسبوك" class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800 transition hover:scale-110 hover:bg-primary"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+                        <a href="#" aria-label="إنستغرام" class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800 transition hover:scale-110 hover:bg-primary"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>
+                        <a href="#" aria-label="إكس" class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800 transition hover:scale-110 hover:bg-primary"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i></a>
                     </div>
                 </div>
 
@@ -368,10 +378,10 @@
                 <div>
                     <h4 class="text-lg font-bold mb-6 border-r-4 border-primary pr-3">روابط سريعة</h4>
                     <ul class="space-y-3 text-gray-400 text-sm">
-                        <li><a href="{{ route('restaurant.home', $restaurant->slug) }}" class="hover:text-primary transition flex items-center gap-2"><span class="text-xs">➤</span> الرئيسية</a></li>
-                        <li><a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="hover:text-primary transition flex items-center gap-2"><span class="text-xs">➤</span> القائمة الكاملة</a></li>
-                        <li><a href="{{ route('offers.index', $restaurant->slug) }}" class="hover:text-primary transition flex items-center gap-2"><span class="text-xs">➤</span> العروض والخصومات</a></li>
-                        <li><a href="#about" class="hover:text-primary transition flex items-center gap-2"><span class="text-xs">➤</span> من نحن</a></li>
+                        <li><a href="{{ route('restaurant.home', $restaurant->slug) }}" class="flex items-center gap-2 transition hover:text-primary"><i class="fa-solid fa-chevron-left text-[10px]" aria-hidden="true"></i> الرئيسية</a></li>
+                        <li><a href="{{ route('restaurant.menu', $restaurant->slug) }}" class="flex items-center gap-2 transition hover:text-primary"><i class="fa-solid fa-chevron-left text-[10px]" aria-hidden="true"></i> القائمة الكاملة</a></li>
+                        <li><a href="{{ route('offers.index', $restaurant->slug) }}" class="flex items-center gap-2 transition hover:text-primary"><i class="fa-solid fa-chevron-left text-[10px]" aria-hidden="true"></i> العروض والخصومات</a></li>
+                        <li><a href="#about" class="flex items-center gap-2 transition hover:text-primary"><i class="fa-solid fa-chevron-left text-[10px]" aria-hidden="true"></i> من نحن</a></li>
                     </ul>
                     
                     <h4 class="text-lg font-bold mb-4 mt-8 border-r-4 border-primary pr-3">الفئات</h4>
@@ -388,7 +398,7 @@
                     <ul class="space-y-4 text-gray-400 text-sm">
                         @if($restaurant->phone)
                             <li class="flex items-start gap-3">
-                                <span class="text-primary text-xl mt-1">📞</span>
+                                <i class="fa-solid fa-phone mt-1 text-xl text-primary" aria-hidden="true"></i>
                                 <div>
                                     <span class="block text-xs text-gray-500 mb-1">الهاتف</span>
                                     <a href="tel:{{ $restaurant->phone }}" class="font-medium hover:text-white transition">{{ $restaurant->phone }}</a>
@@ -397,7 +407,7 @@
                         @endif
                         @if($restaurant->email)
                             <li class="flex items-start gap-3">
-                                <span class="text-primary text-xl mt-1">📧</span>
+                                <i class="fa-solid fa-envelope mt-1 text-xl text-primary" aria-hidden="true"></i>
                                 <div>
                                     <span class="block text-xs text-gray-500 mb-1">البريد الإلكتروني</span>
                                     <a href="mailto:{{ $restaurant->email }}" class="font-medium hover:text-white transition">{{ $restaurant->email }}</a>
@@ -406,7 +416,7 @@
                         @endif
                         @if($restaurant->address)
                             <li class="flex items-start gap-3">
-                                <span class="text-primary text-xl mt-1">📍</span>
+                                <i class="fa-solid fa-location-dot mt-1 text-xl text-primary" aria-hidden="true"></i>
                                 <div>
                                     <span class="block text-xs text-gray-500 mb-1">العنوان</span>
                                     <span class="font-medium">{{ $restaurant->address }}</span>
@@ -433,7 +443,7 @@
                     <h4 class="text-lg font-bold mb-4 border-r-4 border-primary pr-3">نصائح التطبيق</h4>
                     <p class="text-xs text-gray-400 mb-3">اضغط على "مشاركة" ثم "إضافة إلى الشاشة الرئيسية" لتثبيت التطبيق.</p>
                     <button onclick="document.getElementById('install-pwa-btn').click()" class="w-full bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2">
-                        <span>📱</span> تثبيت التطبيق
+                        <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i> تثبيت التطبيق
                     </button>
                 </div>
             </div>
@@ -451,12 +461,12 @@
 
     <!-- ==================== Floating Elements ==================== -->
     <button id="install-pwa-btn" class="fixed bottom-24 left-5 z-40 bg-primary text-white px-5 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 transition-all duration-300 transform translate-y-20 opacity-0 hover:scale-105">
-        <span>📱</span>
+        <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
         <span>تثبيت التطبيق</span>
     </button>
 
     <button id="scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-6 right-6 z-40 bg-gray-800 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-primary transition-all duration-300">
-        ↑
+        <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
     </button>
 
     <div id="toast-container"></div>
@@ -466,18 +476,32 @@
         // 1. Mobile Menu Toggle
         function toggleMobileMenu() {
             const menu = document.getElementById('mobile-menu');
+            const toggle = document.getElementById('mobile-menu-toggle');
+            const panel = menu.querySelector('[data-mobile-menu-panel]');
             if (menu.classList.contains('hidden')) {
                 menu.classList.remove('hidden');
-                menu.querySelector('div').classList.add('mobile-menu-open');
+                menu.setAttribute('aria-hidden', 'false');
+                toggle.setAttribute('aria-expanded', 'true');
+                panel.classList.add('mobile-menu-open');
                 document.body.style.overflow = 'hidden';
+                panel.querySelector('button').focus();
             } else {
-                menu.querySelector('div').classList.remove('mobile-menu-open');
+                panel.classList.remove('mobile-menu-open');
+                menu.setAttribute('aria-hidden', 'true');
+                toggle.setAttribute('aria-expanded', 'false');
                 setTimeout(() => {
                     menu.classList.add('hidden');
                     document.body.style.overflow = '';
+                    toggle.focus();
                 }, 300);
             }
         }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !document.getElementById('mobile-menu').classList.contains('hidden')) {
+                toggleMobileMenu();
+            }
+        });
 
         // 2. Scroll to Top Button Visibility
         window.addEventListener('scroll', () => {
@@ -502,10 +526,7 @@
                     btn.disabled = true;
                     btn.classList.add('opacity-75', 'cursor-not-allowed');
                     btn.innerHTML = `
-                        <svg class="animate-spin h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <i class="fa-solid fa-spinner fa-spin inline-block text-white" aria-hidden="true"></i>
                         جاري الإضافة...
                     `;
 
@@ -591,7 +612,7 @@
                 setTimeout(() => {
                     miniCartItems.innerHTML = data.items.length
                         ? data.items.map(item => `<div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition"><div class="flex-1 min-w-0"><h4 class="text-sm font-bold text-gray-800 truncate">${escapeCartHtml(item.name)}</h4><p class="text-xs text-primary font-bold">${Number(item.price).toFixed(2)} ل.س × ${item.quantity}</p></div><p class="text-xs font-bold text-gray-700">${Number(item.subtotal).toFixed(2)} ل.س</p></div>`).join('')
-                        : '<div class="text-center py-8 px-4"><div class="text-4xl mb-2">🍽️</div><p class="text-gray-500 text-sm font-medium">السلة فارغة حالياً</p><p class="text-gray-400 text-xs mt-1">ابدأ بإضافة منتجات لذيذة</p></div>';
+                        : '<div class="text-center py-8 px-4"><div class="mb-2 text-4xl text-gray-300"><i class="fa-solid fa-utensils" aria-hidden="true"></i></div><p class="text-gray-500 text-sm font-medium">السلة فارغة حالياً</p><p class="text-gray-400 text-xs mt-1">ابدأ بإضافة منتجات لذيذة</p></div>';
                     miniCartItems.style.opacity = '1';
                     miniCartItems.style.transition = 'opacity 0.3s ease-in-out';
                 }, 150);
@@ -602,7 +623,7 @@
             const menuTotalDetail = document.getElementById('cart-total-detail');
             const menuItems = document.getElementById('cart-items-list');
 
-            if (menuCount) menuCount.innerText = `${data.count} وجبة في الطلب`;
+            if (menuCount) menuCount.innerText = `${data.count} عناصر في الطلب`;
             if (menuTotal) menuTotal.innerText = `${Number(data.grand_total ?? data.total).toFixed(2)} ل.س`;
             if (menuTotalDetail) menuTotalDetail.innerText = Number(data.grand_total ?? data.total).toFixed(2);
             if (menuItems && data.items) {
@@ -621,10 +642,10 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
-            const icon = type === 'success' ? '✅' : '⚠️';
+            const icon = type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation';
 
             toast.className = `toast-item flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white font-medium ${bgColor}`;
-            toast.innerHTML = `<span class="text-xl">${icon}</span><span class="flex-1">${message}</span>`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-xl" aria-hidden="true"></i><span class="flex-1">${message}</span>`;
 
             container.appendChild(toast);
 

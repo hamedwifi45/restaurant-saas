@@ -206,7 +206,7 @@ class CartController extends Controller
                 'total' => $total,
                 'tax_amount' => $tax,
                 'delivery_fee' => $deliveryFee,
-                'grand_total' => $total + $tax + $deliveryFee,
+                'grand_total' => $total + $tax,
                 'items' => $items,
             ]);
         }
@@ -240,7 +240,7 @@ class CartController extends Controller
                 $productId = isset($item['product_id']) ? (int) $item['product_id'] : null;
 
                 // إذا لم يوجد cart_key مباشر، نحاول مطابقته عبر product_id في السلة
-                if (($cartKey === null || !isset($cart[$cartKey])) && $productId !== null) {
+                if (($cartKey === null || ! isset($cart[$cartKey])) && $productId !== null) {
                     foreach ($cart as $key => $details) {
                         if ((int) $details['product_id'] === $productId) {
                             $cartKey = $key;
@@ -249,7 +249,7 @@ class CartController extends Controller
                     }
                 }
 
-                if ($cartKey === null || !isset($cart[$cartKey])) {
+                if ($cartKey === null || ! isset($cart[$cartKey])) {
                     return response()->json([
                         'success' => false,
                         'message' => 'تم تغيير محتويات السلة أو المنتج غير موجود. يرجى تحديث الصفحة.',
@@ -283,7 +283,7 @@ class CartController extends Controller
         $cartKey = $validated['cart_key'] ?? null;
         $productId = isset($validated['product_id']) ? (int) $validated['product_id'] : null;
 
-        if (($cartKey === null || !isset($cart[$cartKey])) && $productId !== null) {
+        if (($cartKey === null || ! isset($cart[$cartKey])) && $productId !== null) {
             foreach ($cart as $key => $details) {
                 if ((int) $details['product_id'] === $productId) {
                     $cartKey = $key;
@@ -292,7 +292,7 @@ class CartController extends Controller
             }
         }
 
-        if ($cartKey === null || !isset($cart[$cartKey])) {
+        if ($cartKey === null || ! isset($cart[$cartKey])) {
             return response()->json([
                 'success' => false,
                 'message' => 'العنصر غير موجود في السلة.',
@@ -301,7 +301,7 @@ class CartController extends Controller
 
         $product = Product::where('restaurant_id', $restaurant->id)
             ->findOrFail($cart[$cartKey]['product_id']);
-            
+
         $cart[$cartKey]['quantity'] = (int) $validated['quantity'];
         $this->cartService->put($restaurant, $cart);
 

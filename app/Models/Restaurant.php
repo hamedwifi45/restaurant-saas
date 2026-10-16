@@ -60,6 +60,7 @@ class Restaurant extends Model
         'base_delivery_fee',
         'base_delivery_km',
         'per_km_delivery_fee',
+        'experimental_order_features',
     ];
 
     public const PLAN_FEATURES = [
@@ -99,6 +100,25 @@ class Restaurant extends Model
         'per_km_delivery_fee' => 'decimal:2',
         'trial_ends_at' => 'datetime',
         'theme_settings' => 'array',
+        'experimental_order_features' => 'array',
+    ];
+
+    public const EXPERIMENTAL_ORDER_FEATURE_DEFAULTS = [
+        'table_reservations' => false,
+        'scheduled_pickup' => false,
+        'deposit_percentage' => 20,
+        'reservation_duration_minutes' => 90,
+        'reservation_duration_options' => [90],
+        'reservation_seating_preference' => false,
+        'reservation_occasion' => false,
+        'reservation_high_chairs' => false,
+        'reservation_stroller_space' => false,
+        'reservation_accessibility_notes' => false,
+        'reservation_allergy_notes' => false,
+        'reservation_dietary_preference' => false,
+        'reservation_confirmation_call' => false,
+        'reservation_celebration_notes' => false,
+        'risk_acknowledged' => false,
     ];
 
     // Relationships
@@ -203,6 +223,32 @@ class Restaurant extends Model
         }
 
         return $this->themeSettings->getMergedSettings();
+    }
+
+    /**
+     * @return array<string, bool|int|float|string|null>
+     */
+    public function getExperimentalOrderFeatures(): array
+    {
+        $features = array_replace(
+            self::EXPERIMENTAL_ORDER_FEATURE_DEFAULTS,
+            $this->experimental_order_features ?? [],
+        );
+
+        $features['reservation_duration_options'] = collect($features['reservation_duration_options'])
+            ->map(fn (mixed $duration): int => (int) $duration)
+            ->filter(fn (int $duration): bool => in_array($duration, [30, 60, 90, 120, 150, 180, 240], true))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return $features;
+    }
+
+    public function experimentalOrderFeatureEnabled(string $feature): bool
+    {
+        return (bool) ($this->getExperimentalOrderFeatures()[$feature] ?? false);
     }
 
     // متوسط التقييم

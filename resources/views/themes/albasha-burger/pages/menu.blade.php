@@ -21,7 +21,7 @@
 
 @if($table)
     <div class="mx-auto mt-6 max-w-5xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-center text-orange-900">
-        أنت الآن تطلب من <strong>الطاولة {{ $table->number }}</strong>. بعد التأكيد سيصل الطلب مباشرة إلى المطبخ.
+        <strong>طلب داخلي - الطاولة رقم {{ $table->number }}</strong>. بعد التأكيد سيصل طلبك مباشرة إلى المطبخ.
     </div>
 @endif
 
@@ -32,7 +32,7 @@
         @if($categories->isEmpty())
             <!-- حالة عدم وجود تصنيفات -->
             <div class="text-center py-20">
-                <div class="text-6xl mb-4">🍽️</div>
+                <i class="fa-solid fa-utensils mb-4 text-6xl text-gray-300" aria-hidden="true"></i>
                 <h2 class="text-3xl font-bold text-gray-800 mb-4">القائمة قيد التحضير</h2>
                 <p class="text-gray-600">نعمل على إضافة أطباق جديدة قريباً</p>
             </div>
@@ -70,7 +70,7 @@
                                                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                                             @else
                                                 <div class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                                                    <span class="text-6xl">🍽️</span>
+                                                    <i class="fa-solid fa-utensils text-6xl text-gray-300" aria-hidden="true"></i>
                                                 </div>
                                             @endif
 
@@ -126,7 +126,7 @@
                                             <input type="hidden" name="product_id" value="{{ $product->id }}">
                                             <input type="hidden" name="quantity" value="1">
                                             <button type="submit" @disabled(! $restaurant->canAcceptOrders()) aria-disabled="{{ $restaurant->canAcceptOrders() ? 'false' : 'true' }}" class="menu-add-button w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition disabled:cursor-not-allowed disabled:opacity-50">
-                                                <span>🛒</span>
+                                                <i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>
                                                 <span>أضف للسلة</span>
                                             </button>
                                         </form>
@@ -149,7 +149,7 @@
         <p class="text-xl mb-8">أضف أطباقك المفضلة للسلة وأكمل طلبك الآن</p>
         <a href="{{ route('cart.index' , $restaurant->slug) }}" 
            class="inline-block bg-white text-primary px-8 py-4 rounded-full text-lg font-bold hover:shadow-2xl transition">
-            عرض السلة 🛒
+            عرض السلة <i class="fa-solid fa-bag-shopping mr-1" aria-hidden="true"></i>
         </a>
     </div>
 </section>
@@ -158,8 +158,8 @@
     <div class="mx-auto max-w-5xl px-2">
         <button type="button" id="toggle-order-summary" class="flex w-full items-center justify-between gap-3 text-right">
             <div>
-                <p id="cart-count" class="text-xs text-gray-500">{{ $cartCount }} وجبة في الطلب</p>
-                <p id="cart-total" class="text-lg font-black text-gray-900">{{ number_format($cartTotal, 0) }} ل.س</p>
+                <p id="cart-count" class="text-xs text-gray-500">{{ $cartCount }} عناصر في الطلب</p>
+                <p id="cart-total" class="text-lg font-black text-gray-900">{{ number_format($cartTotal, 2) }} ل.س</p>
             </div>
             <span id="order-summary-toggle-label" class="text-sm font-bold text-primary">عرض الطلب</span>
         </button>
@@ -170,9 +170,9 @@
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0">
                     <div class="min-w-0">
                         <p class="truncate font-bold text-gray-800">{{ $item['product']->name }}@if($item['variant_name']) ({{ $item['variant_name'] }})@endif</p>
-                        <p class="text-xs text-gray-500">{{ $item['quantity'] }} × {{ number_format($item['unit_price'], 0) }} ل.س</p>
+                        <p class="text-xs text-gray-500">{{ $item['quantity'] }} × {{ number_format($item['unit_price'], 2) }} ل.س</p>
                     </div>
-                    <p class="font-bold text-primary">{{ number_format($item['subtotal'], 0) }} ل.س</p>
+                    <p class="font-bold text-primary">{{ number_format($item['subtotal'], 2) }} ل.س</p>
                 </div>
             @empty
                 <p class="py-2 text-center text-sm text-gray-500">لم تتم إضافة وجبات بعد</p>
@@ -180,7 +180,7 @@
             </div>
 
             <div class="mt-3 flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
-                <p class="font-black text-gray-900">الإجمالي: <span id="cart-total-detail">{{ number_format($cartTotal, 0) }}</span> ل.س</p>
+                <p class="font-black text-gray-900">الإجمالي: <span id="cart-total-detail">{{ number_format($cartTotal, 2) }}</span> ل.س</p>
                 @if($restaurant->canAcceptOrders())
                     <a href="{{ route('checkout', $restaurant->slug) }}" class="btn-primary flex min-h-11 items-center justify-center rounded-xl px-5 text-center font-bold">
                         طلب الوجبات

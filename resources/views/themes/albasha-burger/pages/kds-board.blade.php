@@ -1697,6 +1697,32 @@
                 <span>ملاحظة الطلب: ${this.escapeHtml(orderNote)}</span>
             </div>
         ` : '';
+            const dineInArrival = order.dine_in_arrival_at
+                ? new Date(order.dine_in_arrival_at).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })
+                : '';
+            const dineInReservationHtml = dineInArrival ? `
+            <div class="order-general-note" style="margin: 8px 0; padding: 6px 10px; background: rgba(234, 88, 12, 0.1); border-right: 3px solid #ea580c; border-radius: 4px; color: #9a3412; font-size: 0.85rem; font-weight: 600;">
+                <i class="fa-solid fa-utensils"></i>
+                <span>حجز طاولة ${order.table_number ? `#${this.escapeHtml(order.table_number)}` : ''}: ${this.escapeHtml(dineInArrival)}${order.dine_in_duration_minutes ? ` · ${Number(order.dine_in_duration_minutes)} دقيقة` : ''}${order.dine_in_guest_count ? ` · ${Number(order.dine_in_guest_count)} ضيوف` : ''}</span>
+                ${order.dine_in_confirmation_call ? '<span class="block">اتصال مطلوب لتأكيد الحجز</span>' : ''}
+                ${order.dine_in_allergy_notes ? `<span class="block">حساسية: ${this.escapeHtml(order.dine_in_allergy_notes)}</span>` : ''}
+            </div>
+        ` : '';
+            const pickupAt = order.requested_pickup_at
+                ? new Date(order.requested_pickup_at).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })
+                : '';
+            const scheduledPickupHtml = pickupAt ? `
+            <div class="order-general-note" style="margin: 8px 0; padding: 6px 10px; background: rgba(14, 165, 233, 0.1); border-right: 3px solid #0ea5e9; border-radius: 4px; color: #075985; font-size: 0.85rem; font-weight: 600;">
+                <i class="fa-solid fa-store"></i>
+                <span>استلام من المطعم: ${this.escapeHtml(pickupAt)}</span>
+            </div>
+        ` : '';
+            const depositHtml = order.deposit_amount > 0 ? `
+            <div class="order-general-note" style="margin: 8px 0; padding: 6px 10px; background: rgba(16, 185, 129, 0.1); border-right: 3px solid #10b981; border-radius: 4px; color: #047857; font-size: 0.85rem; font-weight: 600;">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>تم تأكيد العربون: ${Number(order.deposit_amount).toFixed(2)} ل.س</span>
+            </div>
+        ` : '';
 
             let actionsHtml = '';
             if (order.status === 'new') {
@@ -1769,6 +1795,9 @@
                     ` : ''}
                 ${distanceHtml}
                 ${locationHtml}
+                ${dineInReservationHtml}
+                ${scheduledPickupHtml}
+                ${depositHtml}
             </div>
 
             <ul class="items-list">
