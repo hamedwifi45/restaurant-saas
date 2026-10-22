@@ -204,9 +204,9 @@ class CartController extends Controller
                 'count' => $count,
                 'subtotal' => $total,
                 'total' => $total,
-                'tax_amount' => $tax,
+                'tax_amount' => 0,
                 'delivery_fee' => $deliveryFee,
-                'grand_total' => $total + $tax,
+                'grand_total' => $total,
                 'items' => $items,
             ]);
         }

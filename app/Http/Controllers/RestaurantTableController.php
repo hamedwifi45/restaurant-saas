@@ -32,6 +32,15 @@ class RestaurantTableController extends Controller
         return redirect()->route('restaurant.menu', $restaurant->slug);
     }
 
+    public function leave(string $slug): RedirectResponse
+    {
+        $restaurant = Restaurant::where('slug', $slug)->where('is_active', true)->firstOrFail();
+
+        $this->tableSession->forget();
+
+        return redirect()->route('restaurant.menu', $restaurant->slug);
+    }
+
     public function qr(Request $request, RestaurantTable $table): View
     {
         abort_unless($request->user()?->restaurant_id === $table->restaurant_id, 403);

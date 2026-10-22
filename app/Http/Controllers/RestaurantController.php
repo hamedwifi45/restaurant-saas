@@ -252,7 +252,7 @@ class RestaurantController extends Controller
 
         $cartTax = round($cartSubtotal * (float) ($restaurant->tax_percentage ?? 0) / 100, 2);
         $cartDeliveryFee = $table ? 0.0 : round((float) ($restaurant->delivery_fee ?? 0), 2);
-        $cartTotal = round($cartSubtotal + $cartTax + $cartDeliveryFee, 2);
+        $cartTotal = round($cartSubtotal, 2);
 
         return view("themes.{$themePath}.pages.menu", compact(
             'restaurant',
@@ -263,7 +263,7 @@ class RestaurantController extends Controller
             'cartItems',
             'cartCount',
             'cartSubtotal',
-            'cartTax',
+            // 'cartTax',
             'cartDeliveryFee',
             'cartTotal'
         ));

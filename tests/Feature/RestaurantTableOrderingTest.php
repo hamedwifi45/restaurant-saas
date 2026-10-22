@@ -47,6 +47,48 @@ it('accepts a restaurant table ID as a table entry URL', function () {
         ->assertSee('طلب داخلي - الطاولة رقم A12');
 });
 
+it('lets table customers leave table mode and continue with home delivery', function () {
+    $restaurant = Restaurant::factory()->create();
+    $table = RestaurantTable::factory()->create(['restaurant_id' => $restaurant->id]);
+    $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);
+    $product = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+    ]);
+    $cart = [$product->id => ['qty' => 1]];
+
+    $this->withSession([
+        'cart_'.$restaurant->id => $cart,
+        'table_id' => $table->id,
+        'restaurant_table_id' => $table->id,
+        'restaurant_table_restaurant_id' => $restaurant->id,
+    ])->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('الخروج من وضع الطاولة');
+
+    $this->post(route('restaurant.table.leave', $restaurant->slug))
+        ->assertRedirect(route('restaurant.menu', $restaurant->slug));
+
+    $this->get(route('restaurant.menu', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertDontSee('طلب داخلي - الطاولة رقم')
+        ->assertDontSee('الخروج من وضع الطاولة');
+
+    expect(session('restaurant_table_id'))->toBeNull()
+        ->and(session('table_id'))->toBeNull()
+        ->and(session('restaurant_table_restaurant_id'))->toBeNull();
+
+    $cartItem = collect(session('cart_'.$restaurant->id))->first();
+
+    expect($cartItem['product_id'])->toBe($product->id)
+        ->and($cartItem['quantity'])->toBe(1);
+
+    $this->get(route('checkout', $restaurant->slug))
+        ->assertSuccessful()
+        ->assertSee('value="delivery"', false)
+        ->assertDontSee('طلب الطاولة <strong>');
+});
+
 it('renders the full menu for a direct home-customer visit without table context', function () {
     $restaurant = Restaurant::factory()->create();
     $category = Category::factory()->create(['restaurant_id' => $restaurant->id]);

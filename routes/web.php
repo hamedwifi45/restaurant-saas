@@ -112,6 +112,7 @@ Route::prefix('{slug}')->group(function () {
     Route::get('/product/{slugP}', [RestaurantController::class, 'showProduct'])->name('product.show');
     Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
     Route::get('/table/{token}', [RestaurantTableController::class, 'enter'])->name('restaurant.table.menu');
+    Route::post('/table/leave', [RestaurantTableController::class, 'leave'])->name('restaurant.table.leave');
 
     // السلة (Cart)
     Route::prefix('cart')->as('cart.')->group(function () {

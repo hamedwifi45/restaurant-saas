@@ -21,7 +21,13 @@
 
 @if($table)
     <div class="mx-auto mt-6 max-w-5xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-center text-orange-900">
-        أنت الآن تطلب من <strong>الطاولة {{ $table->number }}</strong>. بعد التأكيد سيصل الطلب مباشرة إلى المطبخ.
+        <p>أنت الآن تطلب من <strong>الطاولة {{ $table->number }}</strong>. بعد التأكيد سيصل الطلب مباشرة إلى المطبخ.</p>
+        <form action="{{ route('restaurant.table.leave', $restaurant->slug) }}" method="POST" class="mt-3">
+            @csrf
+            <button type="submit" class="rounded-xl bg-white px-4 py-2 font-bold text-orange-800 ring-1 ring-orange-300 transition hover:bg-orange-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600">
+                الخروج من وضع الطاولة
+            </button>
+        </form>
     </div>
 @endif
 
