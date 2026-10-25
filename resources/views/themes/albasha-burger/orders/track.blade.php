@@ -33,12 +33,12 @@
             @include('components.order-push-subscription', ['order' => $order, 'restaurant' => $restaurant])
             @include('components.driver-rating', ['order' => $order, 'restaurant' => $restaurant])
 
-            @if(in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
+            @if((! $order->deliveryDispatch || $order->deliveryDispatch->status === 'cancelled') && in_array($order->status, ['on_way', 'out_for_delivery', 'in_transit'], true))
                 <a href="{{ route('driver.order.tracking', ['slug' => $restaurant->slug, 'order' => $order->tracking_code, 'token' => $order->device_token]) }}"
                     class="mb-8 block rounded-2xl bg-primary px-6 py-5 text-center text-lg font-black text-white shadow-lg transition hover:brightness-110">
                     تتبع المندوب مباشر <i class="fa-solid fa-motorcycle mr-1" aria-hidden="true"></i>
                 </a>
-            @elseif($order->delivery_latitude && $order->delivery_longitude)
+            @elseif((! $order->deliveryDispatch || $order->deliveryDispatch->status === 'cancelled') && $order->delivery_latitude && $order->delivery_longitude)
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-lg">
                     <div class="mb-4 flex items-center justify-between gap-3">
                         <div>
@@ -105,6 +105,7 @@
                                 default => 'معلومات التوصيل',
                             } }}
                         </h3>
+                        @include('components.external-delivery-dispatch-status', ['order' => $order, 'restaurant' => $restaurant])
                         <ul class="space-y-4 text-gray-600">
                             <li class="flex items-start gap-3">
                                 <div>

@@ -2,43 +2,54 @@
 
 namespace App\Filament\Restaurant\Widgets;
 
-use App\Models\Order;
+use App\Services\FinancialAnalyticsService;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 class PaymentMethodChartWidget extends ChartWidget
 {
-    protected ?string $heading = 'المبيعات حسب طريقة الدفع';
+    use InteractsWithPageFilters;
+
+    protected ?string $heading = 'قيمة الطلبات بحسب طريقة الدفع المسجلة';
 
     protected function getType(): string
     {
         return 'doughnut';
     }
 
+    public function getDescription(): HtmlString
+    {
+        $analytics = app(FinancialAnalyticsService::class);
+        $period = $analytics->period($this->pageFilters);
+        $url = e($analytics->ordersReportUrl($period, ['verified_sales' => true]));
+
+        return new HtmlString('<a class="text-primary-600 underline dark:text-primary-400" href="'.$url.'">عرض الطلبات ذات طرق الدفع المسجلة هذه</a>');
+    }
+
     protected function getData(): array
     {
-        $restaurantId = Auth::user()?->restaurant_id;
+        $restaurant = Auth::user()?->restaurant;
 
-        if (! $restaurantId) {
+        if (! $restaurant) {
             return [
-                'datasets' => [['label' => 'المبيعات', 'data' => [0, 0]]],
+                'datasets' => [['label' => 'قيمة الطلبات', 'data' => [0, 0]]],
                 'labels' => ['نقدًا', 'تحويل مصرفي / إلكتروني'],
             ];
         }
 
-        $revenueByMethod = Order::query()
-            ->where('restaurant_id', $restaurantId)
-            ->where('payment_status', 'verified')
-            ->where('status', '!=', 'cancelled')
-            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+        $analytics = app(FinancialAnalyticsService::class);
+        $period = $analytics->period($this->pageFilters);
+        $revenueByMethod = $analytics->ordersForPeriod($restaurant, $period)
             ->whereIn('payment_method', ['cash', 'transfer', 'bank_transfer'])
-            ->selectRaw("CASE WHEN payment_method = 'cash' THEN 'cash' ELSE 'bank_transfer' END as payment_method, SUM(final_amount) as revenue")
+            ->selectRaw("CASE WHEN payment_method = 'cash' THEN 'cash' ELSE 'bank_transfer' END as payment_method, SUM(final_amount) as order_value")
             ->groupByRaw("CASE WHEN payment_method = 'cash' THEN 'cash' ELSE 'bank_transfer' END")
-            ->pluck('revenue', 'payment_method');
+            ->pluck('order_value', 'payment_method');
 
         return [
             'datasets' => [[
-                'label' => 'المبيعات',
+                'label' => 'قيمة الطلبات',
                 'data' => [
                     (float) ($revenueByMethod['cash'] ?? 0),
                     (float) ($revenueByMethod['bank_transfer'] ?? 0),

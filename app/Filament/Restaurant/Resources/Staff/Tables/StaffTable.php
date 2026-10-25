@@ -32,12 +32,14 @@ class StaffTable
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'kitchen_staff' => 'طباخ / كادر المطبخ (KDS)',
                         'driver' => 'مندوب توصيل',
+                        'cashier' => 'كاشير (نقطة البيع)',
                         'restaurant_admin' => 'مدير فرعي',
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
                         'kitchen_staff' => 'warning',
                         'driver' => 'info',
+                        'cashier' => 'success',
                         'restaurant_admin' => 'success',
                         default => 'gray',
                     }),
@@ -55,6 +57,7 @@ class StaffTable
                     ->options([
                         'kitchen_staff' => 'طباخ / كادر المطبخ (KDS)',
                         'driver' => 'مندوب توصيل',
+                        'cashier' => 'كاشير (نقطة البيع)',
                         'restaurant_admin' => 'مدير فرعي',
                     ]),
                 SelectFilter::make('is_active')

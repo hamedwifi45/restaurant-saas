@@ -171,7 +171,12 @@ class RestaurantOrderExperiments extends Page implements HasForms
             return;
         }
 
-        $this->restaurant()->update([
+        $serviceConfig = $restaurant->getServiceConfig();
+        $serviceConfig['table_reservations'] = (bool) ($features['table_reservations'] ?? false);
+        $serviceConfig['scheduled_pickup'] = (bool) ($features['scheduled_pickup'] ?? false);
+
+        $restaurant->update([
+            'service_config' => $serviceConfig,
             'experimental_order_features' => $features,
         ]);
 

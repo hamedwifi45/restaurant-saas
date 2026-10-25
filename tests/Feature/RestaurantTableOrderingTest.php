@@ -314,8 +314,11 @@ it('does not narrow the customer phone column when null orders exist during roll
 });
 
 it('persists KDS display statuses as valid order statuses', function () {
-    $restaurant = Restaurant::factory()->create();
-    $user = User::factory()->create(['restaurant_id' => $restaurant->id]);
+    $restaurant = Restaurant::factory()->create(['plan' => 'pro']);
+    $user = User::factory()->create([
+        'role' => 'kitchen_staff',
+        'restaurant_id' => $restaurant->id,
+    ]);
     $order = Order::factory()->create([
         'restaurant_id' => $restaurant->id,
         'tracking_code' => 'KDS-STATUS-TEST',
@@ -344,7 +347,7 @@ it('persists KDS display statuses as valid order statuses', function () {
 });
 
 it('serializes the table number and product name for the kitchen display', function () {
-    $restaurant = Restaurant::factory()->create();
+    $restaurant = Restaurant::factory()->create(['plan' => 'pro']);
     $table = RestaurantTable::factory()->create([
         'restaurant_id' => $restaurant->id,
         'number' => 'A12',
@@ -357,13 +360,23 @@ it('serializes the table number and product name for the kitchen display', funct
     Order_item::factory()->create([
         'order_id' => $order->id,
         'product_name' => 'برجر خاص',
+        'notes' => 'بدون بصل',
     ]);
 
     $payload = (new KdsOrderResource($order->load(['items', 'restaurantTable'])))->resolve();
+    $refreshPayload = $this->actingAs(User::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'role' => 'kitchen_staff',
+        'is_active' => true,
+    ]))->getJson(route('kitchen.orders.index', $restaurant->slug));
 
     expect($payload['table_number'])->toBe('A12')
         ->and($payload['type'])->toBe('dine-in')
-        ->and($payload['items']->first()['name'])->toBe('برجر خاص');
+        ->and($payload['items']->first()['name'])->toBe('برجر خاص')
+        ->and($payload['items']->first()['notes'])->toBe('بدون بصل');
+
+    $refreshPayload->assertSuccessful()
+        ->assertJsonPath('data.0.items.0.notes', 'بدون بصل');
 });
 
 it('broadcasts an order only to its restaurant KDS and manager channels', function () {
@@ -390,8 +403,14 @@ it('broadcasts an order only to its restaurant KDS and manager channels', functi
 
 it('renders Reverb diagnostics in every themed kitchen display', function (string $themeFolder) {
     $theme = Theme::factory()->create(['folder_name' => $themeFolder]);
-    $restaurant = Restaurant::factory()->create(['theme_id' => $theme->id]);
-    $user = User::factory()->create(['restaurant_id' => $restaurant->id]);
+    $restaurant = Restaurant::factory()->create([
+        'theme_id' => $theme->id,
+        'plan' => 'pro',
+    ]);
+    $user = User::factory()->create([
+        'role' => 'kitchen_staff',
+        'restaurant_id' => $restaurant->id,
+    ]);
 
     $this->withoutMiddleware()
         ->actingAs($user)

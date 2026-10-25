@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,6 +48,7 @@ class Order extends Model
         'dine_in_confirmation_call',
         'dine_in_celebration_notes',
         'device_token',
+        'checkout_token',
         'delivery_address',
         'delivery_latitude',
         'delivery_longitude',
@@ -174,6 +176,32 @@ class Order extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function deliveryDispatch(): HasOne
+    {
+        return $this->hasOne(DeliveryDispatch::class)->latestOfMany();
+    }
+
+    /**
+     * @return HasMany<DeliveryDispatch, $this>
+     */
+    public function deliveryDispatches(): HasMany
+    {
+        return $this->hasMany(DeliveryDispatch::class);
+    }
+
+    public function localSyncOutbox(): HasOne
+    {
+        return $this->hasOne(LocalOrderSyncOutbox::class);
+    }
+
+    /**
+     * @return HasOne<KdsOrderReceipt, $this>
+     */
+    public function kdsReceipt(): HasOne
+    {
+        return $this->hasOne(KdsOrderReceipt::class);
+    }
+
     protected static function boot()
     {
         parent::boot();
@@ -188,5 +216,13 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(Order_item::class);
+    }
+
+    public function scopeVerifiedNonCancelled(Builder $query): Builder
+    {
+        return $query
+            ->where('payment_status', 'verified')
+            ->where('status', '!=', 'cancelled')
+            ->whereNull('deleted_at');
     }
 }

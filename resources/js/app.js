@@ -9,3 +9,6 @@ import './order-push-subscriptions';
 import './driver-rating';
 import './checkout-pricing';
 import './cart-quantity';
+import './pos-quick-orders';
+import './local-pos-orders';
+import './kds-durable-receipts';

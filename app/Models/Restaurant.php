@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -60,6 +61,7 @@ class Restaurant extends Model
         'base_delivery_fee',
         'base_delivery_km',
         'per_km_delivery_fee',
+        'service_config',
         'experimental_order_features',
     ];
 
@@ -100,6 +102,7 @@ class Restaurant extends Model
         'per_km_delivery_fee' => 'decimal:2',
         'trial_ends_at' => 'datetime',
         'theme_settings' => 'array',
+        'service_config' => 'array',
         'experimental_order_features' => 'array',
     ];
 
@@ -121,6 +124,16 @@ class Restaurant extends Model
         'risk_acknowledged' => false,
     ];
 
+    public const ORDER_SERVICE_DEFAULTS = [
+        'delivery' => true,
+        'own_delivery_drivers' => true,
+        'external_delivery' => false,
+        'takeaway' => true,
+        'dine_in' => true,
+        'table_reservations' => false,
+        'scheduled_pickup' => false,
+    ];
+
     // Relationships
 
     public function categories(): HasMany
@@ -133,6 +146,9 @@ class Restaurant extends Model
         return $this->hasMany(Product::class);
     }
 
+    /**
+     * @return HasMany<Order, $this>
+     */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
@@ -143,9 +159,33 @@ class Restaurant extends Model
         return $this->hasMany(Expense::class);
     }
 
+    /**
+     * @return HasMany<RestaurantTable, $this>
+     */
     public function tables(): HasMany
     {
         return $this->hasMany(RestaurantTable::class);
+    }
+
+    /**
+     * @return BelongsToMany<DeliveryProvider, $this>
+     */
+    public function deliveryProviders(): BelongsToMany
+    {
+        return $this->belongsToMany(DeliveryProvider::class)
+            ->withPivot('is_enabled')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return BelongsToMany<DeliveryProvider, $this>
+     */
+    public function eligibleDeliveryProviders(): BelongsToMany
+    {
+        return $this->deliveryProviders()
+            ->wherePivot('is_enabled', true)
+            ->where('delivery_providers.is_active', true)
+            ->where('delivery_providers.assignment_method', 'manual');
     }
 
     // Scopes
@@ -176,6 +216,9 @@ class Restaurant extends Model
         return $this->hasMany(Offer::class);
     }
 
+    /**
+     * @return HasMany<Offer, $this>
+     */
     public function activeOffers(): HasMany
     {
         return $this->hasMany(Offer::class)->active();
@@ -230,9 +273,16 @@ class Restaurant extends Model
      */
     public function getExperimentalOrderFeatures(): array
     {
+        $legacyFeatures = $this->experimental_order_features ?? [];
+        $serviceConfig = $this->service_config ?? [];
+
         $features = array_replace(
             self::EXPERIMENTAL_ORDER_FEATURE_DEFAULTS,
-            $this->experimental_order_features ?? [],
+            $legacyFeatures,
+            [
+                'table_reservations' => (bool) ($serviceConfig['table_reservations'] ?? $legacyFeatures['table_reservations'] ?? false),
+                'scheduled_pickup' => (bool) ($serviceConfig['scheduled_pickup'] ?? $legacyFeatures['scheduled_pickup'] ?? false),
+            ],
         );
 
         $features['reservation_duration_options'] = collect($features['reservation_duration_options'])
@@ -248,6 +298,10 @@ class Restaurant extends Model
 
     public function experimentalOrderFeatureEnabled(string $feature): bool
     {
+        if (in_array($feature, ['delivery', 'takeaway', 'dine_in', 'table_reservations', 'scheduled_pickup'], true)) {
+            return $this->serviceEnabled($feature);
+        }
+
         return (bool) ($this->getExperimentalOrderFeatures()[$feature] ?? false);
     }
 
@@ -272,6 +326,79 @@ class Restaurant extends Model
             self::PLAN_FEATURES[$plan] ?? self::PLAN_FEATURES['starter'],
             true
         );
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function getServiceConfig(): array
+    {
+        $legacyFeatures = $this->experimental_order_features ?? [];
+        $config = array_replace_recursive(
+            self::ORDER_SERVICE_DEFAULTS,
+            [
+                'table_reservations' => (bool) ($legacyFeatures['table_reservations'] ?? false),
+                'scheduled_pickup' => (bool) ($legacyFeatures['scheduled_pickup'] ?? false),
+            ],
+            $this->service_config ?? [],
+        );
+
+        $config['delivery'] = (bool) ($config['delivery'] ?? true);
+        $config['own_delivery_drivers'] = (bool) ($config['own_delivery_drivers'] ?? true);
+        $config['external_delivery'] = (bool) ($config['external_delivery'] ?? false);
+        $config['takeaway'] = (bool) ($config['takeaway'] ?? true);
+        $config['dine_in'] = (bool) ($config['dine_in'] ?? true);
+        $config['table_reservations'] = (bool) ($config['table_reservations'] ?? false);
+        $config['scheduled_pickup'] = (bool) ($config['scheduled_pickup'] ?? false);
+
+        return $config;
+    }
+
+    public function serviceEnabled(string $service): bool
+    {
+        $config = $this->getServiceConfig();
+
+        return (bool) ($config[$service] ?? false);
+    }
+
+    public function serviceDisabled(string $service): bool
+    {
+        return ! $this->serviceEnabled($service);
+    }
+
+    public function diningServiceEnabled(): bool
+    {
+        return $this->serviceEnabled('dine_in');
+    }
+
+    public function ownDeliveryDriversEnabled(): bool
+    {
+        return $this->serviceEnabled('own_delivery_drivers');
+    }
+
+    public function externalDeliveryEnabled(): bool
+    {
+        return $this->serviceEnabled('external_delivery');
+    }
+
+    public function deliveryFulfillmentAvailable(): bool
+    {
+        if (! $this->serviceEnabled('delivery')) {
+            return false;
+        }
+
+        return $this->ownDeliveryDriversEnabled()
+            || ($this->externalDeliveryEnabled() && $this->eligibleDeliveryProviders()->exists());
+    }
+
+    public function reservationsEnabled(): bool
+    {
+        return $this->serviceEnabled('table_reservations');
+    }
+
+    public function scheduledPickupEnabled(): bool
+    {
+        return $this->serviceEnabled('scheduled_pickup');
     }
 
     public function canAcceptOrders(): bool

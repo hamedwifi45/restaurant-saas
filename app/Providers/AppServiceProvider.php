@@ -54,9 +54,35 @@ class AppServiceProvider extends ServiceProvider
         Restaurant::observe(RestaurantObserver::class);
         Order::observe(OrderObserver::class);
         RestaurantThemeSetting::observe(RestaurantThemeSettingObserver::class);
-        Gate::define('access-kds', fn (User $user): bool => in_array($user->role, ['restaurant_admin', 'kitchen_staff'], true)
-            && ($user->restaurant?->hasFeature('kds') ?? false)
-        );
+        Gate::define('access-kds', function (User $user): bool {
+            $restaurant = $user->restaurant;
+            $hostRestaurant = request()->attributes->get('restaurant');
+
+            return $restaurant instanceof Restaurant
+                && $restaurant->is_active
+                && in_array($user->role, ['restaurant_admin', 'kitchen_staff'], true)
+                && $restaurant->hasFeature('kds')
+                && ($hostRestaurant === null
+                    || ($hostRestaurant instanceof Restaurant && (int) $hostRestaurant->id === (int) $restaurant->id));
+        });
+        Gate::define('access-pos', function (User $user, string $slug): bool {
+            if (! $user->is_active
+                || ! $user->restaurant_id
+                || (! $user->isRestaurantAdmin() && $user->role !== 'cashier')) {
+                return false;
+            }
+
+            $hostRestaurant = request()->attributes->get('restaurant');
+            if ($hostRestaurant instanceof Restaurant && (int) $hostRestaurant->id !== (int) $user->restaurant_id) {
+                return false;
+            }
+
+            return Restaurant::query()
+                ->whereKey($user->restaurant_id)
+                ->where('slug', $slug)
+                ->where('is_active', true)
+                ->exists();
+        });
         Gate::define('access-driver-panel', function (User $user, ?string $slug = null): bool {
             $restaurant = $slug
                 ? Restaurant::query()->where('slug', $slug)->first()

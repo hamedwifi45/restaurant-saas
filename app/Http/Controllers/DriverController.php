@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\DriverLocationUpdated;
 use App\Helpers\ThemeHelper;
+use App\Models\DeliveryDispatch;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DriverController extends Controller
@@ -171,14 +173,19 @@ class DriverController extends Controller
             ->latest()
             ->get();
 
-        $availableOrders = Order::query()
-            ->where('restaurant_id', $restaurant->id)
-            ->where('delivery_type', 'delivery')
-            ->whereNull('driver_id')
-            ->where('status', 'ready')
-            ->with(['restaurant', 'items.product'])
-            ->latest()
-            ->get();
+        $availableOrders = $restaurant->serviceEnabled('delivery')
+            && $restaurant->ownDeliveryDriversEnabled()
+            ? Order::query()
+                ->where('restaurant_id', $restaurant->id)
+                ->where('delivery_type', 'delivery')
+                ->whereNull('driver_id')
+                ->where('status', 'ready')
+                ->whereDoesntHave('deliveryDispatches', fn ($dispatches) => $dispatches
+                    ->whereIn('status', DeliveryDispatch::activeStatuses()))
+                ->with(['restaurant', 'items.product'])
+                ->latest()
+                ->get()
+            : collect();
 
         $themePath = ThemeHelper::getThemePath($restaurant);
 
@@ -189,31 +196,59 @@ class DriverController extends Controller
     {
         $driver = $request->user();
         $this->authorizeDriverTenantOrder($request, $slug, $order);
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
 
-        abort_unless(
-            $order->delivery_type === 'delivery'
-                && $order->driver_id === null
-                && $order->status === 'ready',
-            403
-        );
+        $response = DB::transaction(function () use ($driver, $order, $restaurant) {
+            $lockedRestaurant = Restaurant::query()
+                ->whereKey($restaurant->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // التأكد من أن المندوب لا يملك طلباً جارٍ توصيله حالياً
-        $hasActiveOrder = Order::where('driver_id', $driver->id)
-            ->whereIn('status', ['ready', 'on_way'])
-            ->exists();
+            abort_unless(
+                $lockedRestaurant->serviceEnabled('delivery')
+                    && $lockedRestaurant->ownDeliveryDriversEnabled(),
+                403
+            );
 
-        if ($hasActiveOrder) {
-            // إضافة رمز 422 ليتعرف JavaScript على وجود خطأ
-            return response()->json([
-                'message' => 'لديك طلب نشط بالفعل، يجب إكماله وتسليمه أولاً.',
-            ], 422);
+            $lockedOrder = $lockedRestaurant->orders()
+                ->whereKey($order->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                $lockedOrder->delivery_type === 'delivery'
+                    && $lockedOrder->driver_id === null
+                    && $lockedOrder->status === 'ready',
+                403
+            );
+
+            if ($lockedOrder->deliveryDispatches()
+                ->whereIn('status', DeliveryDispatch::activeStatuses())
+                ->exists()) {
+                return response()->json([
+                    'message' => 'تمت إحالة هذا الطلب إلى شركة توصيل، ولا يمكن قبوله كسائق تابع للمطعم.',
+                ], 422);
+            }
+
+            if (Order::where('driver_id', $driver->id)
+                ->whereIn('status', ['ready', 'on_way'])
+                ->exists()) {
+                return response()->json([
+                    'message' => 'لديك طلب نشط بالفعل، يجب إكماله وتسليمه أولاً.',
+                ], 422);
+            }
+
+            $lockedOrder->update([
+                'driver_id' => $driver->id,
+                'status' => 'on_way',
+            ]);
+
+            return null;
+        }, 3);
+
+        if ($response instanceof JsonResponse) {
+            return $response;
         }
-
-        // ربط الطلب بالمندوب وتحويل حالته إلى on_way
-        $order->update([
-            'driver_id' => $driver->id,
-            'status' => 'on_way',
-        ]);
 
         return response()->json([
             'message' => 'تم استلام الطلب بنجاح.',

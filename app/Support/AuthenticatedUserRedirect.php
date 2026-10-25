@@ -20,6 +20,9 @@ class AuthenticatedUserRedirect
             'kitchen_staff' => $user->restaurant
                 ? route('kitchen.display', ['slug' => $user->restaurant->slug])
                 : route('home'),
+            'cashier' => $user->restaurant
+                ? route('pos.index', ['slug' => $user->restaurant->slug])
+                : route('home'),
             'restaurant_admin' => url('/restaurant'),
             'super_admin' => url('/sham'),
             default => route('home'),

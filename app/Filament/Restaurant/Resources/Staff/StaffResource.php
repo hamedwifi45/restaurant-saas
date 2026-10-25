@@ -50,7 +50,7 @@ class StaffResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('restaurant_id', auth()->user()->restaurant_id)
-            ->whereIn('role', ['kitchen_staff', 'driver', 'restaurant_admin']);
+            ->whereIn('role', ['kitchen_staff', 'driver', 'cashier', 'restaurant_admin']);
     }
 
     public static function getPages(): array

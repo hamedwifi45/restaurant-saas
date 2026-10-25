@@ -1040,6 +1040,21 @@
             }
         }
 
+        @media (max-width: 768px) {
+            .kds-header {
+                padding: 0.5rem 0.75rem;
+                gap: 0.75rem;
+            }
+
+            .header-actions {
+                gap: 0.375rem;
+            }
+
+            .column-title {
+                font-size: 0.95rem;
+            }
+        }
+
         @media (max-width: 640px) {
             .kds-header {
                 padding: 0 var(--spacing-md);
@@ -1061,6 +1076,56 @@
 
             .order-id {
                 font-size: var(--font-size-xl);
+            }
+        }
+
+        @media (max-width: 430px) {
+            .kds-column-header {
+                padding: 0.75rem 0.75rem;
+            }
+
+            .column-title {
+                font-size: 0.875rem;
+                gap: 0.375rem;
+            }
+
+            .order-card {
+                border-radius: 0.75rem;
+            }
+
+            .card-header,
+            .order-info,
+            .items-list,
+            .card-actions {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+
+            .action-btn {
+                min-height: 2.4rem;
+                font-size: 0.7rem;
+                padding: 0 0.5rem;
+            }
+
+            .item-note {
+                max-width: 100%;
+                white-space: normal;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .toast-container {
+                left: 0.5rem;
+                right: 0.5rem;
+                max-width: none;
+            }
+
+            .order-availability-control {
+                padding: 0.75rem;
+            }
+
+            .kds-header {
+                gap: 0.5rem;
             }
         }
 
@@ -1278,13 +1343,15 @@
 
     <script>
         const KDS_CONFIG = {
-            apiEndpoint: "{{ route('kitchen.display', $restaurant->id) }}",
+            ordersEndpoint: @js(route('kitchen.orders.index', ['slug' => $restaurant->slug])),
+            acknowledgementEndpoint: @js(route('kitchen.orders.acknowledge', ['slug' => $restaurant->slug])),
+            statusEndpoint: @js(route('kitchen.orders.updateStatusForRestaurant', ['slug' => $restaurant->slug, 'orderId' => '__ORDER__'])),
             websocketUrl: true,
             updateInterval: 10000,
             urgentThreshold: 15,
             restaurantId: {{ $orderCollection->first()->restaurant_id ?? $restaurant->id }},
             csrfToken: "{{ csrf_token() }}",
-            rejectEndpoint: @js(route('kitchen.orders.reject', ['orderId' => '__ORDER__'])),
+            rejectEndpoint: @js(route('kitchen.orders.rejectForRestaurant', ['slug' => $restaurant->slug, 'orderId' => '__ORDER__'])),
             demoMode: false
         };
 
@@ -1495,7 +1562,54 @@
             }
 
             async fetchOrders() {
-                // إمكانية إضافة Re-sync مستقبلاً إن دعت الحاجة
+                try {
+                    const response = await fetch(this.config.ordersEndpoint, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+
+                    if (!response.ok) throw new Error(`Order refresh failed (${response.status})`);
+
+                    const payload = await response.json();
+                    const activeOrders = Array.isArray(payload.data) ? payload.data : payload;
+
+                    if (!Array.isArray(activeOrders)) throw new Error('Order refresh returned an invalid payload');
+
+                    try {
+                        await window.localKdsReceipts.persistAndAcknowledge(
+                            this.config.restaurantId,
+                            activeOrders,
+                            this.config.acknowledgementEndpoint,
+                            this.config.csrfToken,
+                        );
+                    } catch (error) {
+                        console.error('KDS ticket receipt is pending; the server will redeliver it.', error);
+                    }
+
+                    const activeIds = new Set();
+                    activeOrders.forEach(order => {
+                        const orderId = String(order.id);
+                        activeIds.add(orderId);
+
+                        if (this.pendingStatusUpdates.has(orderId)) return;
+
+                        if (!this.orders.has(orderId)) {
+                            this.handleNewOrder(order);
+                        } else {
+                            this.orders.set(orderId, order);
+                        }
+                    });
+
+                    this.orders.forEach((order, orderId) => {
+                        if (!activeIds.has(String(orderId)) && !this.pendingStatusUpdates.has(orderId)) {
+                            this.orders.delete(orderId);
+                        }
+                    });
+
+                    this.renderAllOrders();
+                } catch (error) {
+                    console.error('KDS order refresh failed:', error);
+                }
             }
 
             connectWebSocket() {
@@ -1854,7 +1968,7 @@
                 this.renderAllOrders();
 
                 try {
-                    const response = await fetch(`/kitchen/orders/${targetId}/status`, {
+                    const response = await fetch(this.config.statusEndpoint.replace('__ORDER__', encodeURIComponent(targetId)), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

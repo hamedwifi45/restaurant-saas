@@ -6,9 +6,11 @@ use App\Http\Controllers\DriverController;
 use App\Http\Controllers\DriverRatingController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KdsController;
+use App\Http\Controllers\LocalOrderIntakeController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderPushSubscriptionController;
+use App\Http\Controllers\PosReceiptController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\Restaurant\ThemeSettingsController;
 use App\Http\Controllers\RestaurantController;
@@ -17,6 +19,9 @@ use App\Http\Controllers\RestaurantOrderAvailabilityController;
 use App\Http\Controllers\RestaurantTableController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Middleware\EnsureLocalRestaurantPairing;
+use App\Models\Restaurant;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +43,41 @@ Route::middleware(['auth'])->group(function () {
 
     Route::redirect('/dashboard', '/')->name('dashboard');
 
+    Route::get('/{slug}/pos', function (string $slug) {
+        Gate::authorize('access-pos', $slug);
+        $restaurant = Restaurant::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        return view('pos.index', [
+            'restaurant' => $restaurant,
+            'pageTitle' => 'نقطة البيع',
+        ]);
+    })->middleware(EnsureLocalRestaurantPairing::class)->name('pos.index');
+
+    Route::get('/{slug}/pos/orders/{trackingCode}/receipt', [PosReceiptController::class, 'show'])
+        ->middleware(EnsureLocalRestaurantPairing::class)
+        ->name('pos.receipt');
+
+    Route::get('/pos/{slug}', function (string $slug) {
+        Gate::authorize('access-pos', $slug);
+
+        return redirect()->route('pos.index', ['slug' => $slug]);
+    })->name('pos.legacy');
+
+    Route::get('/pos/{slug}/orders/{trackingCode}/receipt', function (
+        string $slug,
+        string $trackingCode,
+    ) {
+        Gate::authorize('access-pos', $slug);
+
+        return redirect()->route('pos.receipt', [
+            'slug' => $slug,
+            'trackingCode' => $trackingCode,
+        ]);
+    })->name('pos.receipt.legacy');
+
     // إدارة الثيمات (Themes)
     Route::middleware('can:access-theme-editor')->group(function () {
         Route::get('themes/{theme}/preview', [ThemeController::class, 'preview'])->name('themes.preview');
@@ -47,10 +87,44 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('themes', ThemeController::class);
     });
 
-    // واجهة المطبخ (KDS)
-    Route::redirect('/{slug}/kds', '/kitchen/{slug}/display')->middleware('can:access-kds');
+    // Local restaurant paths are slug-first; tenant-host routes are deferred.
+    Route::get('/{slug}/kds', [KdsController::class, 'index'])
+        ->middleware('can:access-kds')
+        ->middleware(EnsureLocalRestaurantPairing::class)
+        ->name('kitchen.display');
+    Route::get('/{slug}/kds/orders', [KdsController::class, 'orders'])
+        ->middleware('can:access-kds')
+        ->middleware(EnsureLocalRestaurantPairing::class)
+        ->name('kitchen.orders.index');
+    Route::post('/{slug}/kds/orders/acknowledgements', [KdsController::class, 'acknowledgeOrders'])
+        ->middleware(['can:access-kds', EnsureLocalRestaurantPairing::class, 'throttle:120,1'])
+        ->name('kitchen.orders.acknowledge');
+    Route::post('/{slug}/kds/orders/{orderId}/status', [KdsController::class, 'updateStatusForRestaurant'])
+        ->middleware('can:access-kds')
+        ->middleware(EnsureLocalRestaurantPairing::class)
+        ->name('kitchen.orders.updateStatusForRestaurant');
+    Route::post('/{slug}/kds/orders/{orderId}/reject', [KdsController::class, 'rejectOrderForRestaurant'])
+        ->middleware('can:access-kds')
+        ->middleware(EnsureLocalRestaurantPairing::class)
+        ->name('kitchen.orders.rejectForRestaurant');
+
+    Route::post('/api/local/{slug}/orders', [LocalOrderIntakeController::class, 'store'])
+        ->middleware([EnsureLocalRestaurantPairing::class, 'throttle:60,1'])
+        ->name('local.orders.store');
     Route::prefix('kitchen')->name('kitchen.')->middleware('can:access-kds')->group(function () {
-        Route::get('/{slug}/display', [KdsController::class, 'index'])->name('display');
+        Route::get('/{slug}/display', function (string $slug) {
+            Gate::authorize('access-kds');
+            abort_unless(
+                Restaurant::query()
+                    ->where('slug', $slug)
+                    ->whereKey(auth()->user()->restaurant_id)
+                    ->where('is_active', true)
+                    ->exists(),
+                404,
+            );
+
+            return redirect()->route('kitchen.display', ['slug' => $slug]);
+        })->name('legacy-display');
         Route::post('/orders/{orderId}/status', [KdsController::class, 'updateStatus'])->name('orders.updateStatus');
         Route::post('/orders/{orderId}/reject', [KdsController::class, 'rejectOrder'])->name('orders.reject');
     });
@@ -89,6 +163,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
+
 Route::get('{slug}/driver/orders/{order:tracking_code}/tracking', [DriverController::class, 'tracking'])->name('driver.order.tracking');
 
 /*

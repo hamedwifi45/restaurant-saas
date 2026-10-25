@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 
 class Product extends Model
 {
+    /** @use HasFactory<ProductFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -38,23 +41,35 @@ class Product extends Model
         'max_price' => 'decimal:2',
     ];
 
-    public function restaurant()
+    /**
+     * @return BelongsTo<Restaurant, $this>
+     */
+    public function restaurant(): BelongsTo
     {
         return $this->belongsTo(Restaurant::class);
     }
 
-    public function category()
+    /**
+     * @return BelongsTo<Category, $this>
+     */
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
     // صور المنتج (علاقة متعددة)
+    /**
+     * @return MorphMany<Image, $this>
+     */
     public function images(): MorphMany
     {
         return $this->morphMany(Image::class, 'imageable')->orderBy('sort_order');
     }
 
     // الصورة الرئيسية
+    /**
+     * @return MorphOne<Image, $this>
+     */
     public function primaryImage(): MorphOne
     {
         return $this->morphOne(Image::class, 'imageable')->where('is_primary', true);

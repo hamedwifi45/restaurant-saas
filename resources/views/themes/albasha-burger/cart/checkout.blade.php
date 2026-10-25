@@ -20,7 +20,7 @@
             currency: config.currency || 'ل.س',
             isDineIn: Boolean(config.isDineIn),
             isRestaurantTableOrder: Boolean(config.isRestaurantTableOrder),
-            deliveryType: config.deliveryType || 'delivery',
+            deliveryType: config.deliveryType || (config.deliveryEnabled ? 'delivery' : ''),
             depositPercentage: Number(config.depositPercentage || 0),
 
             // استرجاع البيانات المحفوظة من localStorage تلقائياً مع فحصها
@@ -244,7 +244,7 @@
                 this.distance = null;
                 this.extraKilometers = 0;
 
-                if (this.isDineIn || this.deliveryType === 'takeaway') {
+                if (!config.deliveryEnabled || this.isDineIn || this.deliveryType === 'takeaway') {
                     this.deliveryFee = 0;
                     console.log('🏷️ [TEST-RECALC] Mode is Dine-In or Takeaway. Delivery fee set to 0.');
                 } else if (!this.restaurantHasLocation) {
@@ -336,6 +336,7 @@
     isDineIn: @js((bool) $table),
     isRestaurantTableOrder: @js((bool) $table),
     deliveryType: @js($initialDeliveryType),
+    deliveryEnabled: @js($deliveryEnabled),
     depositPercentage: @js($depositPercentage)
 })" data-restaurant-latitude="{{ $restaurantLatitude }}" data-restaurant-longitude="{{ $restaurantLongitude }}">
     <div class="mx-auto max-w-5xl px-4 py-8">
@@ -349,6 +350,7 @@
 
         <form action="{{ route('checkout.store', $restaurant->slug) }}" method="POST" enctype="multipart/form-data" id="checkout-form" class="space-y-6" @submit="validateSubmission($event)">
             @csrf
+            <input type="hidden" name="checkout_token" value="{{ $checkoutToken }}">
             @if(!$table)
                 <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
                     <div class="mb-5 flex items-center gap-3">
@@ -359,14 +361,16 @@
                         </div>
                     </div>
                     <input type="hidden" name="delivery_type" :value="deliveryType">
-                    <div class="grid grid-cols-1 gap-3 {{ $supportsTableReservations || $supportsScheduledPickup ? 'sm:grid-cols-3' : 'sm:grid-cols-1' }}">
-                        <label class="cursor-pointer rounded-2xl border-2 p-4 transition" :class="deliveryType === 'delivery' ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-100' : 'border-gray-200 hover:border-orange-200'">
-                            <input type="radio" value="delivery" x-model="deliveryType" @change="setDeliveryType('delivery')" class="sr-only">
-                            <span class="flex items-center gap-3">
-                                <i class="fa-solid fa-motorcycle text-xl text-primary" aria-hidden="true"></i>
-                                <span><strong class="block text-gray-900">توصيل للمنزل</strong><small class="text-gray-500">يصلك الطلب إلى عنوانك</small></span>
-                            </span>
-                        </label>
+                    <div class="grid grid-cols-1 gap-3 {{ ($supportsTableReservations && $supportsScheduledPickup) || ($deliveryEnabled && ($supportsTableReservations || $supportsScheduledPickup)) ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }}">
+                        @if($deliveryEnabled)
+                            <label class="cursor-pointer rounded-2xl border-2 p-4 transition" :class="deliveryType === 'delivery' ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-100' : 'border-gray-200 hover:border-orange-200'">
+                                <input type="radio" value="delivery" x-model="deliveryType" @change="setDeliveryType('delivery')" class="sr-only">
+                                <span class="flex items-center gap-3">
+                                    <i class="fa-solid fa-motorcycle text-xl text-primary" aria-hidden="true"></i>
+                                    <span><strong class="block text-gray-900">توصيل للمنزل</strong><small class="text-gray-500">يصلك الطلب إلى عنوانك</small></span>
+                                </span>
+                            </label>
+                        @endif
                         @if($supportsTableReservations)
                             <label class="cursor-pointer rounded-2xl border-2 p-4 transition" :class="deliveryType === 'dine_in' ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-100' : 'border-gray-200 hover:border-orange-200'">
                                 <input type="radio" value="dine_in" x-model="deliveryType" @change="setDeliveryType('dine_in')" class="sr-only">
@@ -384,6 +388,9 @@
                                     <span><strong class="block text-gray-900">استلام من المطعم</strong><small class="text-gray-500">حدد وقت استلام طلبك</small></span>
                                 </span>
                             </label>
+                        @endif
+                        @if(! $deliveryEnabled && ! $supportsTableReservations && ! $supportsScheduledPickup)
+                            <p class="text-sm text-gray-600">لا توجد خدمة طلب متاحة حالياً لهذا المطعم.</p>
                         @endif
                     </div>
                 </section>
@@ -404,7 +411,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
-                        <input type="tel" name="phone" id="customer-phone" value="{{ old('phone') }}" x-model="customerPhone" @input="persistCustomer()" required pattern="(09|\+?9639)\d{8}" title="أدخل رقم هاتف سوري يبدأ بـ 09 أو 9639" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <input type="tel" name="phone" id="customer-phone" value="{{ old('phone') }}" x-model="customerPhone" @input="persistCustomer()" required maxlength="20" pattern="\s*(09[0-9]{8}|\+?[1-9][0-9]{7,14})\s*" title="أدخل رقماً محلياً مثل 09xxxxxxxx أو دولياً مثل +963930123456" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     @if(!$table)<div x-show="deliveryType === 'delivery'" x-cloak>
                         <label class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل</label>

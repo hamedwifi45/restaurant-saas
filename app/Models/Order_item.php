@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\Order_itemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order_item extends Model
 {
+    /** @use HasFactory<Order_itemFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -16,15 +19,22 @@ class Order_item extends Model
         'quantity',
         'price',
         'variant_name',
+        'notes',
         'total',
     ];
 
-    public function order()
+    /**
+     * @return BelongsTo<Order, $this>
+     */
+    public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
-    public function product()
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class)->withTrashed(); // جلب المنتج حتى لو كان محذوفاً
     }
@@ -39,7 +49,7 @@ class Order_item extends Model
         return filled($variantName) ? $productName.' ('.$variantName.')' : $productName;
     }
 
-    public function getQtyAttribute()
+    public function getQtyAttribute(): int
     {
         return $this->attributes['quantity'] ?? 1;
     }

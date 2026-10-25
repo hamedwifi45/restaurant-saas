@@ -27,7 +27,7 @@ class ThemeUploadService
         'woff',
         'woff2',
         'ttf',
-        'eot'
+        'eot',
     ];
 
     // 🛡️ الدوال البرمجية الممنوع ظهورها داخل ملفات Blade لمنع الـ Remote Code Execution
@@ -43,7 +43,7 @@ class ThemeUploadService
         'phpinfo',
         'assert',
         'preg_replace',
-        'unserialize'
+        'unserialize',
     ];
 
     protected array $requiredFiles = [
@@ -55,7 +55,6 @@ class ThemeUploadService
         'pages/menu.blade.php',
         'pages/product.blade.php',
         'pages/offers.blade.php',
-        'pages/kds-board.blade.php',
 
         // السلة والشراء
         'cart/cart.blade.php',
@@ -77,6 +76,12 @@ class ThemeUploadService
         'driver/tracking.blade.php',
     ];
 
+    protected array $optionalFiles = [
+        'pages/kds-board.blade.php',
+        'pages/pos.blade.php',
+        'orders/pos-receipt.blade.php',
+    ];
+
     public function __construct()
     {
         $this->themesPath = resource_path('views/themes');
@@ -95,7 +100,7 @@ class ThemeUploadService
             return ['success' => false, 'message' => 'تنبيه أمني: نوع الملف غير صالح أو تم التلاعب به.'];
         }
 
-        $tempDir = storage_path('app/temp/themes/' . Str::random(32));
+        $tempDir = storage_path('app/temp/themes/'.Str::random(32));
         File::ensureDirectoryExists($tempDir);
 
         try {
@@ -109,7 +114,8 @@ class ThemeUploadService
             $securityCheck = $this->inspectZipArchive($zip);
             if (! $securityCheck['safe']) {
                 $zip->close();
-                $message = "رفض أمني حاسم - تم اكتشاف المشاكل التالية في الملف المضغوط:<br>• " . implode('<br>• ', $securityCheck['errors']);
+                $message = 'رفض أمني حاسم - تم اكتشاف المشاكل التالية في الملف المضغوط:<br>• '.implode('<br>• ', $securityCheck['errors']);
+
                 return ['success' => false, 'message' => $message];
             }
 
@@ -117,16 +123,16 @@ class ThemeUploadService
             $zip->extractTo($tempDir);
             $zip->close();
 
-            // 🛡️ 3. المسح الجنائي للملفات المستخرجة (File Integrity & Malware Scanner)
-            $scanResult = $this->scanExtractedFiles($tempDir);
-            if (! $scanResult['safe']) {
-                return ['success' => false, 'message' => $scanResult['message']];
-            }
-
             $themeDir = $this->findThemeDirectory($tempDir);
 
             if (! $themeDir) {
                 return ['success' => false, 'message' => 'لم يتم العثور على ملف theme.json داخل الـ ZIP.'];
+            }
+
+            // 🛡️ 3. المسح الجنائي للملفات المستخرجة (File Integrity & Malware Scanner)
+            $scanResult = $this->scanExtractedFiles($themeDir);
+            if (! $scanResult['safe']) {
+                return ['success' => false, 'message' => $scanResult['message']];
             }
 
             $themeJson = $this->readThemeJson($themeDir);
@@ -147,17 +153,17 @@ class ThemeUploadService
             // التحقق من وجود الملفات المطلوبة
             $missingFiles = [];
             foreach ($this->requiredFiles as $requiredFile) {
-                if (! File::exists($themeDir . '/' . $requiredFile)) {
+                if (! File::exists($themeDir.'/'.$requiredFile)) {
                     $missingFiles[] = $requiredFile;
                 }
             }
 
             if ($missingFiles !== []) {
-                return ['success' => false, 'message' => 'الملفات التالية مفقودة من الثيم:<br>• ' . implode('<br>• ', $missingFiles)];
+                return ['success' => false, 'message' => 'الملفات التالية مفقودة من الثيم:<br>• '.implode('<br>• ', $missingFiles)];
             }
 
             $folderName = $this->resolveFolderName($customFolderName ?? $themeJson['slug'] ?? Str::slug($themeJson['name']));
-            $targetDir = $this->themesPath . '/' . $folderName;
+            $targetDir = $this->themesPath.'/'.$folderName;
 
             if (File::isDirectory($targetDir)) {
                 return ['success' => false, 'message' => "يوجد ثيم بالفعل بالمجلد '{$folderName}'."];
@@ -191,7 +197,7 @@ class ThemeUploadService
         } catch (\Throwable $e) {
             return [
                 'success' => false,
-                'message' => 'حدث خطأ أمني أثناء رفع الثيم: ' . $e->getMessage(),
+                'message' => 'حدث خطأ أمني أثناء رفع الثيم: '.$e->getMessage(),
             ];
         } finally {
             // تدمير المجلد المؤقت دائماً لمنع بقاء أي مخلفات
@@ -259,6 +265,10 @@ class ThemeUploadService
         );
 
         $errors = [];
+        $allowedBladeFiles = array_fill_keys(
+            array_merge($this->requiredFiles, $this->optionalFiles),
+            true,
+        );
 
         foreach ($iterator as $file) {
             if ($file->isDir()) {
@@ -284,6 +294,10 @@ class ThemeUploadService
 
             // ب) فحص محتوى ملفات Blade لمنع تنفيذ أكواد PHP المباشرة
             if ($isBlade) {
+                if (! isset($allowedBladeFiles[$relativePath])) {
+                    $errors[] = "الملف ({$relativePath}) ليس من قوالب العرض المعتمدة.";
+                }
+
                 $content = File::get($pathname);
 
                 // 1. حظر الوسوم العادية PHP <?php أو <?= أو @php
@@ -293,7 +307,7 @@ class ThemeUploadService
 
                 // 2. فحص وجود دالّات خطيرة حتى داخل أكواد Blade
                 foreach ($this->forbiddenPhpFunctions as $forbiddenFunc) {
-                    if (preg_match('/\b' . $forbiddenFunc . '\s*\(/i', $content)) {
+                    if (preg_match('/\b'.$forbiddenFunc.'\s*\(/i', $content)) {
                         $errors[] = "تم اكتشاف استدعاء لدالة برمجية خطيرة ({$forbiddenFunc}) داخل الملف ({$relativePath}).";
                     }
                 }
@@ -304,7 +318,7 @@ class ThemeUploadService
             return [
                 'safe' => false,
                 'errors' => $errors,
-                'message' => "رفض أمني حاسم - تم اكتشاف الأخطاء التالية في ملفات الثيم:<br>• " . implode('<br>• ', $errors)
+                'message' => 'رفض أمني حاسم - تم اكتشاف الأخطاء التالية في ملفات الثيم:<br>• '.implode('<br>• ', $errors),
             ];
         }
 
@@ -313,7 +327,7 @@ class ThemeUploadService
 
     protected function findThemeDirectory(string $tempDir): ?string
     {
-        if (File::exists($tempDir . '/theme.json')) {
+        if (File::exists($tempDir.'/theme.json')) {
             return $tempDir;
         }
 
@@ -333,7 +347,7 @@ class ThemeUploadService
 
     protected function readThemeJson(string $themeDir): ?array
     {
-        $path = $themeDir . '/theme.json';
+        $path = $themeDir.'/theme.json';
 
         if (! File::exists($path)) {
             return null;
@@ -358,15 +372,15 @@ class ThemeUploadService
 
     public function cloneTheme(Theme $theme, ?string $customName = null): array
     {
-        $sourceDir = $this->themesPath . '/' . $theme->folder_name;
+        $sourceDir = $this->themesPath.'/'.$theme->folder_name;
 
         if (! File::isDirectory($sourceDir)) {
             return ['success' => false, 'message' => 'مجلد الثيم الأصلي غير موجود.'];
         }
 
-        $newName = trim((string) ($customName ?: $theme->name . ' نسخة'));
-        $folderName = $this->resolveFolderName($newName === '' ? $theme->folder_name . '-copy' : $newName);
-        $targetDir = $this->themesPath . '/' . $folderName;
+        $newName = trim((string) ($customName ?: $theme->name.' نسخة'));
+        $folderName = $this->resolveFolderName($newName === '' ? $theme->folder_name.'-copy' : $newName);
+        $targetDir = $this->themesPath.'/'.$folderName;
 
         if (File::isDirectory($targetDir)) {
             return ['success' => false, 'message' => 'يوجد بالفعل ثيم بنفس الاسم.'];
@@ -374,7 +388,7 @@ class ThemeUploadService
 
         File::copyDirectory($sourceDir, $targetDir);
 
-        $jsonPath = $targetDir . '/theme.json';
+        $jsonPath = $targetDir.'/theme.json';
         if (File::exists($jsonPath)) {
             $jsonContent = json_decode(File::get($jsonPath), true) ?? [];
             $jsonContent['name'] = $newName;
@@ -403,7 +417,7 @@ class ThemeUploadService
 
     public function delete(Theme $theme): array
     {
-        $themeDir = $this->themesPath . '/' . $theme->folder_name;
+        $themeDir = $this->themesPath.'/'.$theme->folder_name;
 
         if (File::isDirectory($themeDir)) {
             File::deleteDirectory($themeDir);
@@ -416,7 +430,7 @@ class ThemeUploadService
 
     public function exists(string $folderName): bool
     {
-        return File::isDirectory($this->themesPath . '/' . $folderName)
-            && File::exists($this->themesPath . '/' . $folderName . '/theme.json');
+        return File::isDirectory($this->themesPath.'/'.$folderName)
+            && File::exists($this->themesPath.'/'.$folderName.'/theme.json');
     }
 }

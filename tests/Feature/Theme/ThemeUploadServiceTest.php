@@ -39,6 +39,8 @@ class ThemeUploadServiceTest extends TestCase
             'pages/product.blade.php' => '<div>Product</div>',
             'pages/offers.blade.php' => '<div>Offers</div>',
             'pages/kds-board.blade.php' => '<div>KDS board</div>',
+            'pages/pos.blade.php' => '<div>POS presentation</div>',
+            'orders/pos-receipt.blade.php' => '<div>POS receipt presentation</div>',
             'cart/cart.blade.php' => '<div>Cart</div>',
             'cart/checkout.blade.php' => '<div>Checkout</div>',
             'cart/success.blade.php' => '<div>Success</div>',

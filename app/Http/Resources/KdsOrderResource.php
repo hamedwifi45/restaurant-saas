@@ -17,6 +17,8 @@ class KdsOrderResource extends JsonResource
         return [
             'id' => $this->tracking_code ?? $this->id, // استخدام ORD-POMXZW أو المعرف
             'db_id' => $this->id,
+            'client_order_uuid' => $this->checkout_token,
+            'delivery_acknowledged' => $this->kdsReceipt !== null,
             'type' => $this->delivery_type === 'dine_in' ? 'dine-in' : $this->delivery_type,
             'table_number' => $this->restaurantTable?->number,
             'dine_in_arrival_at' => $this->dine_in_arrival_at?->toIso8601String(),
@@ -41,6 +43,7 @@ class KdsOrderResource extends JsonResource
                 return [
                     'name' => $item->name,
                     'variant_name' => $item->variant_name,
+                    'notes' => $item->notes ?? '',
                     'qty' => $item->quantity,
                     'unit_price' => (float) $item->price,
                     'total' => (float) $item->total,

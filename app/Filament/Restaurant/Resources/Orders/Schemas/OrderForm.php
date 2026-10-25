@@ -29,6 +29,8 @@ class OrderForm
                     ->required(),
                 Select::make('driver_id')
                     ->label('مندوب التوصيل')
+                    ->visible(fn (): bool => auth()->user()?->restaurant?->serviceEnabled('delivery')
+                        && auth()->user()?->restaurant?->ownDeliveryDriversEnabled())
                     ->options(fn (): array => User::query()
                         ->where('role', 'driver')
                         ->where('restaurant_id', auth()->user()->restaurant_id)

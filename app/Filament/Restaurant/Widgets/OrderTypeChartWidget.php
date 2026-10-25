@@ -2,13 +2,17 @@
 
 namespace App\Filament\Restaurant\Widgets;
 
-use App\Models\Order;
+use App\Services\FinancialAnalyticsService;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 class OrderTypeChartWidget extends ChartWidget
 {
-    protected ?string $heading = 'المبيعات حسب نوع الطلب';
+    use InteractsWithPageFilters;
+
+    protected ?string $heading = 'قيمة الطلبات ذات الدفع المؤكد حسب النوع';
 
     protected int|string|array $columnSpan = 1;
 
@@ -17,36 +21,43 @@ class OrderTypeChartWidget extends ChartWidget
         return 'doughnut';
     }
 
+    public function getDescription(): HtmlString
+    {
+        $analytics = app(FinancialAnalyticsService::class);
+        $period = $analytics->period($this->pageFilters);
+        $url = e($analytics->ordersReportUrl($period, ['verified_sales' => true]));
+
+        return new HtmlString('<a class="text-primary-600 underline dark:text-primary-400" href="'.$url.'">عرض الطلبات المندرجة ضمن هذا التقرير</a>');
+    }
+
     protected function getData(): array
     {
-        $restaurantId = Auth::user()?->restaurant_id;
+        $restaurant = Auth::user()?->restaurant;
 
-        if (! $restaurantId) {
+        if (! $restaurant) {
             return [
-                'datasets' => [['label' => 'المبيعات', 'data' => [0, 0]]],
-                'labels' => ['التوصيل', 'طلبات الطاولات'],
+                'datasets' => [['label' => 'قيمة الطلبات', 'data' => [0, 0, 0]]],
+                'labels' => ['التوصيل', 'الاستلام', 'داخل المطعم'],
             ];
         }
 
-        $revenueByType = Order::query()
-            ->where('restaurant_id', $restaurantId)
-            ->where('payment_status', 'verified')
-            ->where('status', '!=', 'cancelled')
-            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->whereIn('delivery_type', ['delivery', 'dine_in'])
-            ->selectRaw('delivery_type, SUM(final_amount) as revenue')
+        $period = app(FinancialAnalyticsService::class)->period($this->pageFilters);
+        $revenueByType = app(FinancialAnalyticsService::class)->ordersForPeriod($restaurant, $period)
+            ->whereIn('delivery_type', ['delivery', 'takeaway', 'dine_in'])
+            ->selectRaw('delivery_type, SUM(final_amount) as order_value')
             ->groupBy('delivery_type')
-            ->pluck('revenue', 'delivery_type');
+            ->pluck('order_value', 'delivery_type');
 
         return [
             'datasets' => [[
-                'label' => 'المبيعات',
+                'label' => 'قيمة الطلبات',
                 'data' => [
                     (float) ($revenueByType['delivery'] ?? 0),
+                    (float) ($revenueByType['takeaway'] ?? 0),
                     (float) ($revenueByType['dine_in'] ?? 0),
                 ],
             ]],
-            'labels' => ['التوصيل', 'طلبات الطاولات'],
+            'labels' => ['التوصيل', 'الاستلام', 'داخل المطعم'],
         ];
     }
 

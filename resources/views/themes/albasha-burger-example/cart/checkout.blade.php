@@ -183,6 +183,7 @@
 
         <form action="{{ route('checkout.store', $restaurant->slug) }}" method="POST" id="checkout-form" class="bg-white p-8 rounded-2xl shadow-lg" @submit="validateSubmission($event)">
             @csrf
+            <input type="hidden" name="checkout_token" value="{{ $checkoutToken }}">
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <!-- بيانات العميل -->
@@ -197,7 +198,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف <span class="text-red-500">*</span></label>
-                        <input type="tel" name="phone" id="customer-phone" value="{{ old('phone') }}" x-model="customerPhone" @input="persistCustomer()" required pattern="(09|\+?9639)\d{8}" title="أدخل رقم هاتف سوري يبدأ بـ 09 أو 9639" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                        <input type="tel" name="phone" id="customer-phone" value="{{ old('phone') }}" x-model="customerPhone" @input="persistCustomer()" required maxlength="20" pattern="\s*(09[0-9]{8}|\+?[1-9][0-9]{7,14})\s*" title="أدخل رقماً محلياً مثل 09xxxxxxxx أو دولياً مثل +963930123456" inputmode="tel" autocomplete="tel" class="w-full border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
                     </div>
                     @if(!$table)<div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل</label>

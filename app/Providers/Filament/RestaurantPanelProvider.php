@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Restaurant\Pages\FinancialAnalytics;
 use App\Filament\Restaurant\Pages\RestaurantDashboard;
+use App\Filament\Restaurant\Pages\RestaurantDeliverySettings;
 use App\Filament\Restaurant\Pages\RestaurantOrderExperiments;
 use App\Filament\Restaurant\Pages\RestaurantProfileSettings;
 use App\Filament\Restaurant\Pages\RestaurantReservations;
@@ -73,6 +74,15 @@ class RestaurantPanelProvider extends PanelProvider
                 NavigationGroup::make('التقارير والمالية')->icon('heroicon-o-chart-bar-square'),
             ])
             ->navigationItems([
+                NavigationItem::make('نقطة البيع')
+                    ->group('التشغيل')
+                    ->icon('heroicon-o-shopping-bag')
+                    ->sort(1)
+                    ->url(fn (): ?string => ($restaurant = auth('web')->user()?->restaurant)
+                        ? route('pos.index', ['slug' => $restaurant->slug])
+                        : null)
+                    ->visible(fn (): bool => (bool) auth('web')->user()?->isRestaurantAdmin()
+                        && filled(auth('web')->user()?->restaurant_id)),
                 NavigationItem::make('لوحة التوصيل والمندوبين')
                     ->group('التشغيل')
                     ->icon('heroicon-o-map')
@@ -104,6 +114,7 @@ class RestaurantPanelProvider extends PanelProvider
                 FinancialAnalytics::class,
                 RestaurantProfileSettings::class,
                 RestaurantOrderExperiments::class,
+                RestaurantDeliverySettings::class,
                 RestaurantReservations::class,
                 RestaurantThemeSettings::class,
                 StopImpersonation::class,

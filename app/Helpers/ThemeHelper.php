@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use App\Models\Restaurant;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 
 class ThemeHelper
 {
@@ -14,7 +15,9 @@ class ThemeHelper
     {
         $folderName = $restaurant->theme?->folder_name;
 
-        return $folderName && is_dir(resource_path("views/themes/{$folderName}"))
+        return is_string($folderName)
+            && preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', $folderName) === 1
+            && is_dir(resource_path("views/themes/{$folderName}"))
             ? $folderName
             : 'albasha-burger';
     }
@@ -27,6 +30,18 @@ class ThemeHelper
         $themePath = self::getThemePath($restaurant);
 
         return "themes.{$themePath}.{$viewName}";
+    }
+
+    public static function viewOrFallback(Restaurant $restaurant, string $viewName, string $fallbackView): string
+    {
+        $themeView = self::view($restaurant, $viewName);
+
+        return View::exists($themeView) ? $themeView : $fallbackView;
+    }
+
+    public static function layoutView(Restaurant $restaurant): string
+    {
+        return self::viewOrFallback($restaurant, 'layout', 'themes.albasha-burger.layout');
     }
 
     /**

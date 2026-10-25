@@ -36,6 +36,7 @@ class StaffForm
                 ->options([
                     'kitchen_staff' => 'طباخ / كادر المطبخ (KDS)',
                     'driver' => 'مندوب توصيل',
+                    'cashier' => 'كاشير (نقطة البيع)',
                     'restaurant_admin' => 'مدير فرعي',
                 ])
                 ->required(),

@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Restaurant;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class RestaurantDashboardService
@@ -17,13 +16,10 @@ class RestaurantDashboardService
             return $this->emptyDashboard();
         }
 
-        $orders = $restaurant->orders();
+        $orders = $restaurant->orders()->whereNull('deleted_at');
         $todayOrders = (clone $orders)->whereDate('created_at', today());
-        $salesEligibleToday = (clone $todayOrders)->where(function (Builder $query): void {
-            $query->where('deposit_amount', '<=', 0)
-                ->orWhere('payment_status', 'verified');
-        });
-        $salesToday = (float) (clone $salesEligibleToday)->sum('total_amount');
+        $salesEligibleToday = (clone $todayOrders)->verifiedNonCancelled();
+        $salesToday = (float) (clone $salesEligibleToday)->sum('final_amount');
         $todayOrderCount = (clone $salesEligibleToday)->count();
 
         return [
@@ -31,7 +27,11 @@ class RestaurantDashboardService
             'summary' => [
                 'sales_today' => $salesToday,
                 'active_orders' => (clone $orders)->whereIn('status', ['pending', 'confirmed', 'preparing', 'ready'])->count(),
-                'customers_today' => (int) (clone $todayOrders)->whereNotNull('customer_phone')->distinct()->count('customer_phone'),
+                'customers_today' => (int) (clone $todayOrders)
+                    ->where('status', '!=', 'cancelled')
+                    ->whereNotNull('customer_phone')
+                    ->distinct()
+                    ->count('customer_phone'),
                 'average_order' => $todayOrderCount > 0 ? $salesToday / $todayOrderCount : 0,
             ],
             'recent_orders' => $this->recentOrders($orders->withCount('items')->latest()->take(6)->get()),
@@ -50,7 +50,7 @@ class RestaurantDashboardService
                 default => 'توصيل',
             },
             'items' => (int) $order->items_count,
-            'total' => (float) ($order->total_amount ?? 0),
+            'total' => (float) ($order->final_amount ?? 0),
             'status' => $order->status,
             'time' => $order->created_at?->diffForHumans() ?? 'غير معروف',
         ])->all();

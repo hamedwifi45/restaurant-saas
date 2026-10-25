@@ -5,13 +5,39 @@ namespace App\Observers;
 use App\Events\OrderCreated;
 use App\Events\OrderStatusUpdated;
 use App\Events\ReservationUpdated;
+use App\Models\DeliveryDispatch;
 use App\Models\Order;
 use App\Notifications\DriverAssignedNotification;
 use App\Notifications\OrderStatusUpdatedNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OrderObserver
 {
+    public function updating(Order $order): void
+    {
+        if (! $order->isDirty('driver_id') || blank($order->driver_id)) {
+            return;
+        }
+
+        if (
+            ! $order->restaurant?->serviceEnabled('delivery')
+            || ! $order->restaurant?->ownDeliveryDriversEnabled()
+        ) {
+            throw ValidationException::withMessages([
+                'driver_id' => 'خدمة سائقي المطعم غير مفعّلة لهذا المطعم.',
+            ]);
+        }
+
+        if ($order->deliveryDispatches()
+            ->whereIn('status', DeliveryDispatch::activeStatuses())
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'driver_id' => 'لا يمكن تعيين سائق مطعم أثناء وجود إحالة توصيل نشطة.',
+            ]);
+        }
+    }
+
     public function created(Order $order): void
     {
         if ($order->delivery_type === 'dine_in') {

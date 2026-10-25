@@ -295,6 +295,8 @@ test('dashboard API derives tenant statistics only from the authenticated sessio
         'restaurant_id' => $restaurantA->id,
         'customer_name' => 'Tenant A Customer',
         'total_amount' => 125,
+        'final_amount' => 125,
+        'payment_status' => 'verified',
         'created_at' => now(),
     ]);
     Order::factory()->create([
@@ -372,7 +374,7 @@ test('kitchen staff cannot view or update another restaurants orders through KDS
 
     $this->post(route('kitchen.orders.updateStatus', $foreignOrder->tracking_code), [
         'status' => 'preparing',
-    ])->assertForbidden();
+    ])->assertNotFound();
 
     expect($foreignOrder->fresh()->status)->toBe('pending');
 });

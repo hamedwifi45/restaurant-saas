@@ -24,7 +24,12 @@ class RestaurantForm
                     ->schema([
                         TextInput::make('name')->label('اسم المطعم')->required()->maxLength(255),
                         TextInput::make('slug')->label('الرابط المختصر')->required()->unique(ignoreRecord: true)->maxLength(255),
-                        TextInput::make('subdomain')->label('النطاق الفرعي')->nullable()->unique(ignoreRecord: true)->maxLength(255),
+                        TextInput::make('subdomain')
+                            ->label('النطاق الفرعي')
+                            ->nullable()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(63)
+                            ->rules(['regex:/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/']),
                         Select::make('plan')->label('الباقة')->options(['starter' => 'Starter', 'pro' => 'Pro'])->required()->default('starter'),
                         Textarea::make('description')->label('الوصف')->columnSpanFull(),
                         Select::make('theme_id')->label('التصميم')->relationship('theme', 'name')->required()->searchable(),

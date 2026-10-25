@@ -42,10 +42,10 @@
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach([
-            ['label' => 'مبيعات اليوم', 'value' => $formatMoney($summary['sales_today'] ?? 0), 'hint' => 'إجمالي الطلبات المسجلة اليوم', 'color' => 'orange', 'icon' => 'ل.س'],
+            ['label' => 'مبيعات اليوم', 'value' => $formatMoney($summary['sales_today'] ?? 0), 'hint' => 'قيمة الطلبات المدفوعة غير الملغاة، بعد الخصم وتشمل الضريبة والتوصيل', 'color' => 'orange', 'icon' => 'ل.س'],
             ['label' => 'طلبات قيد التنفيذ', 'value' => number_format($summary['active_orders'] ?? 0), 'hint' => 'تحتاج متابعة من الفريق', 'color' => 'blue', 'icon' => '↺'],
             ['label' => 'عملاء اليوم', 'value' => number_format($summary['customers_today'] ?? 0), 'hint' => 'عملاء فريدون حسب رقم الهاتف', 'color' => 'emerald', 'icon' => '●●'],
-            ['label' => 'متوسط الطلب', 'value' => $formatMoney($summary['average_order'] ?? 0), 'hint' => 'متوسط قيمة طلبات اليوم', 'color' => 'violet', 'icon' => '↗'],
+            ['label' => 'متوسط الطلب', 'value' => $formatMoney($summary['average_order'] ?? 0), 'hint' => 'متوسط قيمة الطلبات المدفوعة غير الملغاة اليوم', 'color' => 'violet', 'icon' => '↗'],
         ] as $stat)
             <div class="rounded-2xl border border-{{ $stat['color'] }}-100 bg-{{ $stat['color'] }}-50 p-5">
                 <div class="flex items-start justify-between gap-3">

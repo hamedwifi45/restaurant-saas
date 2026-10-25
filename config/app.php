@@ -1,5 +1,10 @@
 <?php
 
+$applicationHost = parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST);
+$defaultDomain = is_string($applicationHost) && filter_var($applicationHost, FILTER_VALIDATE_IP)
+    ? 'localhost'
+    : ($applicationHost ?: 'localhost');
+
 return [
 
     /*
@@ -53,6 +58,9 @@ return [
     */
 
     'url' => env('APP_URL', 'http://localhost'),
+
+    // Reserved for deferred host-based tenant routing; local routes do not depend on it.
+    'domain' => env('APP_DOMAIN', $defaultDomain),
 
     /*
     |--------------------------------------------------------------------------

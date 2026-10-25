@@ -5,18 +5,19 @@ namespace App\Http\Controllers;
 use App\Events\OrderCreated;
 use App\Helpers\ThemeHelper;
 use App\Models\Coupon;
-use App\Models\Invoice;
 use App\Models\Offer;
 use App\Models\Order;
-use App\Models\Order_item;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Rules\CustomerPhoneNumber;
 use App\Services\CartService;
 use App\Services\DeliveryPricingService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\RestaurantTableSession;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cookie;
@@ -54,7 +55,7 @@ class OrderController extends Controller
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
-            ->with(['invoice', 'items.product', 'driver'])
+            ->with(['invoice', 'items.product', 'driver', 'deliveryDispatch.provider'])
             ->firstOrFail();
 
         $this->authorizeOrderTracking($request, $order);
@@ -75,13 +76,17 @@ class OrderController extends Controller
         $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
         $order = Order::where('restaurant_id', $restaurant->id)
             ->where('tracking_code', $code)
-            ->with(['invoice', 'restaurantTable'])
+            ->with(['invoice', 'restaurantTable', 'deliveryDispatch.provider'])
             ->firstOrFail();
 
         $this->authorizeOrderTracking($request, $order);
 
         return response()->json([
             'status' => $order->status,
+            'delivery_dispatch' => $order->deliveryDispatch ? [
+                'status' => $order->deliveryDispatch->status,
+                'provider_name' => $order->deliveryDispatch->provider?->name,
+            ] : null,
             'rejection_reason' => $order->rejection_reason,
             'driver_arrived_at' => $order->driver_arrived_at?->toIso8601String(),
             'customer' => [
@@ -183,7 +188,8 @@ class OrderController extends Controller
         // ===== الحسابات الخاصة بصفحة إتمام الطلب (Checkout Calculations) =====
         $baseSubtotal = $subtotal;
         $baseTax = $tax;
-        $deliveryFee = $restaurant->delivery_fee ?? 0;
+        $deliveryEnabled = $restaurant->deliveryFulfillmentAvailable();
+        $deliveryFee = $deliveryEnabled ? ($restaurant->delivery_fee ?? 0) : 0;
         $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
         $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
 
@@ -204,15 +210,25 @@ class OrderController extends Controller
         $isAlbashaBurger = $restaurant->theme?->folder_name === 'albasha-burger';
         $experimentalOrderFeatures = $restaurant->getExperimentalOrderFeatures();
         $supportsPrepaidOrders = $restaurant->hasFeature('bank_transfer') && filled($restaurant->bank_details);
-        $supportsTableReservations = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('table_reservations');
-        $supportsScheduledPickup = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('scheduled_pickup');
+        $supportsTableReservations = $isAlbashaBurger
+            && $supportsPrepaidOrders
+            && $restaurant->serviceEnabled('dine_in')
+            && $restaurant->reservationsEnabled();
+        $supportsScheduledPickup = $isAlbashaBurger
+            && $supportsPrepaidOrders
+            && $restaurant->serviceEnabled('takeaway')
+            && $restaurant->scheduledPickupEnabled();
         $depositPercentage = (float) $experimentalOrderFeatures['deposit_percentage'];
-        $initialDeliveryType = $table ? 'dine_in' : old('delivery_type', 'delivery');
-        if (
-            ($initialDeliveryType === 'dine_in' && ! $supportsTableReservations)
-            || ($initialDeliveryType === 'takeaway' && ! $supportsScheduledPickup)
-        ) {
-            $initialDeliveryType = 'delivery';
+        $availableOrderTypes = array_filter([
+            'delivery' => $deliveryEnabled,
+            'dine_in' => $supportsTableReservations,
+            'takeaway' => $supportsScheduledPickup,
+        ]);
+        $initialDeliveryType = $table
+            ? 'dine_in'
+            : (string) old('delivery_type', array_key_first($availableOrderTypes) ?: '');
+        if (! $table && ! array_key_exists($initialDeliveryType, $availableOrderTypes)) {
+            $initialDeliveryType = array_key_first($availableOrderTypes) ?: '';
         }
 
         // ===== استرجاع بيانات العميل المحفوظة سابقاً من الكوكيز =====
@@ -223,6 +239,8 @@ class OrderController extends Controller
             'lat' => request()->cookie('customer_lat'),
             'lng' => request()->cookie('customer_lng'),
         ];
+        $checkoutToken = (string) Str::uuid();
+        request()->session()->put('checkout_fallback_tokens.'.$restaurant->id, $checkoutToken);
 
         return view("themes.{$themePath}.cart.checkout", compact(
             'restaurant',
@@ -233,6 +251,7 @@ class OrderController extends Controller
             'table',
             'supportsTableReservations',
             'supportsScheduledPickup',
+            'deliveryEnabled',
             'experimentalOrderFeatures',
             'depositPercentage',
             'initialDeliveryType',
@@ -243,7 +262,8 @@ class OrderController extends Controller
             'activeOffer',
             'autoDiscount',
             'initialFinalTotal',
-            'savedCustomer'
+            'savedCustomer',
+            'checkoutToken',
         ));
     }
 
@@ -252,10 +272,10 @@ class OrderController extends Controller
         $restaurant = Restaurant::with('theme')->where('slug', $slug)->firstOrFail();
 
         abort_unless(
-            $restaurant->theme?->folder_name === 'albasha-burger'
-                && $restaurant->hasFeature('bank_transfer')
+            $restaurant->hasFeature('bank_transfer')
                 && filled($restaurant->bank_details)
-                && $restaurant->experimentalOrderFeatureEnabled('table_reservations'),
+                && $restaurant->serviceEnabled('dine_in')
+                && $restaurant->serviceEnabled('table_reservations'),
             404,
         );
 
@@ -291,6 +311,23 @@ class OrderController extends Controller
     public function store(Request $request, $slug)
     {
         $restaurant = Restaurant::with('theme')->where('slug', $slug)->firstOrFail();
+        $checkoutToken = $request->validate([
+            'checkout_token' => ['nullable', 'uuid'],
+        ])['checkout_token'] ?? $request->session()->get('checkout_fallback_tokens.'.$restaurant->id);
+
+        if (! is_string($checkoutToken) || ! Str::isUuid($checkoutToken)) {
+            $checkoutToken = (string) Str::uuid();
+            $request->session()->put('checkout_fallback_tokens.'.$restaurant->id, $checkoutToken);
+        }
+
+        $existingOrder = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->where('checkout_token', $checkoutToken)
+            ->first();
+
+        if ($existingOrder) {
+            return $this->redirectToCheckoutOrder($request, $restaurant, $existingOrder);
+        }
 
         if (! $restaurant->canAcceptOrders()) {
             throw ValidationException::withMessages([
@@ -300,13 +337,34 @@ class OrderController extends Controller
 
         $table = $this->currentTable($restaurant);
         $experimentalOrderFeatures = $restaurant->getExperimentalOrderFeatures();
-        $isAlbashaBurger = $restaurant->theme?->folder_name === 'albasha-burger';
         $supportsPrepaidOrders = $restaurant->hasFeature('bank_transfer') && filled($restaurant->bank_details);
-        $supportsTableReservations = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('table_reservations');
-        $supportsScheduledPickup = $isAlbashaBurger && $supportsPrepaidOrders && $restaurant->experimentalOrderFeatureEnabled('scheduled_pickup');
+        $supportsTableReservations = $restaurant->serviceEnabled('dine_in')
+            && $restaurant->reservationsEnabled()
+            && $supportsPrepaidOrders;
+        $supportsScheduledPickup = $restaurant->serviceEnabled('takeaway')
+            && $restaurant->scheduledPickupEnabled()
+            && $supportsPrepaidOrders;
         $reservationDurationOptions = $experimentalOrderFeatures['reservation_duration_options'] ?: [90];
+        $allowedDeliveryTypes = [];
+        if ($restaurant->deliveryFulfillmentAvailable()) {
+            $allowedDeliveryTypes[] = 'delivery';
+        }
+        if (($table || $supportsTableReservations) && $restaurant->serviceEnabled('dine_in')) {
+            $allowedDeliveryTypes[] = 'dine_in';
+        }
+        if ($supportsScheduledPickup) {
+            $allowedDeliveryTypes[] = 'takeaway';
+        }
+
+        if ($allowedDeliveryTypes === []) {
+            throw ValidationException::withMessages([
+                'delivery_type' => 'لا توجد خدمة طلب متاحة حالياً لهذا المطعم.',
+            ]);
+        }
+
+        $defaultDeliveryType = $allowedDeliveryTypes[0];
         $request->merge([
-            'delivery_type' => $table ? 'dine_in' : ($request->input('delivery_type') ?: 'delivery'),
+            'delivery_type' => $table ? 'dine_in' : ($request->input('delivery_type') ?: $defaultDeliveryType),
         ]);
 
         $deliveryType = $table ? 'dine_in' : $request->input('delivery_type', 'delivery');
@@ -314,18 +372,15 @@ class OrderController extends Controller
         $isScheduledPickup = ! $table && $deliveryType === 'takeaway' && $supportsScheduledPickup;
         $isDineIn = (bool) $table || $isDineInReservation;
         $requiresDeliveryLocation = ! $isDineIn && ! $isScheduledPickup;
-        $allowedDeliveryTypes = ['delivery'];
-        if ($table || $supportsTableReservations) {
-            $allowedDeliveryTypes[] = 'dine_in';
-        }
-        if ($supportsScheduledPickup) {
-            $allowedDeliveryTypes[] = 'takeaway';
-        }
 
         $requiredDeposit = $isDineInReservation || $isScheduledPickup;
+        if (is_string($request->input('phone'))) {
+            $request->merge(['phone' => trim($request->input('phone'))]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => ['required', 'string', 'max:20', 'regex:/^(09|\+?9639)\d{8}$/'],
+            'phone' => ['required', 'string', 'max:20', new CustomerPhoneNumber],
             'address' => 'nullable|string|max:1000',
             'latitude' => [$requiresDeliveryLocation ? 'required' : 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => [$requiresDeliveryLocation ? 'required' : 'nullable', 'numeric', 'between:-180,180'],
@@ -409,6 +464,10 @@ class OrderController extends Controller
                 'mimes:jpg,jpeg,png,pdf',
                 'max:5120',
             ],
+        ], [
+            'phone.required' => 'رقم الهاتف مطلوب.',
+            'phone.string' => 'أدخل رقم هاتف صالحاً بصيغة محلية أو دولية.',
+            'phone.max' => 'يجب ألا يتجاوز رقم الهاتف 20 حرفاً.',
         ]);
 
         if ($requiredDeposit && (! $restaurant->hasFeature('bank_transfer') || blank($restaurant->bank_details))) {
@@ -573,11 +632,24 @@ class OrderController extends Controller
                 $receiptPath,
                 $offer,
                 $coupon,
+                $checkoutToken,
+                $products,
+                $itemsData,
             ): Order {
                 $lockedRestaurant = Restaurant::query()
                     ->whereKey($restaurant->id)
                     ->lockForUpdate()
                     ->firstOrFail();
+                $existingOrder = Order::query()
+                    ->where('restaurant_id', $lockedRestaurant->id)
+                    ->where('checkout_token', $checkoutToken)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingOrder) {
+                    return $existingOrder;
+                }
+
                 $reservationTable = null;
 
                 if ($isDineInReservation) {
@@ -603,11 +675,11 @@ class OrderController extends Controller
                     $coupon->incrementUsage();
                 }
 
-                return Order::create([
+                $order = Order::create([
                     'restaurant_id' => $restaurant->id,
                     'restaurant_table_id' => $table?->id ?? $reservationTable?->id,
                     'customer_name' => $request->name,
-                    'customer_phone' => $request->phone,
+                    'customer_phone' => $validated['phone'],
                     'delivery_address' => $table
                         ? 'طاولة '.$table->number
                         : ($isDineInReservation
@@ -653,14 +725,60 @@ class OrderController extends Controller
                     'status' => 'pending',
                     'device_token' => $deviceToken,
                     'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
+                    'checkout_token' => $checkoutToken,
                 ]);
+
+                foreach ($itemsData as $item) {
+                    $product = $products->get($item['product_id']);
+
+                    $order->items()->create([
+                        'product_id' => $item['product_id'],
+                        'product_name' => $product->name,
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'variant_name' => $item['variant_name'],
+                        'total' => $item['subtotal'],
+                    ]);
+                }
+
+                $invoiceNumber = 'INV-'.date('Y').'-'.str_pad($order->id, 6, '0', STR_PAD_LEFT);
+
+                $order->invoice()->create([
+                    'restaurant_id' => $order->restaurant_id,
+                    'invoice_number' => $invoiceNumber,
+                    'subtotal' => $subtotal,
+                    'tax_amount' => $tax,
+                    'delivery_fee' => $deliveryFee,
+                    'total_amount' => $finalAmount,
+                    'final_amount' => $finalAmount,
+                    'status' => 'pending',
+                ]);
+
+                return $order;
             });
+        } catch (UniqueConstraintViolationException $exception) {
+            $order = Order::query()
+                ->where('restaurant_id', $restaurant->id)
+                ->where('checkout_token', $checkoutToken)
+                ->first();
+
+            if (! $order) {
+                if ($receiptPath) {
+                    Storage::disk('local')->delete($receiptPath);
+                }
+
+                throw $exception;
+            }
         } catch (\Throwable $exception) {
             if ($receiptPath) {
                 Storage::disk('local')->delete($receiptPath);
             }
 
             throw $exception;
+        }
+
+        if (! $order->wasRecentlyCreated && $receiptPath && $receiptPath !== $order->payment_receipt) {
+            Storage::disk('local')->delete($receiptPath);
         }
 
         // ===== حفظ بيانات الزبون في الكوكيز للزيارات القادمة (لمدة 30 يوماً) =====
@@ -672,48 +790,28 @@ class OrderController extends Controller
             Cookie::queue('customer_lng', $customerLongitude, 60 * 24 * 30);
         }
 
-        Cookie::queue('order_device_token_'.$order->id, $deviceToken, 60 * 24 * 7);
-        $request->session()->put('order_device_tokens.'.$order->tracking_code, $deviceToken);
-
-        // حفظ عناصر الطلب
-        foreach ($itemsData as $item) {
-            $product = $products->get($item['product_id']);
-
-            Order_item::create([
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'product_name' => $product->name,
-                'quantity' => $item['quantity'],
-                'price' => $item['price'],
-                'variant_name' => $item['variant_name'],
-                'total' => $item['subtotal'],
-            ]);
-        }
-
-        // إنشاء فاتورة
-        $invoiceNumber = 'INV-'.date('Y').'-'.str_pad($order->id, 6, '0', STR_PAD_LEFT);
-
-        Invoice::create([
-            'order_id' => $order->id,
-            'restaurant_id' => $order->restaurant_id,
-            'invoice_number' => $invoiceNumber,
-            'subtotal' => $subtotal,
-            'tax_amount' => $tax,
-            'delivery_fee' => $deliveryFee,
-            'total_amount' => $finalAmount,
-            'final_amount' => $finalAmount,
-            'status' => 'pending',
-        ]);
-
-        // حذف سلة هذا المطعم فقط بعد نجاح الطلب
-        $this->cartService->forget($restaurant);
-        $this->tableSession->forget();
-
-        if (! $requiredDeposit) {
+        if ($order->wasRecentlyCreated && ! $requiredDeposit) {
             event(new OrderCreated($order));
         }
 
-        return redirect()->route('order.success', [$slug, $order->tracking_code]);
+        return $this->redirectToCheckoutOrder($request, $restaurant, $order, $order->wasRecentlyCreated);
+    }
+
+    private function redirectToCheckoutOrder(
+        Request $request,
+        Restaurant $restaurant,
+        Order $order,
+        bool $clearCheckoutState = false,
+    ): RedirectResponse {
+        Cookie::queue('order_device_token_'.$order->id, $order->device_token, 60 * 24 * 7);
+        $request->session()->put('order_device_tokens.'.$order->tracking_code, $order->device_token);
+
+        if ($clearCheckoutState) {
+            $this->cartService->forget($restaurant);
+            $this->tableSession->forget();
+        }
+
+        return redirect()->route('order.success', [$restaurant->slug, $order->tracking_code]);
     }
 
     protected function currentTable(Restaurant $restaurant): ?RestaurantTable

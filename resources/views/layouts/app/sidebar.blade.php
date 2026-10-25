@@ -1,3 +1,15 @@
+@php
+    $currentUser = auth()->user();
+    $restaurant = $currentUser->restaurant;
+    $homeUrl = route('dashboard');
+
+    if ($restaurant && $currentUser->can('access-pos', $restaurant->slug)) {
+        $homeUrl = route('pos.index', ['slug' => $restaurant->slug]);
+    } elseif ($restaurant && $currentUser->can('access-kds')) {
+        $homeUrl = route('kitchen.display', ['slug' => $restaurant->slug]);
+    }
+@endphp
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
     <head>
@@ -6,29 +18,42 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <x-app-logo
+                    :sidebar="true"
+                    :href="$homeUrl"
+                    wire:navigate
+                />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
+                <flux:sidebar.group heading="عمليات المطعم" class="grid">
+                    @if($restaurant && $currentUser->can('access-pos', $restaurant->slug))
+                        <flux:sidebar.item
+                            icon="shopping-bag"
+                            :href="route('pos.index', ['slug' => $restaurant->slug])"
+                            :current="request()->routeIs('pos.*')"
+                            wire:navigate
+                        >
+                            نقطة البيع
+                        </flux:sidebar.item>
+                    @endif
+                    @can('access-kds')
+                        @if($restaurant)
+                            <flux:sidebar.item
+                                icon="clipboard-document-list"
+                                :href="route('kitchen.display', ['slug' => $restaurant->slug])"
+                                :current="request()->routeIs('kitchen.*')"
+                                wire:navigate
+                            >
+                                شاشة المطبخ
+                            </flux:sidebar.item>
+                        @endif
+                    @endcan
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>

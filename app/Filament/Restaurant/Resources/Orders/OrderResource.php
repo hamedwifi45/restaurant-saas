@@ -49,7 +49,8 @@ class OrderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()
+            ->with('deliveryDispatch.provider', 'deliveryDispatch.events.actor');
 
         $user = auth('web')->user();
 
