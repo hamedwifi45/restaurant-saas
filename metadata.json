@@ -1,0 +1,8 @@
+{
+  "name": "Restaurant SaaS Multi-Tenant Platform",
+  "description": "Multi-tenant restaurant management SaaS with interactive customer storefront, POS, Kitchen Display System (KDS), live delivery tracking, table QR ordering, driver portal, and super admin platform.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

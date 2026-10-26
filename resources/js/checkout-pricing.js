@@ -18,6 +18,16 @@ function registerCheckoutPricingComponent() {
         isOutOfRange: false,
         warningMessage: '',
         couponDiscount: 0,
+        deliveryOptionsEndpoint: configuration.deliveryOptionsEndpoint || '',
+        csrfToken: configuration.csrfToken || '',
+        internalDriversAvailable: configuration.internalDriversAvailable !== undefined ? Boolean(configuration.internalDriversAvailable) : true,
+        externalDeliveryEnabled: Boolean(configuration.externalDeliveryEnabled),
+        eligibleProviders: [],
+        selectedProviderId: configuration.initialProviderId ? String(configuration.initialProviderId) : '',
+        loadingDeliveryOptions: false,
+        routeSource: 'haversine',
+        estimatedDurationMinutes: null,
+        optionsAbortController: null,
 
         init() {
             const form = this.$root.matches('form') ? this.$root : this.$root.querySelector('form');
@@ -25,7 +35,6 @@ function registerCheckoutPricingComponent() {
             this.deliveryType = configuration.isDineIn ? 'dine_in' : this.deliveryType;
             this.isDineIn = this.deliveryType === 'dine_in';
 
-            // الاستماع لحدث تحديث موقع الخريطة الجغرافي
             window.addEventListener('customer-location-updated', (event) => {
                 const { latitude, longitude } = event.detail || {};
 
@@ -82,6 +91,9 @@ function registerCheckoutPricingComponent() {
             }));
 
             this.recalculate();
+            if (this.customerLat && this.customerLng) {
+                this.fetchDeliveryOptions();
+            }
         },
 
         formElement() {
@@ -145,13 +157,121 @@ function registerCheckoutPricingComponent() {
             }
             this.persistCustomer();
             this.recalculate();
+            this.fetchDeliveryOptions();
         },
 
         setDeliveryType(deliveryType) {
             this.deliveryType = deliveryType;
             this.isDineIn = deliveryType === 'dine_in';
             this.recalculate();
+            if (deliveryType === 'delivery') {
+                this.fetchDeliveryOptions();
+            }
             window.dispatchEvent(new Event('checkout-delivery-mode-changed'));
+        },
+
+        selectDeliveryProvider(providerId) {
+            this.selectedProviderId = providerId ? String(providerId) : '';
+            this.applySelectedDeliveryOption();
+        },
+
+        async fetchDeliveryOptions() {
+            const lat = Number(this.customerLat);
+            const lng = Number(this.customerLng);
+            const hasCustomer = this.customerLat !== '' && this.customerLng !== ''
+                && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
+            if (!this.deliveryOptionsEndpoint || this.deliveryType !== 'delivery' || !hasCustomer) {
+                return;
+            }
+
+            if (this.optionsAbortController) {
+                this.optionsAbortController.abort();
+            }
+            this.optionsAbortController = new AbortController();
+            this.loadingDeliveryOptions = true;
+
+            try {
+                const response = await fetch(this.deliveryOptionsEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': this.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({
+                        latitude: lat,
+                        longitude: lng,
+                        subtotal: Number(configuration.subtotal || 0),
+                    }),
+                    signal: this.optionsAbortController.signal,
+                });
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+                this.internalDriversAvailable = Boolean(data.internal_driver_available);
+                this.externalDeliveryEnabled = Boolean(data.external_delivery_enabled);
+                this.eligibleProviders = Array.isArray(data.eligible_providers) ? data.eligible_providers : [];
+
+                if (data.route && Number.isFinite(Number(data.route.distance_km))) {
+                    this.distance = Number(data.route.distance_km);
+                    this.routeSource = data.route.source || 'osrm';
+                    this.estimatedDurationMinutes = data.route.duration_minutes ?? null;
+                }
+
+                const stillEligible = this.eligibleProviders.some(
+                    (p) => String(p.provider_id) === String(this.selectedProviderId)
+                );
+
+                if (!this.internalDriversAvailable && !stillEligible) {
+                    this.selectedProviderId = this.eligibleProviders.length > 0
+                        ? String(this.eligibleProviders[0].provider_id)
+                        : '';
+                }
+
+                this.applySelectedDeliveryOption(data);
+            } catch (error) {
+                // fallback to local calculation
+            } finally {
+                this.loadingDeliveryOptions = false;
+            }
+        },
+
+        applySelectedDeliveryOption(serverData = null) {
+            const chosenProvider = this.eligibleProviders.find(
+                (p) => String(p.provider_id) === String(this.selectedProviderId)
+            );
+
+            if (chosenProvider) {
+                this.distance = Number(chosenProvider.distance_km);
+                this.deliveryFee = Number(chosenProvider.fee);
+                this.estimatedDurationMinutes = chosenProvider.duration_minutes ?? this.estimatedDurationMinutes;
+                this.routeSource = chosenProvider.route_source || this.routeSource;
+                this.isOutOfRange = false;
+                this.warningMessage = '';
+                this.deliveryFeeHelper = `(عبر شركة ${chosenProvider.provider_name})`;
+                this.updateTotals();
+                return;
+            }
+
+            if (!this.internalDriversAvailable) {
+                this.isOutOfRange = true;
+                this.warningMessage = 'نعتذر، لا يتوفر مندوب توصيل داخلي حالياً، ولا توجد شركة توصيل خارجية مؤهلة تغطي موقعك.';
+                this.updateTotals();
+                return;
+            }
+
+            if (serverData && Number.isFinite(Number(serverData.internal_delivery_fee))) {
+                this.deliveryFee = Number(serverData.internal_delivery_fee);
+                this.isOutOfRange = !serverData.internal_in_range;
+                this.warningMessage = this.isOutOfRange
+                    ? `نعتذر، موقعك يبعد ${(this.distance || 0).toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم`
+                    : '';
+                this.updateTotals();
+            } else {
+                this.recalculate();
+            }
         },
 
         recalculate() {
@@ -210,6 +330,10 @@ function registerCheckoutPricingComponent() {
             }
 
             this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
+            this.updateTotals();
+        },
+
+        updateTotals() {
             this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${configuration.currency || 'ر.س'}`;
             this.total = Number(configuration.subtotal || 0)
                 + Number(configuration.tax || 0)
@@ -229,12 +353,16 @@ function registerCheckoutPricingComponent() {
         },
 
         formatDistance() {
-            return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
+            if (this.distance === null) return '';
+            const durationLabel = this.estimatedDurationMinutes ? ` · حوالي ${this.estimatedDurationMinutes} د` : '';
+            return `${this.distance.toFixed(2)} كم${durationLabel}`;
         },
 
         validateSubmission(event) {
             this.persistCustomer();
-            this.recalculate();
+            if (!this.selectedProviderId) {
+                this.recalculate();
+            }
 
             if (this.isOutOfRange) {
                 event.preventDefault();
@@ -250,12 +378,11 @@ function registerCheckoutPricingComponent() {
 
         setCouponDiscount(discount) {
             this.couponDiscount = Number(discount) || 0;
-            this.recalculate();
+            this.updateTotals();
         },
     }));
 }
 
-// التسجيل الآمن الفوري للـ Component
 if (window.Alpine) {
     registerCheckoutPricingComponent();
 } else {

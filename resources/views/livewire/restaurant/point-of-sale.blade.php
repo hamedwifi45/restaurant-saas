@@ -1,7 +1,13 @@
 <div
     dir="rtl"
     class="min-h-screen overflow-x-hidden bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
-    x-data="localPosOrders(@js($restaurant->slug), @js(config('local_operations.enabled')))"    x-on:local-order-accepted.window="clearAcceptedOrder($event.detail.uuid)"
+    x-data="localPosOrders(@js($restaurant->slug), @js(config('local_operations.enabled')), {
+        syncEndpoint: @js(route('local.orders.store', $restaurant->slug)),
+        signalPublishEndpoint: @js(route('lan.signal.publish', $restaurant->slug)),
+        signalPollEndpoint: @js(route('lan.signal.poll', $restaurant->slug)),
+        csrfToken: @js(csrf_token())
+    })"
+    x-on:local-order-accepted.window="clearAcceptedOrder($event.detail.uuid)"
     x-on:keydown.window="
         if ($event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes($event.target.tagName) && !$event.target.isContentEditable) {
             $event.preventDefault();
@@ -77,13 +83,91 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-3 text-sm text-zinc-600 dark:text-zinc-300">
+            <div class="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-300">
+                <button
+                    type="button"
+                    x-on:click="showLanPairingModal = true"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition"
+                    :class="lanConnectionState.includes('connected')
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200'
+                        : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200'"
+                >
+                    <span class="size-2 rounded-full" :class="lanConnectionState.includes('connected') ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                    <span x-text="lanConnectionState === 'connected_webrtc_lan' ? 'متصل بشاشة المطبخ (LAN P2P)' : (lanConnectionState === 'connected_ws_lan' ? 'متصل عبر وسيط LAN' : 'إقران شاشة المطبخ (LAN Offline)')">إقران شاشة المطبخ (LAN)</span>
+                </button>
                 <span class="hidden rounded-full bg-zinc-100 px-3 py-1.5 sm:inline-flex dark:bg-zinc-800">جلسة الكاشير</span>
                 <span>{{ now()->format('Y-m-d H:i') }}</span>
                 <a href="{{ route('restaurant.home', $restaurant->slug) }}" class="rounded-lg border border-zinc-300 px-3 py-2 font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">عرض المنيو</a>
             </div>
         </div>
     </header>
+
+    <div
+        x-cloak
+        x-show="showLanPairingModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="إقران الكاشير بشاشة المطبخ عبر الشبكة المحلية"
+    >
+        <div class="w-full max-w-lg space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-800">
+                <h2 class="text-base font-extrabold">ربط جهاز الكاشير بجهاز المطبخ (KDS) عبر الشبكة المحلية (LAN)</h2>
+                <button type="button" x-on:click="showLanPairingModal = false" class="rounded-lg px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">✕</button>
+            </div>
+
+            <p class="text-xs leading-5 text-zinc-600 dark:text-zinc-400">
+                يتصل جهاز الكاشير بجهاز شاشة المطبخ تلقائياً عبر قناة WebRTC P2P مباشرة على الشبكة المحلية (Wi-Fi / LAN) ويستمر بالعمل حتى لو انقطع الإنترنت الخارجي تماماً. في حال بدء التشغيل أثناء انقطاع الإنترنت، يمكنك الإقران اليدوي المباشر أدناه دون أي خادم:
+            </p>
+
+            <div class="space-y-2 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold">1. إنشاء رمز عرض الاتصال (SDP Offer) لشاشة المطبخ:</span>
+                    <button type="button" x-on:click="generateOfflinePairingOffer()" class="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-700">توليد رمز الإقران</button>
+                </div>
+                <textarea
+                    x-show="manualOfferCode"
+                    x-model="manualOfferCode"
+                    readonly
+                    rows="3"
+                    class="w-full rounded-lg border border-zinc-300 bg-white p-2 font-mono text-[11px] dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="سيظهر رمز الإقران هنا..."
+                ></textarea>
+            </div>
+
+            <div class="space-y-2 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950">
+                <label class="block text-xs font-bold">2. الصق رمز استجابة شاشة المطبخ (SDP Answer):</label>
+                <textarea
+                    x-model="manualAnswerInput"
+                    rows="3"
+                    class="w-full rounded-lg border border-zinc-300 bg-white p-2 font-mono text-[11px] dark:border-zinc-700 dark:bg-zinc-900"
+                    placeholder="الصق الرمز الناتج من شاشة المطبخ هنا..."
+                ></textarea>
+                <button type="button" x-on:click="confirmOfflinePairingAnswer()" class="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700">تأكيد الربط المباشر بين الجهازين</button>
+            </div>
+
+            <div class="space-y-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                <label class="block text-xs font-bold">خيار إضافي: عنوان وسيط WebSocket محلي على الشبكة (اختياري)</label>
+                <div class="flex gap-2">
+                    <input
+                        type="url"
+                        x-model="lanWsRelayInput"
+                        placeholder="ws://192.168.1.100:6001"
+                        class="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+                    >
+                    <button type="button" x-on:click="saveLanRelayUrl()" class="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-bold hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">حفظ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p
+        x-cloak
+        x-show="lastKdsAckMessage"
+        x-text="lastKdsAckMessage"
+        role="status"
+        class="mx-auto mt-3 w-full max-w-none rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+    ></p>
 
     <p
     x-cloak
@@ -473,7 +557,22 @@
                     </div>
                     <button
                         type="button"
-                        x-on:click="if (window.confirm('تأكيد تسجيل الطلب بالإجمالي المعروض؟ لا يمكن تعديل الأصناف بعد الإرسال.')) submit($wire)"
+                        x-on:click="if (window.confirm('تأكيد تسجيل الطلب بالإجمالي المعروض؟ لا يمكن تعديل الأصناف بعد الإرسال.')) submit($wire, @js([
+                            'delivery_type' => $orderType,
+                            'customer_name' => $customerName ?: ($orderType === 'dine_in' ? 'طلب طاولة' : 'عميل نقطة البيع'),
+                            'customer_phone' => $customerPhone ?: '0900000000',
+                            'delivery_address' => $deliveryAddress,
+                            'notes' => $notes,
+                            'total_amount' => (float) ($quote['total'] ?? 0),
+                            'items' => array_values(array_map(fn ($item) => [
+                                'product_id' => $item['product_id'],
+                                'name' => $item['name'],
+                                'quantity' => $item['quantity'],
+                                'unit_price' => $item['unit_price'],
+                                'variant_name' => $item['variant_name'] ?? null,
+                                'notes' => $item['notes'] ?? null,
+                            ], $cart)),
+                        ]))"
                         wire:loading.attr="disabled"
                         wire:target="placeOrder"
                         @disabled($cart === [])

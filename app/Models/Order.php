@@ -76,7 +76,9 @@ class Order extends Model
         'review',
         'offer_id',
         'discount_amount',
-
+        'delivery_provider_id',
+        'route_source',
+        'estimated_duration_minutes',
     ];
 
     protected function casts(): array
@@ -108,6 +110,7 @@ class Order extends Model
             'customer_lng' => 'decimal:7',
             'distance_km' => 'decimal:2',
             'driver_rating' => 'integer',
+            'estimated_duration_minutes' => 'integer',
         ];
     }
 
@@ -174,6 +177,14 @@ class Order extends Model
     public function invoice(): HasOne
     {
         return $this->hasOne(Invoice::class);
+    }
+
+    /**
+     * @return BelongsTo<DeliveryProvider, $this>
+     */
+    public function deliveryProvider(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryProvider::class);
     }
 
     public function deliveryDispatch(): HasOne

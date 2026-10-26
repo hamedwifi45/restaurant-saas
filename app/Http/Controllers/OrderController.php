@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Events\OrderCreated;
 use App\Helpers\ThemeHelper;
 use App\Models\Coupon;
+use App\Models\DeliveryDispatch;
+use App\Models\DeliveryProvider;
 use App\Models\Offer;
 use App\Models\Order;
 use App\Models\Product;
@@ -241,6 +243,8 @@ class OrderController extends Controller
         ];
         $checkoutToken = (string) Str::uuid();
         request()->session()->put('checkout_fallback_tokens.'.$restaurant->id, $checkoutToken);
+        $internalDriversAvailable = $restaurant->hasAvailableInternalDrivers();
+        $externalDeliveryEnabled = $restaurant->externalDeliveryEnabled();
 
         return view("themes.{$themePath}.cart.checkout", compact(
             'restaurant',
@@ -252,6 +256,8 @@ class OrderController extends Controller
             'supportsTableReservations',
             'supportsScheduledPickup',
             'deliveryEnabled',
+            'internalDriversAvailable',
+            'externalDeliveryEnabled',
             'experimentalOrderFeatures',
             'depositPercentage',
             'initialDeliveryType',
@@ -265,6 +271,64 @@ class OrderController extends Controller
             'savedCustomer',
             'checkoutToken',
         ));
+    }
+
+    /**
+     * إرجاع خيارات التوصيل (الداخلي أو الشركات الخارجية المؤهلة) ومسافة الطريق الفعلية (OSRM) للعميل عند اختيار موقعه على الخريطة
+     */
+    public function deliveryOptions(Request $request, string $slug): JsonResponse
+    {
+        $restaurant = Restaurant::where('slug', $slug)->firstOrFail();
+
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'subtotal' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $customerLat = (float) $validated['latitude'];
+        $customerLng = (float) $validated['longitude'];
+        $subtotal = (float) ($validated['subtotal'] ?? 0);
+
+        $restLat = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
+        $restLng = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
+
+        $route = $this->deliveryPricing->resolveRoadRoute(
+            $restLat,
+            $restLng,
+            $customerLat,
+            $customerLng,
+            (float) config('services.osrm.detour_factor', 1.25),
+        );
+
+        $internalAvailable = $restaurant->hasAvailableInternalDrivers();
+        $internalRadius = (float) ($restaurant->delivery_radius_km ?? 10);
+        $internalInRange = $route['distance_km'] <= $internalRadius;
+        $internalFee = $this->deliveryPricing->feeForDistance(
+            $route['distance_km'],
+            (float) ($restaurant->base_delivery_fee ?? 2),
+            (float) ($restaurant->base_delivery_km ?? 2),
+            (float) ($restaurant->per_km_delivery_fee ?? 0.5),
+        );
+
+        $eligibleProviders = $this->deliveryPricing->evaluateEligibleProvidersForCustomer(
+            $restaurant,
+            $customerLat,
+            $customerLng,
+            $subtotal,
+        );
+
+        return response()->json([
+            'internal_driver_available' => $internalAvailable,
+            'internal_in_range' => $internalInRange,
+            'internal_delivery_fee' => $internalFee,
+            'internal_radius_km' => $internalRadius,
+            'external_delivery_enabled' => $restaurant->externalDeliveryEnabled(),
+            'requires_external_provider' => ! $internalAvailable,
+            'route' => $route,
+            'eligible_providers' => $eligibleProviders,
+            'currency_symbol' => $restaurant->currency_symbol,
+        ]);
     }
 
     public function tableAvailability(Request $request, string $slug): JsonResponse
@@ -389,6 +453,7 @@ class OrderController extends Controller
             'offer_id' => 'nullable|exists:offers,id',
             'coupon_id' => 'nullable|exists:coupons,id',
             'coupon_code' => 'nullable|string',
+            'delivery_provider_id' => 'nullable|integer|exists:delivery_providers,id',
             'delivery_type' => ['required', Rule::in($allowedDeliveryTypes)],
             'restaurant_table_id' => $isDineInReservation
                 ? [
@@ -476,39 +541,6 @@ class OrderController extends Controller
             ]);
         }
 
-        $customerLatitude = $validated['latitude'] ?? null;
-        $customerLongitude = $validated['longitude'] ?? null;
-        $distanceKm = null;
-        $deliveryFee = 0.0;
-
-        if ($requiresDeliveryLocation) {
-            $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
-            $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
-            $distance = $this->deliveryPricing->distanceInKilometers(
-                $restaurantLatitude,
-                $restaurantLongitude,
-                (float) $customerLatitude,
-                (float) $customerLongitude,
-            );
-
-            if ($distance > (float) $restaurant->delivery_radius_km) {
-                $distanceLabel = number_format($distance, 2);
-                $radiusLabel = number_format((float) $restaurant->delivery_radius_km, 2);
-
-                throw ValidationException::withMessages([
-                    'latitude' => "نعتذر، موقعك يبعد {$distanceLabel} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى {$radiusLabel} كم)",
-                ]);
-            }
-
-            $distanceKm = round($distance, 2);
-            $deliveryFee = $this->deliveryPricing->feeForDistance(
-                $distance,
-                (float) $restaurant->base_delivery_fee,
-                (float) $restaurant->base_delivery_km,
-                (float) $restaurant->per_km_delivery_fee,
-            );
-        }
-
         $cart = $this->cartService->get($restaurant);
 
         if (empty($cart)) {
@@ -546,6 +578,109 @@ class OrderController extends Controller
                 'variant_name' => $details['variant_name'] ?? null,
                 'subtotal' => $itemSubtotal,
             ];
+        }
+
+        $customerLatitude = $validated['latitude'] ?? null;
+        $customerLongitude = $validated['longitude'] ?? null;
+        $distanceKm = null;
+        $deliveryFee = 0.0;
+        $selectedProviderId = null;
+        $routeSource = null;
+        $estimatedDurationMinutes = null;
+
+        if ($requiresDeliveryLocation) {
+            $restaurantLatitude = filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138;
+            $restaurantLongitude = filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765;
+
+            $requestedProviderId = isset($validated['delivery_provider_id']) ? (int) $validated['delivery_provider_id'] : null;
+            $internalAvailable = $restaurant->ownDeliveryDriversEnabled() && (
+                $restaurant->hasAvailableInternalDrivers()
+                || ! $restaurant->externalDeliveryEnabled()
+                || ! $restaurant->eligibleDeliveryProviders()->exists()
+            );
+
+            $mustUseExternalProvider = $requestedProviderId !== null || ! $internalAvailable;
+
+            if ($mustUseExternalProvider) {
+                if (! $restaurant->externalDeliveryEnabled()) {
+                    throw ValidationException::withMessages([
+                        'delivery_provider_id' => 'خدمة التوصيل عبر الشركات الخارجية غير مفعّلة لهذا المطعم.',
+                    ]);
+                }
+
+                if ($requestedProviderId === null) {
+                    throw ValidationException::withMessages([
+                        'delivery_provider_id' => 'لا يتوفر مندوب داخلي حالياً؛ يرجى اختيار شركة توصيل مؤهلة لموقعك.',
+                    ]);
+                }
+
+                /** @var DeliveryProvider|null $selectedProvider */
+                $selectedProvider = $restaurant->eligibleDeliveryProviders()
+                    ->whereKey($requestedProviderId)
+                    ->first();
+
+                if (! $selectedProvider) {
+                    throw ValidationException::withMessages([
+                        'delivery_provider_id' => 'شركة التوصيل المحددة غير نشطة أو غير مرتبطة بهذا المطعم.',
+                    ]);
+                }
+
+                $quote = $this->deliveryPricing->evaluateProviderQuote(
+                    $selectedProvider,
+                    $restaurant,
+                    (float) $customerLatitude,
+                    (float) $customerLongitude,
+                    (float) $subtotal,
+                );
+
+                if (! $quote['eligible']) {
+                    $reasonMessage = match ($quote['reason']) {
+                        'in_blocked_zone' => 'نعتذر، موقعك يقع ضمن منطقة مستثناة/محظورة لدى شركة التوصيل المختارة ('.$quote['matched_zone'].').',
+                        'outside_allowed_zones' => 'نعتذر، موقعك يقع خارج مناطق التغطية الجغرافية لشركة التوصيل المختارة.',
+                        'below_min_order_amount' => 'قيمة الطلب أقل من الحد الأدنى المطلوب لشركة التوصيل المختارة.',
+                        'distance_out_of_bounds' => 'المسافة إلى موقعك تتجاوز الحد الأقصى المسموح به لشركة التوصيل المختارة.',
+                        default => 'شركة التوصيل المختارة غير متاحة لموقعك الحالي.',
+                    };
+
+                    throw ValidationException::withMessages([
+                        'delivery_provider_id' => $reasonMessage,
+                    ]);
+                }
+
+                $selectedProviderId = $selectedProvider->id;
+                $distanceKm = (float) $quote['distance_km'];
+                $deliveryFee = (float) $quote['fee'];
+                $routeSource = $quote['route_source'];
+                $estimatedDurationMinutes = $quote['duration_minutes'];
+            } else {
+                $route = $this->deliveryPricing->resolveRoadRoute(
+                    $restaurantLatitude,
+                    $restaurantLongitude,
+                    (float) $customerLatitude,
+                    (float) $customerLongitude,
+                    (float) config('services.osrm.detour_factor', 1.0),
+                );
+                $distance = $route['distance_km'];
+
+                if ($distance > (float) $restaurant->delivery_radius_km) {
+                    $distanceLabel = number_format($distance, 2);
+                    $radiusLabel = number_format((float) $restaurant->delivery_radius_km, 2);
+
+                    throw ValidationException::withMessages([
+                        'latitude' => "نعتذر، موقعك يبعد {$distanceLabel} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى {$radiusLabel} كم)",
+                    ]);
+                }
+
+                $distanceKm = round($distance, 2);
+                $deliveryFee = $this->deliveryPricing->feeForDistance(
+                    $distance,
+                    (float) $restaurant->base_delivery_fee,
+                    (float) $restaurant->base_delivery_km,
+                    (float) $restaurant->per_km_delivery_fee,
+                );
+                $routeSource = $route['source'];
+                $estimatedDurationMinutes = $route['duration_minutes'];
+            }
         }
 
         // حساب خصم العرض (تلقائي)
@@ -618,6 +753,9 @@ class OrderController extends Controller
                 $customerLongitude,
                 $distanceKm,
                 $deliveryFee,
+                $selectedProviderId,
+                $routeSource,
+                $estimatedDurationMinutes,
                 $subtotal,
                 $tax,
                 $offerDiscount,
@@ -678,6 +816,7 @@ class OrderController extends Controller
                 $order = Order::create([
                     'restaurant_id' => $restaurant->id,
                     'restaurant_table_id' => $table?->id ?? $reservationTable?->id,
+                    'delivery_provider_id' => $selectedProviderId,
                     'customer_name' => $request->name,
                     'customer_phone' => $validated['phone'],
                     'delivery_address' => $table
@@ -690,6 +829,8 @@ class OrderController extends Controller
                     'customer_lat' => $customerLatitude,
                     'customer_lng' => $customerLongitude,
                     'distance_km' => $distanceKm,
+                    'route_source' => $routeSource,
+                    'estimated_duration_minutes' => $estimatedDurationMinutes,
                     'delivery_type' => $deliveryType,
                     'dine_in_arrival_at' => $isDineInReservation ? $validated['dine_in_arrival_at'] : null,
                     'dine_in_duration_minutes' => $isDineInReservation ? $validated['dine_in_duration_minutes'] : null,
@@ -727,6 +868,26 @@ class OrderController extends Controller
                     'tracking_code' => 'ORD-'.strtoupper(Str::random(6)),
                     'checkout_token' => $checkoutToken,
                 ]);
+
+                if ($selectedProviderId !== null) {
+                    $dispatch = $order->deliveryDispatches()->create([
+                        'delivery_provider_id' => $selectedProviderId,
+                        'requested_by' => $request->user()?->id,
+                        'status' => DeliveryDispatch::STATUS_QUEUED,
+                        'customer_delivery_fee' => $deliveryFee,
+                        'provider_fee' => $deliveryFee,
+                        'currency_symbol' => $restaurant->currency_symbol,
+                        'notes' => 'تم اختيار شركة التوصيل من قِبل العميل أثناء إتمام الطلب.',
+                        'queued_at' => now(),
+                    ]);
+
+                    $dispatch->events()->create([
+                        'actor_id' => $request->user()?->id,
+                        'from_status' => null,
+                        'to_status' => DeliveryDispatch::STATUS_QUEUED,
+                        'note' => 'تم اختيار شركة التوصيل من قِبل العميل أثناء إتمام الطلب.',
+                    ]);
+                }
 
                 foreach ($itemsData as $item) {
                     $product = $products->get($item['product_id']);

@@ -110,6 +110,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('advanced-financial-analytics', fn (User $user): bool => $user->role === 'restaurant_admin'
             && ($user->restaurant?->hasFeature('advanced_financial_analytics') ?? false)
         );
+        Gate::define('external-delivery-providers', fn (User $user): bool => $user->role === 'restaurant_admin'
+            && ($user->restaurant?->hasFeature('external_delivery_providers') ?? false)
+        );
+        Gate::define('access-ai-assistant', fn (User $user): bool => $user->role === 'super_admin'
+            || ($user->restaurant?->hasFeature('ai_assistant') ?? false)
+        );
     }
 
     protected function registerPolicies(): void

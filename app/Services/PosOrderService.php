@@ -54,12 +54,14 @@ class PosOrderService
             if (! is_numeric($latitude) || ! is_numeric($longitude)) {
                 $deliveryError = 'أدخل إحداثيات موقع التوصيل لحساب النطاق والرسوم.';
             } else {
-                $distance = $this->deliveryPricing->distanceInKilometers(
+                $route = $this->deliveryPricing->resolveRoadRoute(
                     filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138,
                     filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765,
                     (float) $latitude,
                     (float) $longitude,
+                    (float) config('services.osrm.detour_factor', 1.0),
                 );
+                $distance = $route['distance_km'];
 
                 if ($distance > (float) $restaurant->delivery_radius_km) {
                     $deliveryError = 'موقع التوصيل خارج نطاق هذا المطعم.';
@@ -240,6 +242,8 @@ class PosOrderService
                     'customer_lat' => $delivery['latitude'],
                     'customer_lng' => $delivery['longitude'],
                     'distance_km' => $delivery['distance_km'],
+                    'route_source' => $delivery['route_source'],
+                    'estimated_duration_minutes' => $delivery['duration_minutes'],
                     'delivery_type' => $validated['order_type'],
                     'delivery_city' => $lockedRestaurant->city,
                     'delivery_fee' => $this->fromCents($deliveryFeeCents),
@@ -477,12 +481,19 @@ class PosOrderService
 
     /**
      * @param  array<string, mixed>  $validated
-     * @return array{fee_cents: int, latitude: float|null, longitude: float|null, distance_km: float|null}
+     * @return array{fee_cents: int, latitude: float|null, longitude: float|null, distance_km: float|null, route_source: string|null, duration_minutes: int|null}
      */
     private function deliveryDetails(Restaurant $restaurant, array $validated): array
     {
         if ($validated['order_type'] !== 'delivery') {
-            return ['fee_cents' => 0, 'latitude' => null, 'longitude' => null, 'distance_km' => null];
+            return [
+                'fee_cents' => 0,
+                'latitude' => null,
+                'longitude' => null,
+                'distance_km' => null,
+                'route_source' => null,
+                'duration_minutes' => null,
+            ];
         }
 
         if (! filled($validated['address'] ?? null)
@@ -495,12 +506,14 @@ class PosOrderService
 
         $latitude = (float) $validated['latitude'];
         $longitude = (float) $validated['longitude'];
-        $distance = $this->deliveryPricing->distanceInKilometers(
+        $route = $this->deliveryPricing->resolveRoadRoute(
             filled($restaurant->latitude) ? (float) $restaurant->latitude : 33.5138,
             filled($restaurant->longitude) ? (float) $restaurant->longitude : 36.2765,
             $latitude,
             $longitude,
+            (float) config('services.osrm.detour_factor', 1.0),
         );
+        $distance = $route['distance_km'];
 
         if ($distance > (float) $restaurant->delivery_radius_km) {
             throw ValidationException::withMessages([
@@ -520,6 +533,8 @@ class PosOrderService
             'latitude' => $latitude,
             'longitude' => $longitude,
             'distance_km' => round($distance, 2),
+            'route_source' => $route['source'],
+            'duration_minutes' => $route['duration_minutes'],
         ];
     }
 

@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\AiAgentController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CustomerBroadcastAuthController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\DriverRatingController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\KdsController;
+use App\Http\Controllers\LanPairingSignalController;
 use App\Http\Controllers\LocalOrderIntakeController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OrderController;
@@ -111,6 +113,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/local/{slug}/orders', [LocalOrderIntakeController::class, 'store'])
         ->middleware([EnsureLocalRestaurantPairing::class, 'throttle:60,1'])
         ->name('local.orders.store');
+
+    Route::get('/{slug}/lan-bridge/signal', [LanPairingSignalController::class, 'pollSignal'])
+        ->middleware('throttle:60,1')
+        ->name('lan.signal.poll');
+    Route::post('/{slug}/lan-bridge/signal', [LanPairingSignalController::class, 'publishSignal'])
+        ->middleware('throttle:30,1')
+        ->name('lan.signal.publish');
     Route::prefix('kitchen')->name('kitchen.')->middleware('can:access-kds')->group(function () {
         Route::get('/{slug}/display', function (string $slug) {
             Gate::authorize('access-kds');
@@ -199,6 +208,9 @@ Route::prefix('{slug}')->group(function () {
 
     // الطلب والدفع (Checkout & Orders)
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout/delivery-options', [AiAgentController::class, 'evaluateDeliveryOptions'])
+        ->middleware('throttle:30,1')
+        ->name('checkout.delivery-options');
     Route::post('/checkout/table-availability', [OrderController::class, 'tableAvailability'])
         ->middleware('throttle:30,1')
         ->name('checkout.table-availability');
@@ -228,7 +240,15 @@ Route::prefix('{slug}')->group(function () {
     // PWA Manifest & Service Worker
     Route::get('/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
     Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
+    // الوكيل الذكي المدمج (AI Agent)
+    Route::post('/api/ai-agent/assist', [AiAgentController::class, 'assist'])
+        ->middleware('throttle:20,1')
+        ->name('restaurant.ai-agent.assist');
 });
+
+Route::post('/api/ai-agent/assist', [AiAgentController::class, 'assist'])
+    ->middleware('throttle:20,1')
+    ->name('ai-agent.assist');
 
 /*
 |--------------------------------------------------------------------------

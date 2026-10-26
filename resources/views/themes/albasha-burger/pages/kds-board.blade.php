@@ -1229,6 +1229,10 @@
         </div>
 
         <div class="header-actions">
+            <button class="icon-btn" id="btnLanPair" aria-label="إقران الكاشير عبر الشبكة المحلية" title="ربط الكاشير محلياً (LAN P2P)" style="width: auto; padding: 0 12px; gap: 6px; font-size: 0.8rem; font-weight: 700;">
+                <i class="fa-solid fa-network-wired" id="lanPairIcon"></i>
+                <span id="lanPairLabel">ربط الكاشير (LAN)</span>
+            </button>
             <button class="icon-btn active" id="btnSound" aria-label="تشغيل/كتم الصوت" title="الصوت">
                 <i class="fa-solid fa-volume-high"></i>
             </button>
@@ -1312,6 +1316,31 @@
         </form>
     </div>
 
+    <div class="reject-modal" id="lan-pair-modal" hidden>
+        <div class="reject-modal-card" style="max-width: 540px;">
+            <h2>ربط شاشة المطبخ (KDS) بجهاز الكاشير عبر الشبكة المحلية (LAN P2P)</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                ترتبط شاشة المطبخ بجهاز الكاشير تلقائياً عبر WebRTC DataChannel محلياً وتستمر باستقبال الطلبات حتى عند انقطاع الإنترنت الخارجي. في حال بدء التشغيل دون إنترنت، الصق رمز عرض الكاشير (SDP Offer) أدناه:
+            </p>
+            <label for="kds-lan-offer-input">1. الصق رمز عرض الكاشير (SDP Offer):</label>
+            <textarea id="kds-lan-offer-input" rows="3" style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db; margin-bottom: 8px;" placeholder="الصق رمز الإقران من شاشة الكاشير..."></textarea>
+            <button type="button" id="kds-generate-answer-btn" class="action-btn primary" style="width: 100%; margin-bottom: 12px;">توليد رمز استجابة المطبخ (SDP Answer)</button>
+
+            <label for="kds-lan-answer-output">2. انسخ رمز الاستجابة والصقه في جهاز الكاشير:</label>
+            <textarea id="kds-lan-answer-output" rows="3" readonly style="width: 100%; font-family: monospace; font-size: 0.75rem; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db; margin-bottom: 12px;" placeholder="سيظهر رمز الاستجابة هنا..."></textarea>
+
+            <label for="kds-lan-ws-input">خيار إضافي: وسيط WebSocket محلي (اختياري):</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                <input type="url" id="kds-lan-ws-input" placeholder="ws://192.168.1.100:6001" style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db; font-size: 0.8rem;">
+                <button type="button" id="kds-save-ws-btn" class="action-btn ghost">حفظ</button>
+            </div>
+
+            <div class="reject-modal-actions">
+                <button type="button" id="lan-pair-close" class="action-btn ghost">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
     <div class="connection-bar" id="connectionBar" role="alert">
         <div class="spinner"></div>
         <span>جاري إعادة الاتصال بالخادم...</span>
@@ -1319,9 +1348,13 @@
 
     <script>
     const KDS_CONFIG = {
+        restaurantSlug: @js($restaurant->slug),
         ordersEndpoint: @js(route('kitchen.orders.index', ['slug' => $restaurant->slug])),
         acknowledgementEndpoint: @js(route('kitchen.orders.acknowledge', ['slug' => $restaurant->slug])),
         statusEndpoint: @js(route('kitchen.orders.updateStatusForRestaurant', ['slug' => $restaurant->slug, 'orderId' => '__ORDER__'])),
+        signalPublishEndpoint: @js(route('lan.signal.publish', ['slug' => $restaurant->slug])),
+        signalPollEndpoint: @js(route('lan.signal.poll', ['slug' => $restaurant->slug])),
+        localSyncEndpoint: @js(route('local.orders.store', ['slug' => $restaurant->slug])),
         websocketUrl: true,
         updateInterval: 10000,
         urgentThreshold: 15,
@@ -1363,12 +1396,105 @@
             this.startClock();
             this.loadInitialData();
             this.startTimers();
+            this.initLanBridge();
 
             if (!this.config.demoMode) {
                 this.startAutoFetch();
                 if (this.config.websocketUrl) {
                     this.connectWebSocket();
                 }
+            }
+        }
+
+        initLanBridge() {
+            const pairBtn = document.getElementById('btnLanPair');
+            const pairModal = document.getElementById('lan-pair-modal');
+            const pairClose = document.getElementById('lan-pair-close');
+            const generateAnswerBtn = document.getElementById('kds-generate-answer-btn');
+            const offerInput = document.getElementById('kds-lan-offer-input');
+            const answerOutput = document.getElementById('kds-lan-answer-output');
+            const wsInput = document.getElementById('kds-lan-ws-input');
+            const saveWsBtn = document.getElementById('kds-save-ws-btn');
+            const pairLabel = document.getElementById('lanPairLabel');
+
+            if (pairBtn && pairModal) {
+                pairBtn.addEventListener('click', () => { pairModal.hidden = false; });
+            }
+            if (pairClose && pairModal) {
+                pairClose.addEventListener('click', () => { pairModal.hidden = true; });
+            }
+
+            const setupBridgeInstance = () => {
+                if (!window.LanPosKdsBridge || this.lanBridge) return;
+                this.lanBridge = new window.LanPosKdsBridge({
+                    restaurantSlug: this.config.restaurantSlug,
+                    role: 'kds',
+                    syncEndpoint: this.config.localSyncEndpoint,
+                    signalPublishEndpoint: this.config.signalPublishEndpoint,
+                    signalPollEndpoint: this.config.signalPollEndpoint,
+                    csrfToken: this.config.csrfToken,
+                    onConnectionStateChanged: (state) => {
+                        if (!pairLabel || !pairBtn) return;
+                        if (state === 'connected_webrtc_lan') {
+                            pairLabel.textContent = 'متصل بالكاشير (LAN P2P)';
+                            pairBtn.classList.add('active');
+                        } else if (state === 'connected_ws_lan') {
+                            pairLabel.textContent = 'متصل عبر وسيط LAN';
+                            pairBtn.classList.add('active');
+                        } else {
+                            pairLabel.textContent = 'ربط الكاشير (LAN)';
+                            pairBtn.classList.remove('active');
+                        }
+                    },
+                    onOrderReceived: (lanOrder) => {
+                        const normalizedType = (lanOrder.delivery_type || 'takeaway').replace('_', '-');
+                        const displayId = lanOrder.order_number || `LAN-${String(lanOrder.client_order_id || '').slice(0, 6).toUpperCase()}`;
+                        this.handleNewOrder({
+                            id: displayId,
+                            client_order_id: lanOrder.client_order_id,
+                            status: 'new',
+                            type: normalizedType,
+                            customer_name: lanOrder.customer_name || 'طلب شبكة محلية (LAN)',
+                            notes: lanOrder.notes || '',
+                            created_at: lanOrder.created_at_iso || new Date().toISOString(),
+                            items: Array.isArray(lanOrder.items) ? lanOrder.items.map((item) => ({
+                                name: item.name || item.product_name || 'صنف',
+                                qty: item.quantity || item.qty || 1,
+                                unit_price: item.unit_price ?? null,
+                                notes: item.notes || '',
+                            })) : [],
+                        });
+                    },
+                });
+
+                if (wsInput && this.lanBridge.lanWsRelayUrl) {
+                    wsInput.value = this.lanBridge.lanWsRelayUrl;
+                }
+            };
+
+            setupBridgeInstance();
+            window.addEventListener('load', setupBridgeInstance);
+
+            if (generateAnswerBtn && offerInput && answerOutput) {
+                generateAnswerBtn.addEventListener('click', async () => {
+                    setupBridgeInstance();
+                    if (!this.lanBridge || !offerInput.value.trim()) return;
+                    try {
+                        answerOutput.value = await this.lanBridge.acceptManualOfferAndCreateAnswer(offerInput.value.trim());
+                        this.showToast('success', 'تم توليد رمز الاستجابة', 'انسخ رمز الاستجابة والصقه في جهاز الكاشير لإتمام الربط المباشر.');
+                    } catch (e) {
+                        this.showToast('error', 'خطأ في الرمز', 'رمز عرض الكاشير غير صالح.');
+                    }
+                });
+            }
+
+            if (saveWsBtn && wsInput) {
+                saveWsBtn.addEventListener('click', () => {
+                    setupBridgeInstance();
+                    if (!this.lanBridge) return;
+                    this.lanBridge.setLanWsRelayUrl(wsInput.value.trim());
+                    this.showToast('info', 'وسيط الشبكة المحلية', 'تم حفظ عنوان وسيط WebSocket المحلي.');
+                });
             }
         }
 
@@ -1968,6 +2094,16 @@
             }
             this.renderAllOrders();
 
+            if (this.lanBridge) {
+                this.lanBridge.publishKdsStatusChange(order.client_order_id || orderId, newStatus);
+            }
+
+            if (String(orderId).startsWith('LAN-') && !navigator.onLine) {
+                this.pendingStatusUpdates.delete(orderId);
+                this.showToast('info', 'تحديث محلي (LAN)', `تم تحديث حالة الطلب #${orderId} وإشعار الكاشير عبر الشبكة المحلية`);
+                return;
+            }
+
             try {
                 const response = await fetch(this.config.statusEndpoint.replace('__ORDER__', encodeURIComponent(targetId)), {
                     method: 'POST',
@@ -1994,10 +2130,12 @@
                     this.showToast('success', 'تم التحديث', `الطلب #${orderId} ← ${statusLabels[newStatus]}`);
                 }
             } catch (error) {
-                order.status = previousStatus;
-                this.orders.set(orderId, order);
-                this.renderAllOrders();
-                this.showToast('error', 'خطأ', 'تعذر تحديث حالة الطلب في السيرفر');
+                if (!String(orderId).startsWith('LAN-')) {
+                    order.status = previousStatus;
+                    this.orders.set(orderId, order);
+                    this.renderAllOrders();
+                    this.showToast('error', 'خطأ', 'تعذر تحديث حالة الطلب في السيرفر');
+                }
             } finally {
                 this.pendingStatusUpdates.delete(orderId);
             }

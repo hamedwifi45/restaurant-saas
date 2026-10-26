@@ -12,3 +12,5 @@ import './cart-quantity';
 import './pos-quick-orders';
 import './local-pos-orders';
 import './kds-durable-receipts';
+import './lan-pos-kds-bridge';
+

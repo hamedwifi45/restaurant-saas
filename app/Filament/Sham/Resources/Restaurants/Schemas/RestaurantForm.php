@@ -2,17 +2,21 @@
 
 namespace App\Filament\Sham\Resources\Restaurants\Schemas;
 
+use App\Models\PlatformFeature;
 use App\Models\Restaurant;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Schema as DbSchema;
 
 class RestaurantForm
 {
@@ -30,7 +34,12 @@ class RestaurantForm
                             ->unique(ignoreRecord: true)
                             ->maxLength(63)
                             ->rules(['regex:/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/']),
-                        Select::make('plan')->label('الباقة')->options(['starter' => 'Starter', 'pro' => 'Pro'])->required()->default('starter'),
+                        Select::make('plan')
+                            ->label('الباقة (Plan)')
+                            ->options(fn (): array => self::planOptions())
+                            ->required()
+                            ->default('starter')
+                            ->helperText('يرث المطعم الميزات المشمولة في الباقة المختارة من كتالوج الباقات، مع إمكانية تخصيص أو تعطيل أي ميزة أدناه.'),
                         Textarea::make('description')->label('الوصف')->columnSpanFull(),
                         Select::make('theme_id')->label('التصميم')->relationship('theme', 'name')->required()->searchable(),
                         FileUpload::make('logo')->label('الشعار')->image()->disk('public')->directory('restaurants/logos'),
@@ -91,6 +100,46 @@ class RestaurantForm
                         DatePicker::make('trial_ends_at')->label('نهاية الفترة التجريبية')->native(false),
                     ])
                     ->columns(2),
+                Section::make('تخصيص الميزات وشركات التوصيل للمطعم')
+                    ->description('إتاحة أو إزالة ميزات مخصصة لهذا المطعم فوق باقته الأساسية، وربط شركات التوصيل المؤهلة.')
+                    ->schema([
+                        Select::make('platformFeatures')
+                            ->label('الميزات المفعّلة خصيصاً للمطعم')
+                            ->relationship('platformFeatures', 'name_ar')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->helperText('تُعرض الميزات مع أسعارها التقريبية من كتالوج الميزات وتُطبّق صلاحياتها مباشرة في الخادم.'),
+                        Select::make('deliveryProviders')
+                            ->label('شركات التوصيل المرتبطة بالمطعم')
+                            ->relationship('deliveryProviders', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->searchable(),
+                    ])
+                    ->columns(2),
             ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function planOptions(): array
+    {
+        $options = [
+            'starter' => 'Starter (الأساسية)',
+            'pro' => 'Pro (الاحترافية)',
+        ];
+
+        try {
+            if (DbSchema::hasTable('subscription_plans')) {
+                foreach (SubscriptionPlan::query()->where('is_active', true)->orderBy('sort_order')->get() as $plan) {
+                    $options[$plan->slug] = "{$plan->name_ar} ({$plan->monthly_price}$ / شهرياً)";
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        return $options;
     }
 }

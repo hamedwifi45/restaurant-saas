@@ -83,7 +83,9 @@ class Restaurant extends Model
             'theme_editor',                // محرر الثيمات
             'kds',                         // شاشة المطبخ KDS
             'gps_tracking',                // تتبع المندوب اللحظي
+            'external_delivery_providers', // شركات التوصيل الخارجية والنطاقات الجغرافية
             'pwa',                         // تطبيق PWA
+            'ai_assistant',                // الوكيل الذكي المدمج
         ],
     ];
 
@@ -185,7 +187,7 @@ class Restaurant extends Model
         return $this->deliveryProviders()
             ->wherePivot('is_enabled', true)
             ->where('delivery_providers.is_active', true)
-            ->where('delivery_providers.assignment_method', 'manual');
+            ->whereIn('delivery_providers.assignment_method', ['manual', 'customer_selectable']);
     }
 
     // Scopes
@@ -317,9 +319,90 @@ class Restaurant extends Model
         return $this->reviews()->count();
     }
 
+    /**
+     * @return BelongsToMany<PlatformFeature, $this>
+     */
+    public function platformFeatures(): BelongsToMany
+    {
+        return $this->belongsToMany(PlatformFeature::class, 'restaurant_features')
+            ->withPivot(['is_enabled', 'custom_monthly_price', 'expires_at', 'notes'])
+            ->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<User, $this>
+     */
+    public function drivers(): HasMany
+    {
+        return $this->hasMany(User::class)->where('role', 'driver');
+    }
+
+    public function hasAvailableInternalDrivers(): bool
+    {
+        if (! $this->ownDeliveryDriversEnabled()) {
+            return false;
+        }
+
+        return $this->drivers()->where('is_active', true)->exists();
+    }
+
     public function hasFeature(string $feature): bool
     {
+        // 1. Check in-memory loaded relation first
+        if ($this->relationLoaded('platformFeatures')) {
+            $override = $this->platformFeatures->firstWhere('key', $feature);
+            if ($override !== null) {
+                if (! $override->is_active) {
+                    return false;
+                }
+                $expiresAt = $override->pivot?->expires_at;
+                if ($expiresAt === null || now()->lt($expiresAt)) {
+                    return (bool) $override->pivot->is_enabled;
+                }
+            }
+        } elseif ($this->exists) {
+            // 2. Query DB override if tables exist and model is persisted
+            try {
+                $override = $this->platformFeatures()
+                    ->where('platform_features.key', $feature)
+                    ->first();
+
+                if ($override !== null) {
+                    if (! $override->is_active) {
+                        return false;
+                    }
+                    $expiresAt = $override->pivot?->expires_at;
+                    if ($expiresAt === null || now()->lt($expiresAt)) {
+                        return (bool) $override->pivot->is_enabled;
+                    }
+                }
+
+                // Check if feature is globally deactivated in platform_features catalog
+                $globalFeature = PlatformFeature::query()->where('key', $feature)->first();
+                if ($globalFeature !== null && ! $globalFeature->is_active) {
+                    return false;
+                }
+            } catch (\Throwable) {
+                // Fallback gracefully if migration has not run yet
+            }
+        }
+
         $plan = $this->plan ?? 'starter';
+
+        // 3. Check dynamic SubscriptionPlan in DB if present
+        if ($this->exists) {
+            try {
+                $dbPlan = SubscriptionPlan::query()
+                    ->where('slug', $plan)
+                    ->where('is_active', true)
+                    ->first();
+                if ($dbPlan !== null && is_array($dbPlan->feature_keys)) {
+                    return in_array($feature, $dbPlan->feature_keys, true);
+                }
+            } catch (\Throwable) {
+                // Fallback to static PLAN_FEATURES
+            }
+        }
 
         return in_array(
             $feature,

@@ -74,6 +74,8 @@ class PointOfSale extends Component
 
     private LocalRestaurantPairing $restaurantPairing;
 
+    private ?Restaurant $memoizedRestaurant = null;
+
     public function boot(
         PosOrderService $orderService,
         ReservationAvailabilityService $reservationAvailability,
@@ -128,6 +130,10 @@ class PointOfSale extends Component
 
     public function updated(string $property): void
     {
+        if (in_array($property, ['search', 'selectedCategory'], true)) {
+            return;
+        }
+
         $this->validateCartNotes();
         $restaurant = $this->authorizedRestaurant();
         $this->persistDraft($restaurant, $this->cashier());
@@ -493,6 +499,10 @@ class PointOfSale extends Component
 
     private function authorizedRestaurant(): Restaurant
     {
+        if ($this->memoizedRestaurant instanceof Restaurant && $this->memoizedRestaurant->slug === $this->slug) {
+            return $this->memoizedRestaurant;
+        }
+
         Gate::authorize('access-pos', $this->slug);
 
         $restaurant = Restaurant::query()
@@ -508,7 +518,7 @@ class PointOfSale extends Component
             403,
         );
 
-        return $restaurant;
+        return $this->memoizedRestaurant = $restaurant;
     }
 
     private function cashier(): User

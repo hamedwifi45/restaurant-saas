@@ -22,6 +22,16 @@
             isRestaurantTableOrder: Boolean(config.isRestaurantTableOrder),
             deliveryType: config.deliveryType || (config.deliveryEnabled ? 'delivery' : ''),
             depositPercentage: Number(config.depositPercentage || 0),
+            deliveryOptionsEndpoint: config.deliveryOptionsEndpoint || '',
+            csrfToken: config.csrfToken || '',
+            internalDriversAvailable: config.internalDriversAvailable !== undefined ? Boolean(config.internalDriversAvailable) : true,
+            externalDeliveryEnabled: Boolean(config.externalDeliveryEnabled),
+            eligibleProviders: [],
+            selectedProviderId: config.initialProviderId ? String(config.initialProviderId) : '',
+            loadingDeliveryOptions: false,
+            routeSource: 'haversine',
+            estimatedDurationMinutes: null,
+            optionsAbortController: null,
 
             // استرجاع البيانات المحفوظة من localStorage تلقائياً مع فحصها
             customerName: localStorage.getItem('customer_name') || '',
@@ -50,10 +60,6 @@
             processing: false,
 
             init() {
-                console.log('🔍 [TEST-INIT] Component initialized with config:', config);
-                console.log('🔍 [TEST-INIT] Initial deliveryType:', this.deliveryType);
-                console.log('🔍 [TEST-INIT] Initial raw LocalStorage Coords -> Lat:', localStorage.getItem('customer_lat'), '| Lng:', localStorage.getItem('customer_lng'));
-
                 window.checkoutPricingState = this;
                 this.isDineIn = this.deliveryType === 'dine_in';
 
@@ -206,7 +212,6 @@
             },
 
             setCustomerLocation(latitude, longitude) {
-                console.log('📍 [TEST-SET-LOC] setCustomerLocation invoked with:', latitude, longitude);
                 this.customerLat = String(latitude);
                 this.customerLng = String(longitude);
 
@@ -217,14 +222,151 @@
 
                 this.persistCustomer();
                 this.recalculate();
+                this.fetchDeliveryOptions();
             },
 
             setDeliveryType(deliveryType) {
-                console.log('🔀 [TEST-DELIVERY-TYPE] Delivery type changed to:', deliveryType);
                 this.deliveryType = deliveryType;
                 this.isDineIn = deliveryType === 'dine_in';
                 this.recalculate();
+                if (deliveryType === 'delivery') {
+                    this.fetchDeliveryOptions();
+                }
                 window.dispatchEvent(new Event('checkout-delivery-mode-changed'));
+            },
+
+            selectDeliveryProvider(providerId) {
+                this.selectedProviderId = providerId ? String(providerId) : '';
+                this.applySelectedDeliveryOption();
+            },
+
+            async fetchDeliveryOptions() {
+                const lat = Number(this.customerLat);
+                const lng = Number(this.customerLng);
+                const hasCustomer = this.customerLat !== '' && this.customerLng !== ''
+                    && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
+                if (!this.deliveryOptionsEndpoint || this.deliveryType !== 'delivery' || !hasCustomer) {
+                    return;
+                }
+
+                if (this.optionsAbortController) {
+                    this.optionsAbortController.abort();
+                }
+                this.optionsAbortController = new AbortController();
+                this.loadingDeliveryOptions = true;
+
+                try {
+                    const response = await fetch(this.deliveryOptionsEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        },
+                        body: JSON.stringify({
+                            latitude: lat,
+                            longitude: lng,
+                            subtotal: this.subtotal,
+                        }),
+                        signal: this.optionsAbortController.signal,
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+                    this.internalDriversAvailable = Boolean(data.internal_driver_available);
+                    this.externalDeliveryEnabled = Boolean(data.external_delivery_enabled);
+                    this.eligibleProviders = Array.isArray(data.eligible_providers) ? data.eligible_providers : [];
+
+                    if (data.route && Number.isFinite(Number(data.route.distance_km))) {
+                        this.distance = Number(data.route.distance_km);
+                        this.routeSource = data.route.source || 'osrm';
+                        this.estimatedDurationMinutes = data.route.duration_minutes ?? null;
+                    }
+
+                    const stillEligible = this.eligibleProviders.some(
+                        (p) => String(p.provider_id) === String(this.selectedProviderId)
+                    );
+
+                    if (!this.internalDriversAvailable) {
+                        if (!stillEligible) {
+                            this.selectedProviderId = this.eligibleProviders.length > 0
+                                ? String(this.eligibleProviders[0].provider_id)
+                                : '';
+                        }
+                    } else if (!stillEligible) {
+                        if (!data.internal_in_range && this.eligibleProviders.length > 0) {
+                            this.selectedProviderId = String(this.eligibleProviders[0].provider_id);
+                        } else {
+                            this.selectedProviderId = '';
+                        }
+                    }
+
+                    this.applySelectedDeliveryOption(data);
+                } catch (error) {
+                    if (error?.name !== 'AbortError') {
+                        console.warn('Failed to fetch road delivery options, falling back to local calculation.', error);
+                    }
+                } finally {
+                    this.loadingDeliveryOptions = false;
+                }
+            },
+
+            applySelectedDeliveryOption(serverData = null) {
+                if (!config.deliveryEnabled || this.isDineIn || this.deliveryType === 'takeaway') {
+                    this.deliveryFee = 0;
+                    this.isOutOfRange = false;
+                    this.warningMessage = '';
+                    this.updateSummaryDisplays();
+                    return;
+                }
+
+                const chosenProvider = this.eligibleProviders.find(
+                    (p) => String(p.provider_id) === String(this.selectedProviderId)
+                );
+
+                if (chosenProvider) {
+                    this.distance = Number(chosenProvider.distance_km);
+                    this.deliveryFee = Number(chosenProvider.fee);
+                    this.estimatedDurationMinutes = chosenProvider.duration_minutes ?? this.estimatedDurationMinutes;
+                    this.routeSource = chosenProvider.route_source || this.routeSource;
+                    this.isOutOfRange = false;
+                    this.warningMessage = '';
+                    this.deliveryFeeHelper = `(عبر شركة ${chosenProvider.provider_name}${chosenProvider.matched_zone ? ' · ' + chosenProvider.matched_zone : ''})`;
+                    this.updateSummaryDisplays();
+                    return;
+                }
+
+                if (!this.internalDriversAvailable) {
+                    this.isOutOfRange = true;
+                    this.warningMessage = this.eligibleProviders.length === 0
+                        ? 'نعتذر، لا يتوفر مندوب توصيل داخلي حالياً، ولا توجد شركة توصيل خارجية مؤهلة تغطي موقعك المحدد على الخريطة أو تستوفي شروط الطلب.'
+                        : 'يرجى اختيار شركة توصيل مؤهلة لإتمام الطلب.';
+                    this.updateSummaryDisplays();
+                    return;
+                }
+
+                if (serverData && Number.isFinite(Number(serverData.internal_delivery_fee))) {
+                    this.deliveryFee = Number(serverData.internal_delivery_fee);
+                    this.extraKilometers = Math.max(0, (this.distance || 0) - this.baseDeliveryKilometers);
+                    this.deliveryFeeHelper = this.routeSource === 'osrm'
+                        ? `(مسافة الطريق الفعلية · شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`
+                        : `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
+
+                    if (!serverData.internal_in_range) {
+                        this.isOutOfRange = true;
+                        this.warningMessage = `نعتذر، موقعك يبعد ${(this.distance || 0).toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${this.deliveryRadius.toFixed(2)} كم)`;
+                    } else {
+                        this.isOutOfRange = false;
+                        this.warningMessage = '';
+                    }
+                    this.updateSummaryDisplays();
+                } else {
+                    this.recalculate();
+                }
             },
 
             recalculate() {
@@ -233,10 +375,8 @@
                 const restLat = this.restaurantLatitude;
                 const restLng = this.restaurantLongitude;
 
-                console.log('🧮 [TEST-RECALC] Recalculating pricing & distance with:', { lat, lng, restLat, restLng, deliveryType: this.deliveryType });
-
                 const hasCustomer = this.customerLat !== '' && this.customerLng !== ''
-                    && Number.isFinite(lat) && Number.isFinite(lng);
+                    && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
                 const hasRestaurant = Number.isFinite(restLat) && Number.isFinite(restLng);
 
                 this.isOutOfRange = false;
@@ -246,12 +386,18 @@
 
                 if (!config.deliveryEnabled || this.isDineIn || this.deliveryType === 'takeaway') {
                     this.deliveryFee = 0;
-                    console.log('🏷️ [TEST-RECALC] Mode is Dine-In or Takeaway. Delivery fee set to 0.');
                 } else if (!this.restaurantHasLocation) {
                     this.deliveryFee = this.legacyFee;
                     this.deliveryFeeHelper = '(رسوم توصيل ثابتة)';
-                    console.log('🏷️ [TEST-RECALC] Restaurant has no location. Using legacy fee:', this.deliveryFee);
                 } else if (hasCustomer && hasRestaurant) {
+                    const chosenProvider = this.eligibleProviders.find(
+                        (p) => String(p.provider_id) === String(this.selectedProviderId)
+                    );
+                    if (chosenProvider) {
+                        this.applySelectedDeliveryOption();
+                        return;
+                    }
+
                     const dLat = (lat - restLat) * Math.PI / 180;
                     const dLng = (lng - restLng) * Math.PI / 180;
                     const a = Math.sin(dLat / 2) ** 2 + Math.cos(restLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
@@ -261,21 +407,24 @@
                     this.extraKilometers = Math.max(0, this.distance - this.baseDeliveryKilometers);
                     this.deliveryFee = Math.round((this.baseDeliveryFee + (this.extraKilometers * this.feePerAdditionalKilometer)) * 100) / 100;
 
-                    console.log('📏 [TEST-RECALC] Distance calculated:', this.distance, 'km | Fee:', this.deliveryFee);
-
-                    if (this.distance > this.deliveryRadius) {
+                    if (!this.internalDriversAvailable && this.eligibleProviders.length === 0 && !this.loadingDeliveryOptions) {
+                        this.isOutOfRange = true;
+                        this.warningMessage = 'نعتذر، لا يتوفر مندوب توصيل داخلي حالياً، ولا توجد شركة توصيل خارجية مؤهلة تغطي موقعك.';
+                    } else if (this.distance > this.deliveryRadius) {
                         this.isOutOfRange = true;
                         this.warningMessage = `نعتذر، موقعك يبعد ${this.distance.toFixed(2)} كم وهو خارج نطاق التوصيل المتاح لهذا المطعم (الحد الأقصى ${this.deliveryRadius.toFixed(2)} كم)`;
-                        console.warn('🚨 [TEST-RECALC] Warning: Customer is out of range!', this.warningMessage);
                     }
                 } else {
                     this.deliveryFee = this.baseDeliveryFee;
-                    console.log('🏷️ [TEST-RECALC] Using base delivery fee:', this.deliveryFee);
                 }
 
                 if (this.restaurantHasLocation) {
                     this.deliveryFeeHelper = `(شاملة الرسم الأساسي + ${this.extraKilometers.toFixed(2)} كم إضافي)`;
                 }
+                this.updateSummaryDisplays();
+            },
+
+            updateSummaryDisplays() {
                 this.deliveryFeeDisplay = `${this.deliveryFee.toFixed(2)} ${this.currency}`;
                 this.total = this.subtotal + this.tax + this.deliveryFee - this.offerDiscount - this.couponDiscount;
                 this.totalDisplay = `${this.total.toFixed(2)} ${this.currency}`;
@@ -288,16 +437,31 @@
             },
 
             formatDistance() {
-                return this.distance === null ? '' : `${this.distance.toFixed(2)} كم`;
+                if (this.distance === null) return '';
+                const durationLabel = this.estimatedDurationMinutes ? ` · حوالي ${this.estimatedDurationMinutes} د` : '';
+                const sourceBadge = this.routeSource === 'osrm' ? ' (مسار الطريق)' : '';
+                return `${this.distance.toFixed(2)} كم${sourceBadge}${durationLabel}`;
             },
 
             validateSubmission(event) {
-                console.log('📤 [TEST-SUBMIT] Form submission intercepted. Validating...');
                 this.persistCustomer();
-                this.recalculate();
+                if (!this.selectedProviderId) {
+                    this.recalculate();
+                }
+
+                if (this.deliveryType === 'delivery' && !this.internalDriversAvailable && !this.selectedProviderId) {
+                    event.preventDefault();
+                    this.isOutOfRange = true;
+                    this.warningMessage = this.eligibleProviders.length === 0
+                        ? 'نعتذر، لا يتوفر مندوب توصيل داخلي حالياً ولا توجد شركة توصيل خارجية تغطي موقعك.'
+                        : 'يرجى اختيار شركة توصيل مؤهلة لإتمام الطلب.';
+                    this.$nextTick(() => {
+                        this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                    return;
+                }
 
                 if (this.isOutOfRange) {
-                    console.error('❌ [TEST-SUBMIT] Blocked submission because customer is out of range.');
                     event.preventDefault();
                     this.$nextTick(() => {
                         this.$refs.geofenceAlert?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -305,14 +469,12 @@
                     return;
                 }
 
-                console.log('✅ [TEST-SUBMIT] Validation passed. Proceeding with submission.');
                 this.processing = true;
             },
 
             setCouponDiscount(discount) {
-                console.log('🎟️ [TEST-COUPON] Coupon discount applied:', discount);
                 this.couponDiscount = Number(discount) || 0;
-                this.recalculate();
+                this.applySelectedDeliveryOption();
             }
         };
     };
@@ -337,7 +499,12 @@
     isRestaurantTableOrder: @js((bool) $table),
     deliveryType: @js($initialDeliveryType),
     deliveryEnabled: @js($deliveryEnabled),
-    depositPercentage: @js($depositPercentage)
+    depositPercentage: @js($depositPercentage),
+    deliveryOptionsEndpoint: @js(route('checkout.delivery-options', $restaurant->slug)),
+    csrfToken: @js(csrf_token()),
+    internalDriversAvailable: @js($internalDriversAvailable ?? true),
+    externalDeliveryEnabled: @js($externalDeliveryEnabled ?? false),
+    initialProviderId: @js(old('delivery_provider_id', ''))
 })" data-restaurant-latitude="{{ $restaurantLatitude }}" data-restaurant-longitude="{{ $restaurantLongitude }}">
     <div class="mx-auto max-w-5xl px-4 py-8">
         <header class="mb-8 text-center">
@@ -419,8 +586,67 @@
                         <div id="checkout-map" class="mt-3 h-64 rounded-xl border border-gray-200"></div>
                         <p id="map-status" class="mt-2 text-sm text-gray-500">اضغط على الخريطة لتحديد موقع المنزل.</p>
                         <button type="button" id="use-current-location" class="mt-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">تحديد موقعي الحالي</button>
-                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}" x-model="customerLat" @input="persistCustomer(); recalculate()" :required="deliveryType === 'delivery'">
-                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}" x-model="customerLng" @input="persistCustomer(); recalculate()" :required="deliveryType === 'delivery'">
+                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}" x-model="customerLat" @input="persistCustomer(); recalculate(); fetchDeliveryOptions()" :required="deliveryType === 'delivery'">
+                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}" x-model="customerLng" @input="persistCustomer(); recalculate(); fetchDeliveryOptions()" :required="deliveryType === 'delivery'">
+                        <input type="hidden" name="delivery_provider_id" :value="selectedProviderId">
+
+                        @error('delivery_provider_id')
+                            <p class="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800" role="alert">{{ $message }}</p>
+                        @enderror
+
+                        <!-- اختيار شركة التوصيل المؤهلة عند عدم توفر مندوب داخلي أو تفعيل الشركات الخارجية -->
+                        <div class="mt-4 space-y-3" x-cloak x-show="deliveryType === 'delivery' && (!internalDriversAvailable || eligibleProviders.length > 0 || loadingDeliveryOptions)">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-black text-gray-900">
+                                    <i class="fa-solid fa-truck-fast ml-1 text-primary" aria-hidden="true"></i>
+                                    <span x-text="!internalDriversAvailable ? 'شركات التوصيل المؤهلة لموقعك (مطلوب)' : 'خيارات شركات التوصيل المتاحة لموقعك'">شركات التوصيل المؤهلة</span>
+                                </h4>
+                                <span x-show="loadingDeliveryOptions" class="text-xs font-semibold text-orange-600">جارٍ فحص التغطية ومسار الطريق...</span>
+                            </div>
+
+                            <div x-show="!internalDriversAvailable" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
+                                لا يتوفر مندوب توصيل داخلي للمطعم حالياً؛ يرجى اختيار إحدى شركات التوصيل المؤهلة التي تغطي منطقتك الجغرافية.
+                            </div>
+
+                            <template x-if="internalDriversAvailable && eligibleProviders.length > 0">
+                                <label class="flex cursor-pointer items-center justify-between rounded-xl border-2 p-3 transition" :class="selectedProviderId === '' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'">
+                                    <span class="flex items-center gap-3">
+                                        <input type="radio" name="delivery_provider_choice" value="" :checked="selectedProviderId === ''" @change="selectDeliveryProvider('')" class="text-orange-600 focus:ring-orange-500">
+                                        <span>
+                                            <strong class="block text-sm text-gray-900">مندوب المطعم الداخلي</strong>
+                                            <small class="text-xs text-gray-500">توصيل مباشر عبر فريق المطعم</small>
+                                        </span>
+                                    </span>
+                                    <span class="text-xs font-bold text-orange-700">افتراضي</span>
+                                </label>
+                            </template>
+
+                            <div class="space-y-2" x-show="eligibleProviders.length > 0">
+                                <template x-for="provider in eligibleProviders" :key="provider.provider_id">
+                                    <label class="flex cursor-pointer items-center justify-between rounded-xl border-2 p-3 transition" :class="String(selectedProviderId) === String(provider.provider_id) ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-200' : 'border-gray-200 bg-white hover:border-orange-200'">
+                                        <span class="flex items-center gap-3">
+                                            <input type="radio" name="delivery_provider_choice" :value="provider.provider_id" :checked="String(selectedProviderId) === String(provider.provider_id)" @change="selectDeliveryProvider(provider.provider_id)" class="text-orange-600 focus:ring-orange-500">
+                                            <span>
+                                                <strong class="block text-sm text-gray-900" x-text="provider.provider_name"></strong>
+                                                <small class="block text-xs text-gray-500">
+                                                    <span x-text="Number(provider.distance_km).toFixed(2) + ' كم'"></span>
+                                                    <template x-if="provider.duration_minutes">
+                                                        <span x-text="' · حوالي ' + provider.duration_minutes + ' دقيقة'"></span>
+                                                    </template>
+                                                    <template x-if="provider.matched_zone">
+                                                        <span class="mr-1 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-800" x-text="provider.matched_zone"></span>
+                                                    </template>
+                                                </small>
+                                            </span>
+                                        </span>
+                                        <span class="text-left">
+                                            <strong class="block text-sm font-black text-primary" x-text="Number(provider.fee).toFixed(2) + ' ' + currency"></strong>
+                                            <small class="text-[11px] text-gray-500" x-text="provider.route_source === 'osrm' ? 'مسار طريق فعلي' : 'مسار تقديري'"></small>
+                                        </span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
                     </div>@endif
                     @if($supportsTableReservations && !$table)
                         <fieldset x-show="deliveryType === 'dine_in'" x-cloak x-bind:disabled="deliveryType !== 'dine_in'" class="space-y-4 rounded-xl border border-orange-200 bg-orange-50 p-4">
