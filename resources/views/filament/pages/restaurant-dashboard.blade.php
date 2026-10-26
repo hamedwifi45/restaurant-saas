@@ -110,5 +110,9 @@
             </div>
         </section>
     </div>
+
+    @if($restaurant)
+        <x-ai-agent-widget :restaurant="$restaurant" mode="restaurant_admin" />
+    @endif
 </div>
 </x-filament-panels::page>

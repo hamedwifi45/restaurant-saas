@@ -469,6 +469,8 @@
         <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
     </button>
 
+    <x-ai-agent-widget :restaurant="$restaurant" mode="customer" />
+
     <div id="toast-container"></div>
 
     <!-- ==================== JavaScript Logic ==================== -->

@@ -451,3 +451,210 @@ test('subscription plan calculates approximate feature bundle valuation and AI a
     expect($superResponse['role_scope'])->toBe('super_admin')
         ->and($superResponse['structured_data'])->toHaveKey('total_restaurants');
 });
+
+test('trained AI agent classifies customer and restaurant admin domain intents, builds budget combos, analyzes net profit, and executes confirmed admin actions', function () {
+    $restaurant = Restaurant::factory()->create([
+        'name' => 'مطعم الباشا الذكي',
+        'slug' => 'albasha-smart-ai',
+        'plan' => 'pro',
+        'is_active' => true,
+        'is_accepting_orders' => true,
+        'currency_symbol' => 'د.أ',
+    ]);
+
+    $admin = User::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'role' => 'restaurant_admin',
+        'is_active' => true,
+    ]);
+
+    $category = Category::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'name' => 'برجر مشوي',
+        'is_active' => true,
+    ]);
+
+    $burger = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+        'name' => 'برجر سبايسي دبل',
+        'price' => 6.50,
+        'is_available' => true,
+        'is_featured' => true,
+    ]);
+
+    $fries = Product::factory()->create([
+        'restaurant_id' => $restaurant->id,
+        'category_id' => $category->id,
+        'name' => 'بطاطا بالجبنة',
+        'price' => 2.50,
+        'is_available' => true,
+    ]);
+
+    $order = Order::query()->create([
+        'restaurant_id' => $restaurant->id,
+        'customer_name' => 'سامر العلي',
+        'customer_phone' => '0791122334',
+        'delivery_type' => 'delivery',
+        'payment_method' => 'cash',
+        'payment_status' => 'verified',
+        'status' => 'preparing',
+        'subtotal' => 15.50,
+        'delivery_fee' => 2.00,
+        'total_amount' => 17.50,
+        'final_amount' => 17.50,
+        'tracking_code' => 'ORD-9988',
+        'estimated_duration_minutes' => 25,
+    ]);
+
+    \App\Models\Expense::query()->create([
+        'restaurant_id' => $restaurant->id,
+        'title' => 'مشتريات لحوم وخضار',
+        'amount' => 5.50,
+        'category' => 'مواد أولية',
+        'spent_at' => today(),
+    ]);
+
+    $agent = app(RestaurantAiAgentService::class);
+
+    // 1. Customer Budget & Group Combo Intent
+    $comboReply = $agent->respond('رتب لي وجبة لـ 3 أشخاص بميزانية 25 د.أ', null, $restaurant);
+    expect($comboReply['role_scope'])->toBe('customer')
+        ->and($comboReply['intent'])->toBe('budget_meal_planner')
+        ->and($comboReply['structured_data']['suggested_combo'])->not->toBeNull()
+        ->and($comboReply['structured_data']['suggested_combo']['party_size'])->toBe(3)
+        ->and($comboReply['structured_data']['suggested_combo']['within_budget'])->toBeTrue();
+
+    // 2. Customer Order Tracking by Tracking Code
+    $trackReply = $agent->respond('وين طلبي كود التتبع ORD-9988', null, $restaurant);
+    expect($trackReply['intent'])->toBe('order_tracking')
+        ->and($trackReply['structured_data']['tracked_order']['id'])->toBe($order->id)
+        ->and($trackReply['structured_data']['tracked_order']['status'])->toBe('preparing');
+
+    // 3. Restaurant Admin Financial & Net Profit Analysis (Revenue minus Expenses)
+    $financeReply = $agent->respond('حلل لي صافي الربح والمصاريف هذا الشهر', $admin, $restaurant);
+    expect($financeReply['role_scope'])->toBe('restaurant_admin')
+        ->and($financeReply['intent'])->toBe('financial_profit_analysis')
+        ->and($financeReply['structured_data']['today_revenue'])->toBe(17.50)
+        ->and($financeReply['structured_data']['today_expenses'])->toBe(5.50)
+        ->and($financeReply['structured_data']['today_net_profit'])->toBe(12.00);
+
+    // 4. Restaurant Admin Operational Command (Pause accepting orders requires confirmation, then executes, then resumes)
+    $commandReply = $agent->respond('تفعيل وضع الزحمة وإيقاف استقبال الطلبات مؤقتاً', $admin, $restaurant);
+    expect($commandReply['intent'])->toBe('operational_command')
+        ->and($commandReply['requires_confirmation'])->toBeTrue()
+        ->and($commandReply['pending_action']['action_type'])->toBe('pause_accepting_orders');
+
+    // Guest / unauthenticated manual HTTP request cannot execute operational command
+    $this->postJson(route('restaurant.ai-agent.assist', $restaurant->slug), [
+        'prompt' => 'إيقاف الطلبات',
+        'execute_action' => 'pause_accepting_orders',
+    ])->assertForbidden();
+    expect($restaurant->fresh()->is_accepting_orders)->toBeTrue();
+
+    // Authenticated Restaurant Admin pauses accepting orders
+    $pauseResponse = $this->actingAs($admin)
+        ->postJson(route('restaurant.ai-agent.assist', $restaurant->slug), [
+            'prompt' => 'تأكيد إيقاف استقبال الطلبات',
+            'execute_action' => 'pause_accepting_orders',
+        ])
+        ->assertOk();
+
+    expect($pauseResponse->json('structured_data.action_executed'))->toBeTrue()
+        ->and($restaurant->fresh()->is_accepting_orders)->toBeFalse();
+
+    // Authenticated Restaurant Admin resumes accepting orders
+    $resumeResponse = $this->actingAs($admin)
+        ->postJson(route('restaurant.ai-agent.assist', $restaurant->slug), [
+            'prompt' => 'تأكيد إعادة فتح الطلبات',
+            'execute_action' => 'resume_accepting_orders',
+        ])
+        ->assertOk();
+
+    expect($resumeResponse->json('structured_data.action_executed'))->toBeTrue()
+        ->and($restaurant->fresh()->is_accepting_orders)->toBeTrue();
+
+    // 5. Cross-tenant tampering with another restaurant's Order ID, Product ID, or Slug
+    $otherRestaurant = Restaurant::factory()->create([
+        'name' => 'مطعم منافس',
+        'slug' => 'competitor-rest',
+        'plan' => 'pro',
+        'is_active' => true,
+        'is_accepting_orders' => true,
+    ]);
+    $otherAdmin = User::factory()->create([
+        'restaurant_id' => $otherRestaurant->id,
+        'role' => 'restaurant_admin',
+        'is_active' => true,
+    ]);
+    $otherCategory = Category::factory()->create(['restaurant_id' => $otherRestaurant->id, 'is_active' => true]);
+    $otherProduct = Product::factory()->create([
+        'restaurant_id' => $otherRestaurant->id,
+        'category_id' => $otherCategory->id,
+        'name' => 'وجبة المطعم الثاني السرية',
+        'price' => 19.00,
+        'is_available' => true,
+    ]);
+    $otherOrder = Order::query()->create([
+        'restaurant_id' => $otherRestaurant->id,
+        'customer_name' => 'عميل المطعم الثاني',
+        'customer_phone' => '0790009999',
+        'delivery_type' => 'delivery',
+        'payment_method' => 'cash',
+        'payment_status' => 'verified',
+        'status' => 'ready',
+        'subtotal' => 40.00,
+        'delivery_fee' => 2.00,
+        'total_amount' => 42.00,
+        'final_amount' => 42.00,
+        'tracking_code' => 'ORD-OTHER-2',
+    ]);
+
+    // Admin 1 cannot execute pause_accepting_orders on Restaurant 2 via URL slug or body restaurant_slug
+    $this->actingAs($admin)
+        ->postJson(route('restaurant.ai-agent.assist', $otherRestaurant->slug), [
+            'prompt' => 'أوقف الطلبات',
+            'execute_action' => 'pause_accepting_orders',
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->postJson(route('ai-agent.assist'), [
+            'prompt' => 'أوقف الطلبات',
+            'restaurant_slug' => $otherRestaurant->slug,
+            'execute_action' => 'pause_accepting_orders',
+        ])
+        ->assertForbidden();
+
+    expect($otherRestaurant->fresh()->is_accepting_orders)->toBeTrue();
+
+    // Admin 1 cannot toggle availability of Restaurant 2's product even through Restaurant 1's endpoint
+    $this->actingAs($admin)
+        ->postJson(route('restaurant.ai-agent.assist', $restaurant->slug), [
+            'prompt' => 'تعطيل صنف',
+            'execute_action' => 'toggle_product_availability',
+            'action_payload' => ['product_id' => $otherProduct->id, 'is_available' => false],
+        ])
+        ->assertForbidden();
+
+    expect($otherProduct->fresh()->is_available)->toBeTrue();
+
+    // Querying Restaurant 1's endpoint with Restaurant 2's order_id or tracking_code returns null tracked_order
+    $tamperedTrack = $agent->respond('تتبع الطلب ORD-OTHER-2', null, $restaurant, [
+        'order_id' => $otherOrder->id,
+        'tracking_code' => 'ORD-OTHER-2',
+    ]);
+    expect($tamperedTrack['structured_data']['tracked_order'])->toBeNull();
+
+    // 6. External LLM Provider HTTP 500 error & ambiguous Arabic prompt fallback gracefully to deterministic DB reply
+    Config::set('services.gemini.key', 'test-invalid-or-failing-key');
+    Http::fake([
+        'generativelanguage.googleapis.com/*' => Http::response(['error' => ['message' => 'Internal error']], 500),
+    ]);
+
+    $ambiguousReply = $agent->respond('مرحبا ممكن مساعدة ؟', null, $restaurant);
+    expect($ambiguousReply['intent'])->toBe('menu_recommendation')
+        ->and($ambiguousReply['reply'])->toContain($restaurant->name);
+});
+
+
